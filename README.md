@@ -3,7 +3,7 @@
 > Gamified book reading platform — daily streaks, leaderboards, PDF reader, personalized recommendations.
 
 **Student:** Ajdin Mehmedović | **Index:** IB220088  
-**Course:** Razvoj softvera II — FIT Sarajevo
+**Course:** Razvoj softvera II — FIT Mostar
 
 ---
 
@@ -131,7 +131,7 @@ inkril-books-app/
 │   └── docker-compose.yml
 ├── mobile/                # Flutter mobile (user-facing)
 ├── desktop/               # Flutter desktop (admin)
-├── CLAUDE.md              # Full architecture guide
+
 └── .env.example
 ```
 
