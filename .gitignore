@@ -82,3 +82,7 @@ Desktop.ini
 
 # ── Uploads / user content (store in blob storage, not git) ─
 backend/src/Inkril.API/wwwroot/uploads/
+
+# ── Local tooling config (not part of the project) ────────
+CLAUDE.md
+.claude/

@@ -2,9 +2,9 @@
 
 ## Getting Started
 
-1. Read `CLAUDE.md` for full architecture documentation
+1. Read the `README.md` for full architecture and setup documentation
 2. Create a feature branch from `main`: `git checkout -b feature/your-feature`
-3. Follow the coding conventions in `.editorconfig` and `CLAUDE.md`
+3. Follow the coding conventions in `.editorconfig`
 4. Submit a pull request with a clear description
 
 ## Branch Naming
@@ -36,7 +36,7 @@ Scopes: `api`, `worker`, `mobile`, `desktop`, `infra`, `domain`
 ## Flutter
 
 - Feature-first folder structure: `lib/features/<feature>/`
-- State management: Riverpod — use `AsyncNotifierProvider` for async state
+- State management: Riverpod — use `FutureProvider` for async, `StateNotifierProvider` for complex state
 - API URL must be configured via `--dart-define=API_BASE_URL=...`, never hardcoded
 - Run `flutter analyze` before committing
 

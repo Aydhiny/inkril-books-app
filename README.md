@@ -31,6 +31,59 @@
 
 ---
 
+## Environment Setup
+
+Copy the example file and fill in your values before starting anything:
+
+```bash
+cp .env.example .env
+```
+
+### Backend variables (used by Docker Compose + dotnet run)
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `POSTGRES_DB` | Database name (must match index number) | `220088` |
+| `POSTGRES_USER` | PostgreSQL username | `inkril` |
+| `POSTGRES_PASSWORD` | PostgreSQL password — **change this** | `strongpassword` |
+| `JWT_KEY` | JWT signing secret — **min 32 characters** | `my-super-secret-key-32-chars!!` |
+| `JWT_ISSUER` | Token issuer claim | `inkril-api` |
+| `JWT_AUDIENCE` | Token audience claim | `inkril-clients` |
+| `JWT_EXPIRY_MINUTES` | Access token lifetime | `60` |
+| `JWT_REFRESH_EXPIRY_DAYS` | Refresh token lifetime | `7` |
+| `RABBITMQ_HOST` | RabbitMQ hostname (Docker service name) | `rabbitmq` |
+| `RABBITMQ_USERNAME` | RabbitMQ username | `inkril` |
+| `RABBITMQ_PASSWORD` | RabbitMQ password — **change this** | `strongpassword` |
+| `SMTP_HOST` | SMTP server for outgoing email | `smtp.gmail.com` |
+| `SMTP_PORT` | SMTP port | `587` |
+| `SMTP_USERNAME` | SMTP login | `you@gmail.com` |
+| `SMTP_PASSWORD` | SMTP password / app password | `apppassword` |
+| `REDIS_HOST` | Redis hostname (Docker service name) | `redis` |
+| `REDIS_PASSWORD` | Redis password | `strongpassword` |
+| `API_PORT` | Port the API listens on | `8080` |
+
+> When running **without Docker**, set `DB_HOST=localhost`, `RABBITMQ_HOST=localhost`, `REDIS_HOST=localhost`
+> and export the variables in your shell or use `appsettings.Development.json`.
+
+### Flutter (mobile & desktop)
+
+Flutter apps do **not** read `.env` — the API URL is injected at build time via `--dart-define`:
+
+```bash
+# Android emulator (10.0.2.2 routes to host machine localhost)
+flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8080
+
+# iOS simulator / physical device on the same network
+flutter run --dart-define=API_BASE_URL=http://192.168.1.x:8080
+
+# Desktop (Windows/macOS/Linux)
+flutter run -d windows --dart-define=API_BASE_URL=http://localhost:8080
+```
+
+Never hardcode the URL in Dart source — it is read from `AppConfig.apiBaseUrl` which is wired to the `--dart-define` value.
+
+---
+
 ## Running with Docker (recommended)
 
 ```bash
