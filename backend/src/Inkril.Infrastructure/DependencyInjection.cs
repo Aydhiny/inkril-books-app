@@ -1,0 +1,60 @@
+using Inkril.Application.Common.Interfaces;
+using Inkril.Application.Features.Auth.Commands;
+using Inkril.Domain.Entities;
+using Inkril.Infrastructure.Data;
+using Inkril.Infrastructure.Data.Repositories;
+using Inkril.Infrastructure.Data.SeedData;
+using Inkril.Infrastructure.Messaging;
+using Inkril.Infrastructure.Services;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using StackExchange.Redis;
+
+namespace Inkril.Infrastructure;
+
+public static class DependencyInjection
+{
+    public static IServiceCollection AddInfrastructure(
+        this IServiceCollection services, IConfiguration config)
+    {
+        // ── Database ──────────────────────────────────────────────────────
+        services.AddDbContext<InkrilDbContext>(opt =>
+            opt.UseNpgsql(config.GetConnectionString("Default")
+               ?? throw new InvalidOperationException("ConnectionStrings:Default not configured")));
+
+        // ── ASP.NET Identity ──────────────────────────────────────────────
+        services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(opt =>
+        {
+            opt.Password.RequireNonAlphanumeric = false;
+            opt.Password.RequireUppercase = false;
+            opt.Password.RequiredLength = 6;
+            opt.User.RequireUniqueEmail = true;
+        })
+        .AddEntityFrameworkStores<InkrilDbContext>()
+        .AddDefaultTokenProviders();
+
+        // ── Repositories / UoW ───────────────────────────────────────────
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+        // ── Services ─────────────────────────────────────────────────────
+        services.AddScoped<ICurrentUserService, CurrentUserService>();
+        services.AddScoped<IEmailService, EmailService>();
+        services.AddScoped<IRecommendationService, RecommendationService>();
+        services.AddScoped<ITokenService, TokenService>();
+
+        // ── Messaging (RabbitMQ) ─────────────────────────────────────────
+        services.AddSingleton<IMessagePublisher, RabbitMqPublisher>();
+
+        // ── Redis (caching leaderboard etc.) ─────────────────────────────
+        var redisConn = config["Redis:ConnectionString"];
+        if (!string.IsNullOrEmpty(redisConn))
+            services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(redisConn));
+
+        // ── Seed data ─────────────────────────────────────────────────────
+        services.AddScoped<DataSeeder>();
+
+        return services;
+    }
+}
