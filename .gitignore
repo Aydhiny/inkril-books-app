@@ -1,0 +1,84 @@
+# ============================================================
+# Inkril — Flutter + .NET — .gitignore
+# ============================================================
+
+# ── .NET / C# ──────────────────────────────────────────────
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.userprefs
+*.pidb
+*.sln.cache
+[Pp]ackages/
+artifacts/
+*.nupkg
+*.snupkg
+*.log
+TestResults/
+BenchmarkDotNet.Artifacts/
+project.lock.json
+project.fragment.lock.json
+StyleCopReport.xml
+
+# EF Core migrations auto-generated snapshot — keep migrations but exclude IDE noise
+# (We DO commit migration files, only exclude build artifacts)
+
+# ── Flutter / Dart ─────────────────────────────────────────
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+*.iml
+*.ipr
+*.iws
+.idea/
+.DS_Store
+*.class
+*.log
+*.lock
+
+# Flutter generated files
+lib/generated_plugin_registrant.dart
+*.g.dart
+*.freezed.dart
+
+# ── Environment & Secrets ──────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+secrets.json
+appsettings.local.json
+
+# ── Docker ────────────────────────────────────────────────
+docker-compose.override.yml
+
+# ── IDE ───────────────────────────────────────────────────
+.vscode/
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+.vs/
+*.swp
+*.swo
+*~
+.idea/
+
+# ── OS ────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ── GitHub Actions cache ──────────────────────────────────
+.cache/
+
+# ── Uploads / user content (store in blob storage, not git) ─
+backend/src/Inkril.API/wwwroot/uploads/
