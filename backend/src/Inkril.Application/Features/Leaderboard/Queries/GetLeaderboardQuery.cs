@@ -19,17 +19,10 @@ public class GetLeaderboardQueryHandler(IUnitOfWork uow)
 {
     public async Task<LeaderboardResult> Handle(GetLeaderboardQuery q, CancellationToken ct)
     {
-        // Get friend IDs first — leaderboard is friends-only
-        var friendIds = await uow.Friendships.Query()
-            .Where(f => f.UserId == q.RequestingUserId || f.FriendId == q.RequestingUserId)
-            .Select(f => f.UserId == q.RequestingUserId ? f.FriendId : f.UserId)
-            .ToListAsync(ct);
-
-        // Include requesting user themselves
-        var participantIds = friendIds.Append(q.RequestingUserId).Distinct().ToList();
-
+        // Global leaderboard — show all users so it's populated even for new accounts.
+        // Friends can be highlighted on the client side with the currentUserEntry.
         var stats = await uow.DailyReadingStats.Query()
-            .Where(s => participantIds.Contains(s.UserId) && !s.IsDeleted)
+            .Where(s => !s.IsDeleted)
             .GroupBy(s => new { s.UserId, s.User.UserName, s.User.ProfilePhotoUrl })
             .Select(g => new
             {

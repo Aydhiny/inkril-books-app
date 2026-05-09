@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -31,6 +32,27 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   String? _sessionId;
   String _bookTitle = '';
 
+  // ── Reading timer ──────────────────────────────────────────────────────────
+  Timer? _readingTimer;
+  int _elapsedSeconds = 0;
+
+  String get _elapsedFormatted {
+    final m = _elapsedSeconds ~/ 60;
+    final s = _elapsedSeconds % 60;
+    if (m >= 60) {
+      final h = m ~/ 60;
+      return '${h}h ${(m % 60)}m';
+    }
+    if (m > 0) return '${m}m ${s.toString().padLeft(2, '0')}s';
+    return '${s}s';
+  }
+
+  void _startTimer() {
+    _readingTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _elapsedSeconds++);
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -40,6 +62,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
   @override
   void dispose() {
+    _readingTimer?.cancel();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _endSession();
     super.dispose();
@@ -81,6 +104,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         _currentPage = startPage;
         _downloading = false;
       });
+      _startTimer(); // begin counting reading time
     } catch (e) {
       setState(() {
         _error = 'Failed to load book: $e';
@@ -104,8 +128,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     if (_sessionId == null) return;
     try {
       final dio = ref.read(dioProvider);
-      await dio.put('/api/reading-sessions/$_sessionId/end',
-          data: {'endPage': _currentPage});
+      final minutesRead = (_elapsedSeconds / 60).ceil().clamp(1, 9999);
+      await dio.put('/api/reading-sessions/$_sessionId/end', data: {
+        'endPage': _currentPage,
+        'durationMinutes': minutesRead,
+      });
       ref.invalidate(userLibraryProvider);
       ref.invalidate(bookDetailProvider(widget.bookId));
     } catch (_) {}
@@ -161,6 +188,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
             child: _TopBar(
               bookTitle: _bookTitle,
               bookmarksActive: _showBookmarksPanel,
+              elapsedFormatted: _elapsedFormatted,
               onBack: () => Navigator.of(context).pop(),
               onBookmark: _addBookmark,
               onToggleBookmarks: () =>
@@ -191,6 +219,20 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
             ),
           ),
 
+          // ── Bookmarks scrim — tap outside the panel to close ────────
+          if (_showBookmarksPanel)
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => setState(() => _showBookmarksPanel = false),
+                child: AnimatedOpacity(
+                  opacity: _showBookmarksPanel ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 220),
+                  child: Container(color: Colors.black.withValues(alpha: 0.35)),
+                ),
+              ),
+            ),
+
           // ── Bookmarks side panel ─────────────────────────────────────
           AnimatedSlide(
             offset: _showBookmarksPanel
@@ -202,6 +244,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               alignment: Alignment.centerRight,
               child: _BookmarksPanel(
                 bookId: widget.bookId,
+                onClose: () => setState(() => _showBookmarksPanel = false),
                 onGoToPage: (page) {
                   _pdfController?.setPage(page - 1);
                   setState(() => _showBookmarksPanel = false);
@@ -344,6 +387,7 @@ class _ErrorView extends StatelessWidget {
 class _TopBar extends StatelessWidget {
   final String bookTitle;
   final bool bookmarksActive;
+  final String elapsedFormatted;
   final VoidCallback onBack;
   final VoidCallback onBookmark;
   final VoidCallback onToggleBookmarks;
@@ -351,6 +395,7 @@ class _TopBar extends StatelessWidget {
   const _TopBar({
     required this.bookTitle,
     required this.bookmarksActive,
+    required this.elapsedFormatted,
     required this.onBack,
     required this.onBookmark,
     required this.onToggleBookmarks,
@@ -372,8 +417,7 @@ class _TopBar extends StatelessWidget {
           height: 56,
           child: Row(children: [
             IconButton(
-              icon:
-                  const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+              icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
               color: AppTheme.primary,
               onPressed: onBack,
             ),
@@ -383,15 +427,38 @@ class _TopBar extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  fontSize: 16,
+                  fontSize: 15,
                   fontWeight: FontWeight.w700,
                   color: Color(0xFF1F2937),
                 ),
               ),
             ),
+            // Live reading timer badge
+            Container(
+              margin: const EdgeInsets.only(right: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppTheme.primarySurface,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFD8B4FE), width: 1.5),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.timer_outlined,
+                    size: 13, color: AppTheme.primary),
+                const SizedBox(width: 3),
+                Text(
+                  elapsedFormatted,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.primary,
+                  ),
+                ),
+              ]),
+            ),
             // Add bookmark
             IconButton(
-              icon: const Icon(Icons.bookmark_add_outlined, size: 24),
+              icon: const Icon(Icons.bookmark_add_outlined, size: 22),
               color: AppTheme.primary,
               tooltip: 'Add Bookmark',
               onPressed: onBookmark,
@@ -404,8 +471,9 @@ class _TopBar extends StatelessWidget {
                     : Icons.bookmarks_outlined,
                 size: 22,
               ),
-              color:
-                  bookmarksActive ? AppTheme.primary : const Color(0xFF9CA3AF),
+              color: bookmarksActive
+                  ? AppTheme.primary
+                  : const Color(0xFF9CA3AF),
               tooltip: 'Bookmarks',
               onPressed: onToggleBookmarks,
             ),
@@ -530,9 +598,14 @@ class _PageButton extends StatelessWidget {
 
 class _BookmarksPanel extends ConsumerWidget {
   final String bookId;
+  final VoidCallback onClose;
   final void Function(int page) onGoToPage;
 
-  const _BookmarksPanel({required this.bookId, required this.onGoToPage});
+  const _BookmarksPanel({
+    required this.bookId,
+    required this.onClose,
+    required this.onGoToPage,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -554,7 +627,7 @@ class _BookmarksPanel extends ConsumerWidget {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           // Header
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            padding: const EdgeInsets.fromLTRB(12, 12, 4, 8),
             child: Row(children: [
               const Icon(Icons.bookmarks_rounded,
                   color: AppTheme.primary, size: 20),
@@ -578,6 +651,13 @@ class _BookmarksPanel extends ConsumerWidget {
                   ),
                 ),
                 orElse: () => const SizedBox.shrink(),
+              ),
+              // Explicit close button — much easier to find than swipe/scrim
+              IconButton(
+                icon: const Icon(Icons.close_rounded, size: 22),
+                color: const Color(0xFF6B7280),
+                tooltip: 'Close',
+                onPressed: onClose,
               ),
             ]),
           ),

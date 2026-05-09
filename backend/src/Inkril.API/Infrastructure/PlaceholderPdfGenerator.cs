@@ -109,6 +109,59 @@ public static class PlaceholderPdfGenerator
                 "fishermen. But not all of them knew of his existence; only a few of them, as\n" +
                 "yet, had heard of the White Whale, knew of the White Whale, gazed on the White\n" +
                 "Whale. The White Whale — Moby Dick.",
+
+                // Page 7
+                "CHAPTER 41 — Moby Dick\n\n" +
+                "I, Ishmael, was one of that crew; my shouts had gone up with the rest; my oath\n" +
+                "had been welded with theirs; and stronger I shouted, and more did I hammer and\n" +
+                "clinch my oath, because of the dread in my soul.\n\n" +
+                "Moby Dick had been seen, before he was finally attacked, by various ships, and\n" +
+                "by different captains; and in each of their accounts of the whale, each captain\n" +
+                "would bestow upon him a special attribute peculiar to that encounter.\n\n" +
+                "He was a creature of uncommon magnitude and malignity, which, combining with\n" +
+                "his unexampled intelligence, had, in many prolonged, repeated experiences,\n" +
+                "made him more strangely hideous than the waves themselves — more hideous,\n" +
+                "even, than the darkness of death.",
+
+                // Page 8
+                "CHAPTER 119 — The Candles\n\n" +
+                "The appearance of the ship was as a mast that had just been struck by lightning\n" +
+                "and burned down to its stump. Three of the mast-heads were tipped with a\n" +
+                "pallid fire; and all three long lance-poles of the royal masts were corposant.\n\n" +
+                "\"The white flame but lights the way to the White Whale!\" cried Ahab.\n\n" +
+                "The corpusants did light it. Ahab bent his head forward over the sea, the\n" +
+                "lightning playing round him, lighting every plank and seam of his face.\n\n" +
+                "\"I own thy speechless, placeless power; said I not so? Nor was it wrung from\n" +
+                "me; nor do I now drop these links. Thou canst blind; but I can then grope.\n" +
+                "Thou canst consume; but I can then be ashes.\"",
+
+                // Page 9
+                "CHAPTER 135 — The Chase — Third Day\n\n" +
+                "The morning of the third day dawned fair and fresh, and once more the solitary\n" +
+                "night-man at the fore-mast-head was relieved by crowds of the daylight look-outs.\n\n" +
+                "\"There she blows — there she blows! A hump like a snow-hill! It is Moby Dick!\"\n\n" +
+                "Fired by the cry which seemed simultaneously taken up by the three look-outs,\n" +
+                "the men on deck rushed to the rigging to behold the famous whale they had so\n" +
+                "long been pursuing. Ahab had now gained his final perch, some feet above the\n" +
+                "other look-outs, Tashtego standing just beneath him on the cap of the top-gallant-mast.\n\n" +
+                "\"Aye, aye! and I'll chase him round Good Hope, and round the Horn, and round\n" +
+                "the Norway Maelstrom, and round perdition's flames before I give him up!\"",
+
+                // Page 10
+                "EPILOGUE\n\n" +
+                "\"And I only am escaped alone to tell thee\" — Job\n\n" +
+                "The drama's done. Why then here does any one step forth? — Because one did\n" +
+                "survive the wreck.\n\n" +
+                "It so chanced, that after the Parsee's disappearance, I was he whom the Fates\n" +
+                "ordained to take the place of Ahab's bowsman, when that bowsman assumed the\n" +
+                "vacant post; the same, who, when on the last day the three men were tossed\n" +
+                "from out the rocking boat, was dropped astern.\n\n" +
+                "Buoyed up by that coffin, for almost one whole day and night, I floated on\n" +
+                "a soft and dirge-like main. The unharming sharks, they glided by as if with\n" +
+                "padlocks on their mouths; the savage sea-hawks sailed with sheathed beaks.\n\n" +
+                "On the second day, a sail drew near, nearer, and picked me up at last.\n" +
+                "It was the devious-cruising Rachel, that in her retracing search after her\n" +
+                "missing children, only found another orphan.",
             ]
         ),
 
@@ -196,6 +249,60 @@ public static class PlaceholderPdfGenerator
                 "a heretical thought — that is, a thought diverging from the principles of\n" +
                 "Ingsoc — should be literally unthinkable, at least so far as thought is\n" +
                 "dependent on words.",
+
+                // Page 7
+                "PART TWO — VII\n\n" +
+                "It had happened at last. The expected message had come. All his life, it\n" +
+                "seemed to Winston, he had been waiting for this to happen.\n\n" +
+                "He was walking down the long corridor at the Ministry, and he was almost at\n" +
+                "the telescreen, and then a girl was coming towards him. She was the girl with\n" +
+                "the dark hair. Four or five seconds they were abreast of each other.\n\n" +
+                "She had slipped something into his hand. There was no doubt that she had\n" +
+                "done it intentionally. It was a small roll of paper.\n\n" +
+                "He flattened it out. On it was written, in a large unformed handwriting:\n\n" +
+                "I LOVE YOU.",
+
+                // Page 8
+                "PART THREE — I\n\n" +
+                "He did not know where he was. Presumably he was in the Ministry of Love,\n" +
+                "but there was no way of making certain.\n\n" +
+                "He was in a high-ceilinged windowless cell with walls of glittering white\n" +
+                "porcelain. Concealed lamps flooded it with cold light, and there was a\n" +
+                "low, steady humming sound which he supposed had something to do with the\n" +
+                "air supply.\n\n" +
+                "\"Room 101,\" said the officer.\n\n" +
+                "The cage was nearer; it was closing in. Winston heard a succession of shrill\n" +
+                "cries which appeared to be coming from outside. He pressed his hands over\n" +
+                "his face, trying to feel the cheekbones. The cheekbones felt right.\n\n" +
+                "\"Do it to Julia! Do it to Julia! Not me! Julia!\"",
+
+                // Page 9
+                "PART THREE — VI\n\n" +
+                "He was in the Ministry of Love, with everything forgiven, his soul white as\n" +
+                "snow. He was in the public dock, confessing everything, implicating everybody.\n\n" +
+                "He had walked miles over pavements, and his varicose ulcer had swelled up\n" +
+                "until he walked with difficulty.\n\n" +
+                "A waiter came and took away the nearly-untouched glass and the chessboard.\n" +
+                "Winston looked at the enormous face. Forty years it had taken him to learn\n" +
+                "what kind of smile was hidden beneath the dark moustache.\n\n" +
+                "O cruel, needless misunderstanding! O stubborn, self-willed exile from the\n" +
+                "loving breast! Two gin-scented tears trickled down the sides of his nose.\n" +
+                "But it was all right, everything was all right, the struggle was finished.\n" +
+                "He had won the victory over himself. He loved Big Brother.",
+
+                // Page 10
+                "AUTHOR'S NOTE — George Orwell, 1948\n\n" +
+                "This book was written between 1947 and 1948, during a period of illness.\n" +
+                "The world it describes is not an exact portrait of any country, but a\n" +
+                "warning: totalitarianism, of whichever kind, leads inevitably to this.\n\n" +
+                "The proles, if only they could somehow become conscious of their own\n" +
+                "strength, would have no need to conspire. They needed only to rise up and\n" +
+                "shake themselves like a horse shaking off flies.\n\n" +
+                "\"If you want a picture of the future, imagine a boot stamping on a human\n" +
+                "face — forever.\"\n\n" +
+                "But perhaps the future is not yet determined. Perhaps there is still time.\n" +
+                "Perhaps there will always be time — as long as there are people who remember\n" +
+                "that 2 + 2 = 4, and are willing to say so.",
             ]
         ),
 
@@ -289,6 +396,61 @@ public static class PlaceholderPdfGenerator
                 "the trees that had made way for Gatsby's house, had once pandered in whispers\n" +
                 "to the last and greatest of all human dreams; for a transitory enchanted moment\n" +
                 "man must have held his breath in the presence of this continent.",
+
+                // Page 7
+                "CHAPTER IV — The Party\n\n" +
+                "On Sunday morning while church bells rang in the villages along shore,\n" +
+                "the world and its mistress returned to Gatsby's house and twinkled hilariously\n" +
+                "on his lawn.\n\n" +
+                "\"He's a bootlegger,\" said the young ladies, moving somewhere between his\n" +
+                "cocktails and his flowers. \"One time he killed a man who had found out that\n" +
+                "he was nephew to Von Hindenburg and second cousin to the devil. Reach me a\n" +
+                "rose, honey, and pour me a last drop into that there crystal glass.\"\n\n" +
+                "Once I wrote down on the empty spaces of a time-table the names of those\n" +
+                "who came to Gatsby's house that summer. It is an old time-table now,\n" +
+                "disintegrating at its folds, and headed \"This schedule in effect July 5th, 1922.\"",
+
+                // Page 8
+                "CHAPTER V — Reunited\n\n" +
+                "When I came home to West Egg that night I was afraid for a moment that my\n" +
+                "house was on fire. Two o'clock and the whole corner of the peninsula was\n" +
+                "blazing with light, which fell unreal on the shrubbery and made thin elongating\n" +
+                "glints upon the roadside wires.\n\n" +
+                "Gatsby's house was still empty when I left — the lights in the living room\n" +
+                "still blazed, still the empty corner by the fireplace, still the glass and the\n" +
+                "dying flowers. On the last night, with my trunk packed and my car sold to the\n" +
+                "grocer, I went over and looked at that huge incoherent failure of a house once more.\n\n" +
+                "The lawn and drive had been crowded with the faces of those who guessed at\n" +
+                "his corruption — and he had stood on those steps, concealing his incorruptible dream.",
+
+                // Page 9
+                "CHAPTER VII — The Heat\n\n" +
+                "It was when curiosity about Gatsby was at its highest that the lights in his\n" +
+                "house failed to go on one Saturday night.\n\n" +
+                "\"What's the matter?\" demanded Daisy impatiently.\n\n" +
+                "\"I did love him once — but I loved you too.\"\n\n" +
+                "Gatsby's eyes opened and closed. \"You loved me too?\" he repeated.\n\n" +
+                "\"Even that's a lie,\" said Tom savagely. \"She didn't know you were alive.\n" +
+                "Why — there are things between Daisy and me that you'll never know, things\n" +
+                "that neither of us can ever forget.\"\n\n" +
+                "The words seemed to bite physically into Gatsby.\n\n" +
+                "\"I want to speak to Daisy alone,\" he insisted. \"She's all worked up —\"\n\n" +
+                "\"Even alone I can't say I never loved Tom,\" she admitted in a pitiful voice.\n" +
+                "\"It wouldn't be true.\"",
+
+                // Page 10
+                "FINAL NOTE — F. Scott Fitzgerald\n\n" +
+                "Gatsby believed in the green light, the orgastic future that year by year\n" +
+                "recedes before us. It eluded us then, but that's no matter — tomorrow we\n" +
+                "will run faster, stretch out our arms farther.\n\n" +
+                "And one fine morning —\n\n" +
+                "So we beat on, boats against the current.\n\n" +
+                "The Great Gatsby was published on April 10, 1925, to mixed reviews.\n" +
+                "Fitzgerald was disappointed by its reception. He died in 1940, never knowing\n" +
+                "that his novel would become one of the greatest works of American literature.\n\n" +
+                "Today it sells over half a million copies each year.\n\n" +
+                "\"So we beat on, boats against the current, borne back ceaselessly into the past.\"\n" +
+                "This closing line is arguably the most famous sentence in American fiction.",
             ]
         ),
 
@@ -382,6 +544,67 @@ public static class PlaceholderPdfGenerator
                 "nervous and invariably silly.\n\n" +
                 "Mr. Bennet missed his second daughter exceedingly; his affection for her drew\n" +
                 "him oftener from home than any thing else could do.",
+
+                // Page 7
+                "CHAPTER XVIII — The Ball at Netherfield\n\n" +
+                "Till Elizabeth entered the drawing-room at Netherfield, and looked in vain for\n" +
+                "Mr. Wickham among the cluster of red coats there assembled, a doubt of his\n" +
+                "being present had never occurred to her.\n\n" +
+                "She had dressed with more than usual care, and prepared in the highest spirits\n" +
+                "for the conquest of all that remained unsubdued of his heart, trusting that it\n" +
+                "was not more than might be won in the course of the evening.\n\n" +
+                "But in an instant arose the dreadful suspicion of his being purposely omitted\n" +
+                "for Mr. Darcy's pleasure in the Bingleys' invitation to the officers. This was\n" +
+                "not exactly a charitable surmise, and once made, it was indulged without scruple.\n\n" +
+                "\"I remember hearing you once say, Mr. Darcy, that you hardly ever forgave,\n" +
+                "that your resentment once created was unappeasable. You are very cautious,\n" +
+                "I suppose, as to its being created.\"",
+
+                // Page 8
+                "CHAPTER XXXVI — The Letter's Effect\n\n" +
+                "If Elizabeth, when Mr. Darcy gave her the letter, did not expect it to contain\n" +
+                "a renewal of his offers, she had formed no expectation at all of its contents.\n\n" +
+                "But such as they were, it may well be supposed how eagerly she went through\n" +
+                "them, and what a contrariety of emotion they excited.\n\n" +
+                "She read with an eagerness which hardly left her power of comprehension, and\n" +
+                "from impatience of knowing what the next sentence might bring, was incapable\n" +
+                "of attending to the sense of the one before her eyes.\n\n" +
+                "\"How despicably have I acted!\" she cried. \"I, who have prided myself on my\n" +
+                "discernment! I, who have valued myself on my abilities! who have often disdained\n" +
+                "the generous candour of my sister, and gratified my vanity, in useless or\n" +
+                "blameable distrust. How humiliating is this discovery!\"",
+
+                // Page 9
+                "CHAPTER XLIII — Pemberley\n\n" +
+                "Elizabeth, as they drove along, watched for the first appearance of Pemberley\n" +
+                "Woods with some perturbation; and when at length they turned in at the lodge,\n" +
+                "her spirits were in a high flutter.\n\n" +
+                "The park was very large, and contained great variety of ground. They entered\n" +
+                "it in one of its lowest points, and drove for some time through a beautiful\n" +
+                "wood stretching over a wide extent.\n\n" +
+                "Elizabeth's mind was too full for conversation, but she saw and admired every\n" +
+                "remarkable spot and point of view. They gradually ascended for half-a-mile,\n" +
+                "and then found themselves at the top of a considerable eminence, where the\n" +
+                "wood ceased, and the eye was instantly caught by Pemberley House.\n\n" +
+                "It was a large, handsome stone building, standing well on rising ground,\n" +
+                "and backed by a ridge of high woody hills; and in front, a stream of some\n" +
+                "natural importance was swelled into greater, but without any artificial\n" +
+                "appearance. Its banks were neither formal nor falsely adorned.",
+
+                // Page 10
+                "JANE AUSTEN — A NOTE\n\n" +
+                "Pride and Prejudice was first published on 28 January 1813. The novel had\n" +
+                "been written between October 1796 and August 1797, and was originally titled\n" +
+                "First Impressions.\n\n" +
+                "Austen revised it substantially before publication. The opening sentence —\n" +
+                "\"It is a truth universally acknowledged, that a single man in possession of\n" +
+                "a good fortune, must be in want of a wife\" — has become one of the most\n" +
+                "celebrated first lines in the English language.\n\n" +
+                "The novel has been adapted into numerous films, television series, and stage\n" +
+                "productions. It remains one of the best-selling novels of all time, with\n" +
+                "over 20 million copies sold.\n\n" +
+                "\"I declare after all there is no enjoyment like reading! How much sooner\n" +
+                "one tires of any thing than of a book!\" — Miss Bingley, Chapter XI",
             ]
         ),
 
@@ -469,6 +692,58 @@ public static class PlaceholderPdfGenerator
                 "the future. He had seen his own death in a thousand futures. And in the\n" +
                 "one future that he chose, all humanity paid the price.\n\n" +
                 "\"God created Arrakis to train the faithful,\" the Fremen said. And it was true.",
+
+                // Page 7
+                "THE FREMEN PROVERBS\n\n" +
+                "The first step in avoiding a trap is knowing it exists.\n\n" +
+                "Respect for the truth comes close to God. Arrakis teaches the attitude\n" +
+                "of the knife — chopping off what's incomplete and saying: \"Now it's complete\n" +
+                "because it's ended here.\"\n\n" +
+                "He who controls the spice controls the universe.\n\n" +
+                "The mystery of life isn't a problem to solve, but a reality to experience.\n\n" +
+                "A process cannot be understood by stopping it. Understanding must move with\n" +
+                "the flow of the process, must join it and flow with it.\n\n" +
+                "\"My father once told me that respect for the truth comes close to God. Lying\n" +
+                "is the only profanity — the only sin that cannot be forgiven.\"\n\n" +
+                "You cannot go back. The arrow does not return to the bow.",
+
+                // Page 8
+                "THE SANDWORMS OF ARRAKIS\n\n" +
+                "Deep in the desert, where no man dared walk, the Makers moved. The sandworms\n" +
+                "of Arrakis — Shai-Hulud, the Old Man of the Desert, the Grandfather of the\n" +
+                "Desert, Shaitan of the desert — these were the makers of spice.\n\n" +
+                "Paul had seen it in visions: the worms as giant sandtrout in another age,\n" +
+                "before the desert came. He had seen the ecological niche they filled,\n" +
+                "the way they moved through sand as easily as a man through air.\n\n" +
+                "To ride a worm was to claim Arrakis itself.\n\n" +
+                "Stilgar extended his arm and Paul saw the ring of hooks on his palm.\n" +
+                "\"You must place them precisely,\" Stilgar said, \"or the worm will turn on you.\"",
+
+                // Page 9
+                "CHANI'S LAMENT\n\n" +
+                "I am Chani, daughter of Liet-Kynes. I am a Fremen. I have no home but\n" +
+                "the desert. I have no water but the moisture of my own tears.\n\n" +
+                "\"The land is our skin,\" my father said. \"To harm the land is to harm ourselves.\"\n\n" +
+                "Paul came to us from off-world, as the prophecy said. The Lisan al-Gaib.\n" +
+                "But prophecies are tools of control, my father warned. The Bene Gesserit\n" +
+                "had seeded those words among us generations ago to serve their own purposes.\n\n" +
+                "And yet — I watched him ride the worm. I watched him call the rain.\n" +
+                "I watched him do what only a Fremen could do, and I loved him against my will.\n\n" +
+                "Power was always his weakness. And it became mine.",
+
+                // Page 10
+                "FRANK HERBERT — A NOTE ON DUNE\n\n" +
+                "Dune was first published in 1965 by Chilton Books. It had been rejected by\n" +
+                "more than twenty publishers before finding its home.\n\n" +
+                "Herbert conceived of the novel as an ecological parable. The spice, melange,\n" +
+                "was his metaphor for oil: a finite resource controlled by an empire,\n" +
+                "worth dying for, worth killing for.\n\n" +
+                "The novel won the Hugo Award and the inaugural Nebula Award for Best Novel.\n" +
+                "It remains the best-selling science fiction novel of all time.\n\n" +
+                "\"I am not saying that I wrote the Dune series as an ecological handbook,\n" +
+                "although ecology is certainly one of the novel's major themes.\"\n\n" +
+                "\"The bottom line of the Dune trilogy is: beware of heroes. Much better to\n" +
+                "rely on your own judgment, and your own mistakes.\" — Frank Herbert",
             ]
         ),
     ];

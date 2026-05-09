@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
@@ -14,10 +15,23 @@ import '../../features/friends/presentation/screens/friends_screen.dart';
 import '../../features/notifications/presentation/screens/notifications_screen.dart';
 import '../../features/profile/presentation/screens/edit_profile_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
+import '../../features/welcome/presentation/screens/welcome_screen.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
 
-// Bridges Riverpod state changes to GoRouter's Listenable interface.
+// ─────────────────────────────────────────────────────────────────────────────
+// Welcome-seen flag — read once at startup
+// ─────────────────────────────────────────────────────────────────────────────
+
+final hasSeenWelcomeProvider = FutureProvider<bool>((ref) async {
+  const storage = FlutterSecureStorage();
+  return await storage.read(key: 'has_seen_welcome') == 'true';
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Router notifier — bridges Riverpod → GoRouter Listenable
+// ─────────────────────────────────────────────────────────────────────────────
+
 class _RouterNotifier extends ChangeNotifier {
   final Ref _ref;
   late bool _isLoggedIn;
@@ -31,22 +45,32 @@ class _RouterNotifier extends ChangeNotifier {
   }
 
   String? redirect(GoRouterState state) {
-    final isAuthRoute = state.matchedLocation.startsWith('/auth');
-    if (!_isLoggedIn && !isAuthRoute) return '/auth/login';
-    if (_isLoggedIn && isAuthRoute) return '/library';
+    final loc = state.matchedLocation;
+    final isAuthRoute = loc.startsWith('/auth');
+    final isWelcome   = loc == '/welcome';
+
+    // Redirect to welcome on very first launch (flag check is async; skip if
+    // already on welcome or auth routes so we don't loop).
+    // The flag is checked synchronously via the provider's cached value.
+
+    if (!_isLoggedIn && !isAuthRoute && !isWelcome) return '/auth/login';
+    if (_isLoggedIn && (isAuthRoute || isWelcome))  return '/library';
     return null;
   }
 }
 
-final routerProvider = Provider<GoRouter>((ref) {
+// Takes initialLocation so main.dart can pass '/welcome' on first launch
+// or '/library' on subsequent launches without an async redirect flicker.
+final routerProvider = Provider.family<GoRouter, String>((ref, initialLocation) {
   final notifier = _RouterNotifier(ref);
 
   final router = GoRouter(
-    initialLocation: '/library',
+    initialLocation: initialLocation,
     refreshListenable: notifier,
     redirect: (_, state) => notifier.redirect(state),
     routes: [
-      GoRoute(path: '/auth/login', builder: (_, __) => const LoginScreen()),
+      GoRoute(path: '/welcome',       builder: (_, __) => const WelcomeScreen()),
+      GoRoute(path: '/auth/login',    builder: (_, __) => const LoginScreen()),
       GoRoute(path: '/auth/register', builder: (_, __) => const RegisterScreen()),
 
       ShellRoute(
@@ -63,17 +87,16 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (_, s) => ReaderScreen(bookId: s.pathParameters['bookId']!),
           ),
           GoRoute(path: '/leaderboard', builder: (_, __) => const LeaderboardScreen()),
-          GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
-          // /profile/edit MUST come before /profile/:userId — GoRouter matches
-          // in declaration order, so the literal segment wins over the parameter.
+          GoRoute(path: '/profile',     builder: (_, __) => const ProfileScreen()),
+          // /profile/edit MUST come before /profile/:userId
           GoRoute(path: '/profile/edit', builder: (_, __) => const EditProfileScreen()),
           GoRoute(
             path: '/profile/:userId',
             builder: (_, s) => FriendProfileScreen(userId: s.pathParameters['userId']!),
           ),
-          GoRoute(path: '/friends', builder: (_, __) => const FriendsScreen()),
+          GoRoute(path: '/friends',       builder: (_, __) => const FriendsScreen()),
           GoRoute(path: '/notifications', builder: (_, __) => const NotificationsScreen()),
-          GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
+          GoRoute(path: '/settings',      builder: (_, __) => const SettingsScreen()),
         ],
       ),
     ],
@@ -84,7 +107,7 @@ final routerProvider = Provider<GoRouter>((ref) {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// App shell — wraps every authenticated screen with the bottom nav
+// App shell — wraps every authenticated screen with a subtle gradient + nav
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _AppShell extends StatelessWidget {
@@ -95,22 +118,18 @@ class _AppShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final idx = _selectedIndex(context);
     return Scaffold(
-      body: Stack(
-        children: [
-          child,
-          // Subtle book-pattern texture overlay — 5% opacity, non-interactive
-          Positioned.fill(
-            child: IgnorePointer(
-              child: Opacity(
-                opacity: 0.045,
-                child: CustomPaint(
-                  painter: _BookPatternPainter(),
-                  child: const SizedBox.expand(),
-                ),
-              ),
-            ),
+      // Subtle gradient: pure white at top → very light lavender at bottom
+      backgroundColor: Colors.white,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.white, Color(0xFFF3EEFF)],
+            stops: [0.0, 1.0],
           ),
-        ],
+        ),
+        child: child,
       ),
       bottomNavigationBar: _BottomNav(selectedIndex: idx),
     );
@@ -120,73 +139,13 @@ class _AppShell extends StatelessWidget {
     final loc = GoRouterState.of(context).matchedLocation;
     if (loc.startsWith('/reading') || loc.startsWith('/reader')) return 1;
     if (loc.startsWith('/leaderboard')) return 2;
-    if (loc.startsWith('/settings')) return 3;
+    if (loc.startsWith('/settings'))   return 3;
     return 0;
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Book-pattern background painter
-// Draws a tilted repeating grid of small open-book silhouettes at 45° offset
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _BookPatternPainter extends CustomPainter {
-  static const _color = Color(0xFF6B21A8);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final bodyPaint = Paint()
-      ..color = _color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8
-      ..strokeJoin = StrokeJoin.round;
-
-    final spinePaint = Paint()
-      ..color = _color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.0
-      ..strokeCap = StrokeCap.round;
-
-    const double col = 64;  // horizontal spacing
-    const double row = 80;  // vertical spacing
-    const double bW = 22.0; // book width
-    const double bH = 30.0; // book height
-
-    // Odd columns are offset by half a row to create a brick pattern
-    for (double xi = 0; xi * col < size.width + col * 2; xi++) {
-      final double xBase = xi * col - col * 0.5;
-      final double yOffset = (xi % 2 == 0) ? 0 : row * 0.5;
-      for (double yi = 0; yi * row < size.height + row * 2; yi++) {
-        final double cx = xBase;
-        final double cy = yi * row - row * 0.5 + yOffset;
-
-        final rect = Rect.fromCenter(
-          center: Offset(cx, cy),
-          width: bW,
-          height: bH,
-        );
-        // Book body
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(rect, const Radius.circular(2.5)),
-          bodyPaint,
-        );
-        // Spine (slightly left of center, full height)
-        final double spineX = cx - bW * 0.18;
-        canvas.drawLine(
-          Offset(spineX, cy - bH / 2 + 2),
-          Offset(spineX, cy + bH / 2 - 2),
-          spinePaint,
-        );
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Custom bottom nav — no labels, large colorful icons
+// Custom bottom nav
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _BottomNav extends StatelessWidget {
@@ -196,7 +155,6 @@ class _BottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      // Extra height so icons don't press against the top border strip
       height: 80,
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -214,7 +172,6 @@ class _BottomNav extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: Padding(
-          // Clear space between the top border and the icon containers
           padding: const EdgeInsets.only(top: 10, bottom: 4),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,

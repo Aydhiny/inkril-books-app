@@ -11,22 +11,27 @@ void main() async {
   // Read storage once at startup so the router guard has the correct
   // initial state before the first frame renders.
   const storage = FlutterSecureStorage();
-  final userId = await storage.read(key: 'user_id');
+  final userId          = await storage.read(key: 'user_id');
+  final hasSeenWelcome  = await storage.read(key: 'has_seen_welcome') == 'true';
 
   runApp(ProviderScope(
     overrides: [
       isAuthenticatedProvider.overrideWith((ref) => userId != null),
+      // Eagerly provide the welcome flag so the router redirect can use it
+      // synchronously on the first frame without waiting for an async load.
+      hasSeenWelcomeProvider.overrideWith((ref) async => hasSeenWelcome),
     ],
-    child: const InkrilApp(),
+    child: InkrilApp(initialLocation: hasSeenWelcome ? '/library' : '/welcome'),
   ));
 }
 
 class InkrilApp extends ConsumerWidget {
-  const InkrilApp({super.key});
+  final String initialLocation;
+  const InkrilApp({super.key, required this.initialLocation});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final router = ref.watch(routerProvider);
+    final router = ref.watch(routerProvider(initialLocation));
     return MaterialApp.router(
       title: 'Inkril',
       theme: AppTheme.light,

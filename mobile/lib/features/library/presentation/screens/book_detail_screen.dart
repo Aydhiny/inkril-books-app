@@ -138,7 +138,11 @@ class _BookBody extends StatelessWidget {
                   children: [
                     if (coverUrl != null)
                       CachedNetworkImage(
-                        imageUrl: '${AppConfig.apiBaseUrl}$coverUrl',
+                        // Open Library URLs are already absolute (https://…).
+                        // User-uploaded covers are relative (/uploads/…).
+                        imageUrl: coverUrl.startsWith('http')
+                            ? coverUrl
+                            : '${AppConfig.apiBaseUrl}$coverUrl',
                         fit: BoxFit.cover,
                         width: double.infinity,
                         height: 360,

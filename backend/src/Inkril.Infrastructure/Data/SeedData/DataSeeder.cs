@@ -25,6 +25,7 @@ public class DataSeeder(
         await SeedUsersAsync();
         await SeedGenresAsync();
         await SeedBooksAsync();
+        await SeedLeaderboardUsersAsync();
     }
 
     private async Task SeedRolesAsync()
@@ -181,5 +182,72 @@ public class DataSeeder(
             }
             if (patched) await context.SaveChangesAsync();
         }
+    }
+
+    /// <summary>
+    /// Seeds fictional readers with realistic reading stats so the global
+    /// leaderboard is never empty for a fresh install.
+    /// Each user is created only once — idempotent on subsequent startups.
+    /// </summary>
+    private async Task SeedLeaderboardUsersAsync()
+    {
+        // Seed data: (username, firstName, lastName, totalMinutes, streakDays, booksCompleted)
+        var dummies = new[]
+        {
+            ("elena_reads",  "Elena",   "Vasquez",   4520, 45, 12),
+            ("kai_tanaka",   "Kai",     "Tanaka",    3890, 38,  9),
+            ("mia_stormont", "Mia",     "Stormont",  3210, 30,  8),
+            ("theo_b",       "Theo",    "Barker",    2760, 25,  7),
+            ("sara_words",   "Sara",    "Okonkwo",   2340, 22,  6),
+            ("jaden_reads",  "Jaden",   "Morales",   1980, 18,  5),
+            ("lily_pages",   "Lily",    "Huang",     1650, 15,  4),
+            ("omar_books",   "Omar",    "Farouk",    1320, 12,  3),
+        };
+
+        foreach (var (userName, first, last, totalMin, streak, books) in dummies)
+        {
+            // Skip if user already exists
+            if (await userManager.FindByNameAsync(userName) is not null) continue;
+
+            var user = new ApplicationUser
+            {
+                UserName = userName,
+                Email = $"{userName}@inkril.app",
+                FirstName = first,
+                LastName = last,
+                EmailConfirmed = true,
+            };
+
+            var result = await userManager.CreateAsync(user, "Inkril#2025!");
+            if (!result.Succeeded) continue;
+
+            await userManager.AddToRoleAsync(user, "mobile");
+            await context.UserSettings.AddAsync(new UserSettings { UserId = user.Id });
+
+            // Create DailyReadingStat rows spread across the past N days
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var minutesPerDay = totalMin / Math.Max(streak, 1);
+            var rand = new Random(userName.GetHashCode());
+
+            for (int day = 0; day < streak; day++)
+            {
+                var date = today.AddDays(-day);
+                var variance = rand.Next(-5, 15);
+                var minutes = Math.Max(1, minutesPerDay + variance);
+
+                await context.DailyReadingStats.AddAsync(new DailyReadingStat
+                {
+                    UserId         = user.Id,
+                    Date           = date,
+                    MinutesRead    = minutes,
+                    StreakDays     = streak - day,
+                    BooksCompleted = day == 0 ? books : 0,
+                });
+            }
+
+            logger.LogInformation("Seeded leaderboard user: {UserName}", userName);
+        }
+
+        await context.SaveChangesAsync();
     }
 }
