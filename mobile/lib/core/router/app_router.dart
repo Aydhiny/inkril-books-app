@@ -6,17 +6,18 @@ import '../../features/auth/presentation/screens/register_screen.dart';
 import '../../features/library/presentation/screens/library_screen.dart';
 import '../../features/library/presentation/screens/book_detail_screen.dart';
 import '../../features/reader/presentation/screens/reader_screen.dart';
+import '../../features/reading/presentation/screens/reading_hub_screen.dart';
 import '../../features/leaderboard/presentation/screens/leaderboard_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/profile/presentation/screens/friend_profile_screen.dart';
 import '../../features/friends/presentation/screens/friends_screen.dart';
 import '../../features/notifications/presentation/screens/notifications_screen.dart';
 import '../../features/profile/presentation/screens/edit_profile_screen.dart';
+import '../../features/settings/presentation/screens/settings_screen.dart';
 import '../providers/auth_provider.dart';
+import '../theme/app_theme.dart';
 
 // Bridges Riverpod state changes to GoRouter's Listenable interface.
-// When isAuthenticatedProvider flips, notifyListeners() triggers GoRouter
-// to re-run its redirect callback — without recreating the router.
 class _RouterNotifier extends ChangeNotifier {
   final Ref _ref;
   late bool _isLoggedIn;
@@ -52,6 +53,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state, child) => _AppShell(child: child),
         routes: [
           GoRoute(path: '/library', builder: (_, __) => const LibraryScreen()),
+          GoRoute(path: '/reading', builder: (_, __) => const ReadingHubScreen()),
           GoRoute(
             path: '/books/:id',
             builder: (_, s) => BookDetailScreen(bookId: s.pathParameters['id']!),
@@ -62,13 +64,16 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(path: '/leaderboard', builder: (_, __) => const LeaderboardScreen()),
           GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
+          // /profile/edit MUST come before /profile/:userId — GoRouter matches
+          // in declaration order, so the literal segment wins over the parameter.
+          GoRoute(path: '/profile/edit', builder: (_, __) => const EditProfileScreen()),
           GoRoute(
             path: '/profile/:userId',
             builder: (_, s) => FriendProfileScreen(userId: s.pathParameters['userId']!),
           ),
-          GoRoute(path: '/profile/edit', builder: (_, __) => const EditProfileScreen()),
           GoRoute(path: '/friends', builder: (_, __) => const FriendsScreen()),
           GoRoute(path: '/notifications', builder: (_, __) => const NotificationsScreen()),
+          GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
         ],
       ),
     ],
@@ -78,41 +83,136 @@ final routerProvider = Provider<GoRouter>((ref) {
   return router;
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// App shell — wraps every authenticated screen with the bottom nav
+// ─────────────────────────────────────────────────────────────────────────────
+
 class _AppShell extends StatelessWidget {
   final Widget child;
   const _AppShell({required this.child});
 
   @override
   Widget build(BuildContext context) {
+    final idx = _selectedIndex(context);
     return Scaffold(
       body: child,
-      bottomNavigationBar: NavigationBar(
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.library_books_outlined), selectedIcon: Icon(Icons.library_books), label: 'Library'),
-          NavigationDestination(icon: Icon(Icons.leaderboard_outlined), selectedIcon: Icon(Icons.leaderboard), label: 'Leaderboard'),
-          NavigationDestination(icon: Icon(Icons.notifications_outlined), selectedIcon: Icon(Icons.notifications), label: 'Notifications'),
-          NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Profile'),
-        ],
-        selectedIndex: _selectedIndex(context),
-        onDestinationSelected: (i) => _navigate(context, i),
-      ),
+      bottomNavigationBar: _BottomNav(selectedIndex: idx),
     );
   }
 
   int _selectedIndex(BuildContext context) {
     final loc = GoRouterState.of(context).matchedLocation;
-    if (loc.startsWith('/leaderboard')) return 1;
-    if (loc.startsWith('/notifications')) return 2;
-    if (loc.startsWith('/profile')) return 3;
+    if (loc.startsWith('/reading') || loc.startsWith('/reader')) return 1;
+    if (loc.startsWith('/leaderboard')) return 2;
+    if (loc.startsWith('/settings')) return 3;
     return 0;
   }
+}
 
-  void _navigate(BuildContext context, int index) {
-    switch (index) {
-      case 0: context.go('/library');
-      case 1: context.go('/leaderboard');
-      case 2: context.go('/notifications');
-      case 3: context.go('/profile');
-    }
+// Custom bottom nav — no labels, large colorful icons matching design
+class _BottomNav extends StatelessWidget {
+  final int selectedIndex;
+  const _BottomNav({required this.selectedIndex});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 72,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          top: BorderSide(color: Color(0xFFF3E8FF), width: 1.5),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x1A6B21A8),
+            blurRadius: 20,
+            offset: Offset(0, -4),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _NavItem(
+              icon: Icons.home_rounded,
+              color: AppTheme.primary,
+              bgColor: AppTheme.primarySurface,
+              isSelected: selectedIndex == 0,
+              onTap: () => context.go('/library'),
+            ),
+            _NavItem(
+              icon: Icons.menu_book_rounded,
+              color: const Color(0xFFEC4899),
+              bgColor: const Color(0xFFFCE7F3),
+              isSelected: selectedIndex == 1,
+              onTap: () => context.go('/reading'),
+            ),
+            _NavItem(
+              icon: Icons.emoji_events_rounded,
+              color: const Color(0xFFF59E0B),
+              bgColor: const Color(0xFFFEF3C7),
+              isSelected: selectedIndex == 2,
+              onTap: () => context.go('/leaderboard'),
+            ),
+            _NavItem(
+              icon: Icons.settings_rounded,
+              color: const Color(0xFF3B82F6),
+              bgColor: const Color(0xFFDBEAFE),
+              isSelected: selectedIndex == 3,
+              onTap: () => context.go('/settings'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NavItem extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final Color bgColor;
+  final bool isSelected;
+  final VoidCallback onTap;
+  const _NavItem({
+    required this.icon,
+    required this.color,
+    required this.bgColor,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        width: 64,
+        height: 64,
+        child: Center(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+            width: isSelected ? 52 : 44,
+            height: isSelected ? 52 : 44,
+            decoration: isSelected
+                ? BoxDecoration(
+                    color: bgColor,
+                    borderRadius: BorderRadius.circular(14),
+                  )
+                : null,
+            child: Icon(
+              icon,
+              size: isSelected ? 30 : 26,
+              color: isSelected ? color : const Color(0xFFD1D5DB),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
