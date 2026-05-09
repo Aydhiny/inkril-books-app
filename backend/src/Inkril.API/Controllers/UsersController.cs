@@ -49,6 +49,23 @@ public class UsersController(IMediator mediator, ICurrentUserService currentUser
         return result.Succeeded ? NoContent() : BadRequest(new { errors = result.Errors });
     }
 
+    [HttpDelete("{id:guid}")]
+    [Authorize(Roles = "desktop")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    {
+        var result = await mediator.Send(new DeleteUserCommand(id), ct);
+        return result.Succeeded ? NoContent() : NotFound(new { message = result.Errors[0] });
+    }
+
+    [HttpPut("{id:guid}/roles")]
+    [Authorize(Roles = "desktop")]
+    public async Task<IActionResult> UpdateRoles(Guid id, [FromBody] UpdateUserRolesCommand cmd, CancellationToken ct)
+    {
+        if (id != cmd.UserId) return BadRequest("Route ID and body ID do not match.");
+        var result = await mediator.Send(cmd, ct);
+        return result.Succeeded ? NoContent() : BadRequest(new { errors = result.Errors });
+    }
+
     [HttpGet("search")]
     public async Task<IActionResult> Search([FromQuery] string q, CancellationToken ct)
         => Ok(await mediator.Send(new SearchUsersQuery(q), ct));
