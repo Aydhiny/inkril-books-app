@@ -95,7 +95,23 @@ class _AppShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final idx = _selectedIndex(context);
     return Scaffold(
-      body: child,
+      body: Stack(
+        children: [
+          child,
+          // Subtle book-pattern texture overlay — 5% opacity, non-interactive
+          Positioned.fill(
+            child: IgnorePointer(
+              child: Opacity(
+                opacity: 0.045,
+                child: CustomPaint(
+                  painter: _BookPatternPainter(),
+                  child: const SizedBox.expand(),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
       bottomNavigationBar: _BottomNav(selectedIndex: idx),
     );
   }
@@ -109,7 +125,70 @@ class _AppShell extends StatelessWidget {
   }
 }
 
-// Custom bottom nav — no labels, large colorful icons matching design
+// ─────────────────────────────────────────────────────────────────────────────
+// Book-pattern background painter
+// Draws a tilted repeating grid of small open-book silhouettes at 45° offset
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _BookPatternPainter extends CustomPainter {
+  static const _color = Color(0xFF6B21A8);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final bodyPaint = Paint()
+      ..color = _color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.8
+      ..strokeJoin = StrokeJoin.round;
+
+    final spinePaint = Paint()
+      ..color = _color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.0
+      ..strokeCap = StrokeCap.round;
+
+    const double col = 64;  // horizontal spacing
+    const double row = 80;  // vertical spacing
+    const double bW = 22.0; // book width
+    const double bH = 30.0; // book height
+
+    // Odd columns are offset by half a row to create a brick pattern
+    for (double xi = 0; xi * col < size.width + col * 2; xi++) {
+      final double xBase = xi * col - col * 0.5;
+      final double yOffset = (xi % 2 == 0) ? 0 : row * 0.5;
+      for (double yi = 0; yi * row < size.height + row * 2; yi++) {
+        final double cx = xBase;
+        final double cy = yi * row - row * 0.5 + yOffset;
+
+        final rect = Rect.fromCenter(
+          center: Offset(cx, cy),
+          width: bW,
+          height: bH,
+        );
+        // Book body
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(rect, const Radius.circular(2.5)),
+          bodyPaint,
+        );
+        // Spine (slightly left of center, full height)
+        final double spineX = cx - bW * 0.18;
+        canvas.drawLine(
+          Offset(spineX, cy - bH / 2 + 2),
+          Offset(spineX, cy + bH / 2 - 2),
+          spinePaint,
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Custom bottom nav — no labels, large colorful icons
+// ─────────────────────────────────────────────────────────────────────────────
+
 class _BottomNav extends StatelessWidget {
   final int selectedIndex;
   const _BottomNav({required this.selectedIndex});
@@ -117,54 +196,59 @@ class _BottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 72,
+      // Extra height so icons don't press against the top border strip
+      height: 80,
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(
-          top: BorderSide(color: Color(0xFFF3E8FF), width: 1.5),
+          top: BorderSide(color: Color(0xFFE9D5FF), width: 2.5),
         ),
         boxShadow: [
           BoxShadow(
             color: Color(0x1A6B21A8),
-            blurRadius: 20,
-            offset: Offset(0, -4),
+            blurRadius: 24,
+            offset: Offset(0, -6),
           ),
         ],
       ),
       child: SafeArea(
         top: false,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _NavItem(
-              icon: Icons.home_rounded,
-              color: AppTheme.primary,
-              bgColor: AppTheme.primarySurface,
-              isSelected: selectedIndex == 0,
-              onTap: () => context.go('/library'),
-            ),
-            _NavItem(
-              icon: Icons.menu_book_rounded,
-              color: const Color(0xFFEC4899),
-              bgColor: const Color(0xFFFCE7F3),
-              isSelected: selectedIndex == 1,
-              onTap: () => context.go('/reading'),
-            ),
-            _NavItem(
-              icon: Icons.emoji_events_rounded,
-              color: const Color(0xFFF59E0B),
-              bgColor: const Color(0xFFFEF3C7),
-              isSelected: selectedIndex == 2,
-              onTap: () => context.go('/leaderboard'),
-            ),
-            _NavItem(
-              icon: Icons.settings_rounded,
-              color: const Color(0xFF3B82F6),
-              bgColor: const Color(0xFFDBEAFE),
-              isSelected: selectedIndex == 3,
-              onTap: () => context.go('/settings'),
-            ),
-          ],
+        child: Padding(
+          // Clear space between the top border and the icon containers
+          padding: const EdgeInsets.only(top: 10, bottom: 4),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _NavItem(
+                icon: Icons.home_rounded,
+                color: AppTheme.primary,
+                bgColor: AppTheme.primarySurface,
+                isSelected: selectedIndex == 0,
+                onTap: () => context.go('/library'),
+              ),
+              _NavItem(
+                icon: Icons.menu_book_rounded,
+                color: const Color(0xFFEC4899),
+                bgColor: const Color(0xFFFCE7F3),
+                isSelected: selectedIndex == 1,
+                onTap: () => context.go('/reading'),
+              ),
+              _NavItem(
+                icon: Icons.emoji_events_rounded,
+                color: const Color(0xFFF59E0B),
+                bgColor: const Color(0xFFFEF3C7),
+                isSelected: selectedIndex == 2,
+                onTap: () => context.go('/leaderboard'),
+              ),
+              _NavItem(
+                icon: Icons.settings_rounded,
+                color: const Color(0xFF3B82F6),
+                bgColor: const Color(0xFFDBEAFE),
+                isSelected: selectedIndex == 3,
+                onTap: () => context.go('/settings'),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -192,7 +276,7 @@ class _NavItem extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       child: SizedBox(
         width: 64,
-        height: 64,
+        height: 56,
         child: Center(
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
@@ -202,7 +286,11 @@ class _NavItem extends StatelessWidget {
             decoration: isSelected
                 ? BoxDecoration(
                     color: bgColor,
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: color.withValues(alpha: 0.35),
+                      width: 2,
+                    ),
                   )
                 : null,
             child: Icon(

@@ -124,18 +124,17 @@ class _BookBody extends StatelessWidget {
               constraints: const BoxConstraints(maxWidth: 260, maxHeight: 360),
               margin: const EdgeInsets.symmetric(vertical: 16),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
+                // No border radius — sharp Duolingo-style book cover
+                border: Border.all(color: const Color(0xFF9333EA), width: 4),
                 boxShadow: [
                   BoxShadow(
-                    color: AppTheme.primary.withValues(alpha: 0.2),
-                    blurRadius: 24,
-                    offset: const Offset(0, 8),
+                    color: AppTheme.primary.withValues(alpha: 0.28),
+                    blurRadius: 28,
+                    offset: const Offset(0, 10),
                   ),
                 ],
               ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Stack(
+              child: Stack(
                   children: [
                     if (coverUrl != null)
                       CachedNetworkImage(
@@ -203,7 +202,6 @@ class _BookBody extends StatelessWidget {
                       ),
                   ],
                 ),
-              ),
             ),
           ),
 
@@ -232,9 +230,10 @@ class _BookBody extends StatelessWidget {
           Text(
             title,
             style: const TextStyle(
-              fontSize: 26,
+              fontSize: 30,
               fontWeight: FontWeight.w900,
               color: Color(0xFF1A0A2E),
+              letterSpacing: -0.5,
             ),
           ),
           const SizedBox(height: 4),
@@ -282,7 +281,7 @@ class _BookBody extends StatelessWidget {
                           color: AppTheme.primarySurface,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                              color: const Color(0xFFD8B4FE), width: 1),
+                              color: const Color(0xFF9333EA), width: 2),
                         ),
                         child: Text(g as String,
                             style: const TextStyle(
@@ -312,6 +311,7 @@ class _BookBody extends StatelessWidget {
               style: OutlinedButton.styleFrom(
                 minimumSize: const Size(52, 52),
                 padding: EdgeInsets.zero,
+                side: const BorderSide(color: AppTheme.primary, width: 2.5),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14)),
               ),
@@ -325,9 +325,10 @@ class _BookBody extends StatelessWidget {
           if (description.isNotEmpty) ...[
             const Text('About this book',
                 style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF1A0A2E))),
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF1A0A2E),
+                    letterSpacing: -0.2)),
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.all(14),
@@ -335,7 +336,7 @@ class _BookBody extends StatelessWidget {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(14),
                 border:
-                    Border.all(color: const Color(0xFFE9D5FF), width: 1.5),
+                    Border.all(color: const Color(0xFFD8B4FE), width: 2.5),
               ),
               child: Text(
                 description,
@@ -352,9 +353,10 @@ class _BookBody extends StatelessWidget {
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             const Text('Reviews',
                 style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF1A0A2E))),
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF1A0A2E),
+                    letterSpacing: -0.2)),
             TextButton(
               onPressed: () => _showReviewDialog(context, ref),
               child: const Text('+ Write a review',
@@ -526,7 +528,14 @@ class _ReviewCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE9D5FF), width: 1.5),
+        border: Border.all(color: const Color(0xFFD8B4FE), width: 2.5),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08000000),
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         CircleAvatar(

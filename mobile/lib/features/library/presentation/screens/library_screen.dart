@@ -207,11 +207,11 @@ class _SearchUploadRow extends StatelessWidget {
             onTap: () => showSearch(
                 context: context, delegate: _BookSearchDelegate()),
             child: Container(
-              height: 48,
+              height: 50,
               decoration: BoxDecoration(
                 color: const Color(0xFFF3F4F6),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFFE5E7EB)),
+                border: Border.all(color: const Color(0xFFD8B4FE), width: 2),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 14),
               child: const Row(children: [
@@ -235,10 +235,10 @@ class _SearchUploadRow extends StatelessWidget {
               style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
           style: OutlinedButton.styleFrom(
             foregroundColor: AppTheme.primary,
-            side: const BorderSide(color: AppTheme.primary, width: 2),
+            side: const BorderSide(color: AppTheme.primary, width: 2.5),
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14)),
-            minimumSize: const Size(0, 48),
+            minimumSize: const Size(0, 50),
             padding:
                 const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
           ),
@@ -323,13 +323,14 @@ class _SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
       child: Text(
         title,
         style: const TextStyle(
-          fontSize: 20,
+          fontSize: 24,
           fontWeight: FontWeight.w900,
           color: Color(0xFF1A0A2E),
+          letterSpacing: -0.3,
         ),
       ),
     );
@@ -438,77 +439,76 @@ class _LibraryBookCard extends StatelessWidget {
         width: 165,
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFFD8B4FE), width: 2),
+          // Slightly rounded outer container, but cover image itself is sharp
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: const Color(0xFF9333EA), width: 3.5),
           boxShadow: [
             BoxShadow(
-              color: AppTheme.primary.withValues(alpha: 0.08),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+              color: AppTheme.primary.withValues(alpha: 0.18),
+              blurRadius: 14,
+              offset: const Offset(0, 5),
             ),
           ],
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: Column(
-            children: [
-              // Cover — fills most of the card
-              Expanded(
+        child: Column(
+          children: [
+            // Cover — sharp corners, fills most of the card
+            Expanded(
+              child: SizedBox(
+                width: double.infinity,
                 child: coverUrl != null
                     ? Image.network(
                         coverUrl,
                         fit: BoxFit.cover,
-                        width: double.infinity,
-                        errorBuilder: (_, __, ___) =>
-                            const _CoverPlaceholder(),
+                        errorBuilder: (_, __, ___) => const _CoverPlaceholder(),
                       )
                     : const _CoverPlaceholder(),
               ),
-              // Progress strip (always shown — 0% if no progress)
-              if (showProgress)
-                Container(
-                  color: Colors.white,
-                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Progress:',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF374151),
-                            ),
+            ),
+            // Progress strip
+            if (showProgress)
+              Container(
+                color: Colors.white,
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Progress:',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF374151),
                           ),
-                          Text(
-                            '${progress.toInt()}%',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              color: AppTheme.primary,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 5),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(6),
-                        child: LinearProgressIndicator(
-                          value: progress / 100,
-                          minHeight: 7,
-                          backgroundColor: const Color(0xFFE9D5FF),
-                          valueColor: const AlwaysStoppedAnimation<Color>(
-                              AppTheme.primary),
                         ),
+                        Text(
+                          '${progress.toInt()}%',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: AppTheme.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 5),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: LinearProgressIndicator(
+                        value: progress / 100,
+                        minHeight: 7,
+                        backgroundColor: const Color(0xFFE9D5FF),
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                            AppTheme.primary),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-            ],
-          ),
+              ),
+          ],
         ),
       ),
     );
@@ -551,10 +551,10 @@ class _ContinueReadingButton extends StatelessWidget {
         onPressed: () => context.push('/reader/$bookId'),
         style: OutlinedButton.styleFrom(
           foregroundColor: AppTheme.primary,
-          side: const BorderSide(color: AppTheme.primary, width: 2),
-          minimumSize: const Size(double.infinity, 54),
+          side: const BorderSide(color: AppTheme.primary, width: 3),
+          minimumSize: const Size(double.infinity, 58),
           shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16)),
+              borderRadius: BorderRadius.circular(18)),
           backgroundColor: AppTheme.primarySurface,
         ),
         child: const Row(
@@ -640,9 +640,10 @@ class _TodaysQuoteSection extends StatelessWidget {
           const Text(
             "Today's Quote",
             style: TextStyle(
-              fontSize: 20,
+              fontSize: 24,
               fontWeight: FontWeight.w900,
               color: AppTheme.primary,
+              letterSpacing: -0.3,
             ),
           ),
           const SizedBox(height: 10),
@@ -651,7 +652,14 @@ class _TodaysQuoteSection extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xFFE9D5FF), width: 1.5),
+              border: Border.all(color: const Color(0xFFD8B4FE), width: 2.5),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x0A6B21A8),
+                  blurRadius: 8,
+                  offset: Offset(0, 3),
+                ),
+              ],
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,

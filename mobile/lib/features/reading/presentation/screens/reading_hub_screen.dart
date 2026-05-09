@@ -85,9 +85,10 @@ class _ReadingBody extends ConsumerWidget {
           const Text(
             'Currently Reading',
             style: TextStyle(
-              fontSize: 28,
+              fontSize: 34,
               fontWeight: FontWeight.w900,
               color: AppTheme.primary,
+              letterSpacing: -0.5,
             ),
           ),
           const SizedBox(height: 20),
@@ -98,12 +99,12 @@ class _ReadingBody extends ConsumerWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFE9D5FF), width: 1.5),
+              border: Border.all(color: const Color(0xFFD8B4FE), width: 2.5),
               boxShadow: const [
                 BoxShadow(
-                  color: Color(0x0C6B21A8),
-                  blurRadius: 16,
-                  offset: Offset(0, 4),
+                  color: Color(0x146B21A8),
+                  blurRadius: 18,
+                  offset: Offset(0, 5),
                 ),
               ],
             ),
@@ -224,7 +225,7 @@ class _ReadingBody extends ConsumerWidget {
             label: const Text('Browse Library'),
             style: OutlinedButton.styleFrom(
               foregroundColor: AppTheme.primary,
-              side: const BorderSide(color: Color(0xFFE9D5FF), width: 1.5),
+              side: const BorderSide(color: AppTheme.primary, width: 2.5),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
               padding:
@@ -248,19 +249,19 @@ class _BookCover extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(10),
-      child: SizedBox(
-        width: 88,
-        height: 120,
-        child: coverUrl != null && coverUrl!.isNotEmpty
-            ? Image.network(
-                coverUrl!,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _CoverFallback(title: title),
-              )
-            : _CoverFallback(title: title),
+    return Container(
+      width: 88,
+      height: 120,
+      decoration: BoxDecoration(
+        border: Border.all(color: const Color(0xFF9333EA), width: 3),
       ),
+      child: coverUrl != null && coverUrl!.isNotEmpty
+          ? Image.network(
+              coverUrl!,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => _CoverFallback(title: title),
+            )
+          : _CoverFallback(title: title),
     );
   }
 }
@@ -308,9 +309,10 @@ class _BookmarksList extends StatelessWidget {
       Text(
         'Bookmarks (${bookmarks.length})',
         style: const TextStyle(
-          fontSize: 20,
+          fontSize: 24,
           fontWeight: FontWeight.w900,
           color: AppTheme.primary,
+          letterSpacing: -0.3,
         ),
       ),
       const SizedBox(height: 12),
@@ -328,7 +330,14 @@ class _BookmarksList extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFE9D5FF), width: 1.5),
+              border: Border.all(color: const Color(0xFFD8B4FE), width: 2.5),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x0A6B21A8),
+                  blurRadius: 6,
+                  offset: Offset(0, 2),
+                ),
+              ],
             ),
             child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Container(

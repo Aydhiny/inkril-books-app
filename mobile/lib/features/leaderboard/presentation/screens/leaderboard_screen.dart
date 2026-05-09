@@ -22,9 +22,10 @@ class LeaderboardScreen extends ConsumerWidget {
               child: Text(
                 'Leaderboard',
                 style: TextStyle(
-                  fontSize: 26,
+                  fontSize: 34,
                   fontWeight: FontWeight.w900,
                   color: Color(0xFF1A0A2E),
+                  letterSpacing: -0.5,
                 ),
               ),
             ),

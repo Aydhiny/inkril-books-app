@@ -127,9 +127,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               child: Text(
                 'Settings',
                 style: TextStyle(
-                  fontSize: 28,
+                  fontSize: 34,
                   fontWeight: FontWeight.w900,
                   color: AppTheme.primary,
+                  letterSpacing: -0.5,
                 ),
               ),
             ),
@@ -210,31 +211,36 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ),
             // ── Version footer ────────────────────────────────────────
-            const Padding(
-              padding: EdgeInsets.only(bottom: 16),
-              child: Column(
-                children: [
-                  Text(
-                    'Version 1.0',
-                    style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
-                    textAlign: TextAlign.center,
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'Ajdin Mehmedović',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                      color: Color(0xFF374151),
+            // Footer — SizedBox.expand forces full width so textAlign.center works
+            const SizedBox(
+              width: double.infinity,
+              child: Padding(
+                padding: EdgeInsets.only(bottom: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Version 1.0',
+                      style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
+                      textAlign: TextAlign.center,
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                  Text(
-                    '@Copyright, Aydhiny',
-                    style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 12),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+                    SizedBox(height: 2),
+                    Text(
+                      'Ajdin Mehmedović',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                        color: Color(0xFF374151),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    Text(
+                      '@Copyright, Aydhiny',
+                      style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 12),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -286,8 +292,15 @@ class _SettingsCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB), width: 1.5),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFD8B4FE), width: 2.5),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A6B21A8),
+            blurRadius: 8,
+            offset: Offset(0, 3),
+          ),
+        ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
