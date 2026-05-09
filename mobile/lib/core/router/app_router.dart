@@ -14,19 +14,36 @@ import '../../features/notifications/presentation/screens/notifications_screen.d
 import '../../features/profile/presentation/screens/edit_profile_screen.dart';
 import '../providers/auth_provider.dart';
 
+// Bridges Riverpod state changes to GoRouter's Listenable interface.
+// When isAuthenticatedProvider flips, notifyListeners() triggers GoRouter
+// to re-run its redirect callback — without recreating the router.
+class _RouterNotifier extends ChangeNotifier {
+  final Ref _ref;
+  late bool _isLoggedIn;
+
+  _RouterNotifier(this._ref) {
+    _isLoggedIn = _ref.read(isAuthenticatedProvider);
+    _ref.listen<bool>(isAuthenticatedProvider, (_, next) {
+      _isLoggedIn = next;
+      notifyListeners();
+    });
+  }
+
+  String? redirect(GoRouterState state) {
+    final isAuthRoute = state.matchedLocation.startsWith('/auth');
+    if (!_isLoggedIn && !isAuthRoute) return '/auth/login';
+    if (_isLoggedIn && isAuthRoute) return '/library';
+    return null;
+  }
+}
+
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authStateProvider);
+  final notifier = _RouterNotifier(ref);
 
-  return GoRouter(
+  final router = GoRouter(
     initialLocation: '/library',
-    redirect: (context, state) {
-      final isLoggedIn = authState.valueOrNull != null;
-      final isAuthRoute = state.matchedLocation.startsWith('/auth');
-
-      if (!isLoggedIn && !isAuthRoute) return '/auth/login';
-      if (isLoggedIn && isAuthRoute) return '/library';
-      return null;
-    },
+    refreshListenable: notifier,
+    redirect: (_, state) => notifier.redirect(state),
     routes: [
       GoRoute(path: '/auth/login', builder: (_, __) => const LoginScreen()),
       GoRoute(path: '/auth/register', builder: (_, __) => const RegisterScreen()),
@@ -56,6 +73,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
+
+  ref.onDispose(router.dispose);
+  return router;
 });
 
 class _AppShell extends StatelessWidget {

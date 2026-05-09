@@ -39,9 +39,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
-    } else if (!state.hasError && mounted) {
-      context.go('/library');
     }
+    // On success the router navigates automatically via refreshListenable.
   }
 
   @override

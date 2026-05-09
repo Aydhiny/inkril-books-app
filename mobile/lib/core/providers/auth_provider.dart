@@ -5,9 +5,8 @@ final secureStorageProvider = Provider<FlutterSecureStorage>(
   (_) => const FlutterSecureStorage(),
 );
 
-/// Holds the current user's ID if logged in, null if not.
-/// Used by GoRouter redirect guard to protect routes.
-final authStateProvider = FutureProvider<String?>((ref) async {
-  final storage = ref.read(secureStorageProvider);
-  return storage.read(key: 'user_id');
-});
+/// Single source of truth for auth state.
+/// Initialized from secure storage in main() via ProviderScope override.
+/// Updated synchronously by AuthNotifier after login / logout.
+/// GoRouter listens via _RouterNotifier → refreshListenable.
+final isAuthenticatedProvider = StateProvider<bool>((_) => false);

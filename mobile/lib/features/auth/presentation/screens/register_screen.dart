@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+import 'package:go_router/go_router.dart'; // needed for context.pop()
 import '../providers/auth_notifier.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
@@ -42,9 +42,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(state.error.toString()), backgroundColor: Theme.of(context).colorScheme.error),
       );
-    } else if (!state.hasError && mounted) {
-      context.go('/library');
     }
+    // On success the router navigates automatically via refreshListenable.
   }
 
   @override
