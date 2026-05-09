@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/api/api_client.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../library/presentation/providers/library_provider.dart';
 
@@ -10,10 +11,7 @@ import '../../../library/presentation/providers/library_provider.dart';
 final bookBookmarksProvider =
     FutureProvider.family<List<dynamic>, String>((ref, bookId) async {
   final dio = ref.read(dioProvider);
-  final res = await dio.get(
-    '/api/bookmarks',
-    queryParameters: {'bookId': bookId},
-  );
+  final res = await dio.get('/api/bookmarks', queryParameters: {'bookId': bookId});
   return res.data as List<dynamic>;
 });
 
@@ -27,14 +25,13 @@ class ReadingHubScreen extends ConsumerWidget {
     final libraryAsync = ref.watch(userLibraryProvider);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.scaffoldBg,
       body: SafeArea(
         child: libraryAsync.when(
           loading: () =>
               const Center(child: CircularProgressIndicator(color: AppTheme.primary)),
           error: (_, __) => _EmptyState(onBrowse: () => context.go('/library')),
           data: (books) {
-            // Sort by most recently read
             final sorted = [...books]..sort((a, b) {
                 final aDate =
                     DateTime.tryParse(a['lastReadAt'] as String? ?? '') ??
@@ -82,12 +79,12 @@ class _ReadingBody extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── Header ──────────────────────────────────────────────────
-          const Text(
+          Text(
             'Currently Reading',
             style: TextStyle(
               fontSize: 34,
               fontWeight: FontWeight.w900,
-              color: Color(0xFF1A0A2E),
+              color: context.textPrimary,
               letterSpacing: -0.5,
             ),
           ),
@@ -97,32 +94,30 @@ class _ReadingBody extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.cardBg,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFD8B4FE), width: 2.5),
-              boxShadow: const [
+              border: Border.all(color: context.borderPurpleMid, width: 2.5),
+              boxShadow: [
                 BoxShadow(
-                  color: Color(0x146B21A8),
+                  color: const Color(0x146B21A8),
                   blurRadius: 18,
-                  offset: Offset(0, 5),
+                  offset: const Offset(0, 5),
                 ),
               ],
             ),
             child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              // Cover
               _BookCover(coverUrl: coverUrl, title: title),
               const SizedBox(width: 14),
-              // Info
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF1F2937),
+                        color: context.textPrimary,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -130,23 +125,22 @@ class _ReadingBody extends ConsumerWidget {
                     const SizedBox(height: 2),
                     Text(
                       author,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
-                        color: Color(0xFF9CA3AF),
+                        color: context.textSecondary,
                       ),
                     ),
                     const SizedBox(height: 14),
-                    // Progress bar
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text(
+                            Text(
                               'Progress',
                               style: TextStyle(
-                                  fontSize: 12, color: Color(0xFF6B7280)),
+                                  fontSize: 12, color: context.textSecondary),
                             ),
                             Text(
                               '${(progress * 100).round()}%',
@@ -164,14 +158,13 @@ class _ReadingBody extends ConsumerWidget {
                           child: LinearProgressIndicator(
                             value: progress,
                             minHeight: 8,
-                            backgroundColor: AppTheme.primarySurface,
+                            backgroundColor: context.borderPurple,
                             valueColor: const AlwaysStoppedAnimation(AppTheme.primary),
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 14),
-                    // Continue button
                     SizedBox(
                       width: double.infinity,
                       height: 42,
@@ -180,8 +173,7 @@ class _ReadingBody extends ConsumerWidget {
                         icon: const Icon(Icons.menu_book_rounded, size: 18),
                         label: const Text(
                           'Continue Reading',
-                          style: TextStyle(
-                              fontWeight: FontWeight.w700, fontSize: 14),
+                          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.primary,
@@ -206,19 +198,16 @@ class _ReadingBody extends ConsumerWidget {
             data: (bookmarks) {
               if (bookmarks.isEmpty) {
                 return _NoBookmarksHint(
-                  onRead: () => context.push('/reader/$bookId'),
-                );
+                    onRead: () => context.push('/reader/$bookId'));
               }
               return _BookmarksList(
-                bookmarks: bookmarks,
-                onTap: (page) => context.push('/reader/$bookId'),
-              );
+                  bookmarks: bookmarks,
+                  onTap: (page) => context.push('/reader/$bookId'));
             },
           ),
 
           const SizedBox(height: 20),
 
-          // ── Other books ──────────────────────────────────────────────
           OutlinedButton.icon(
             onPressed: () => context.go('/library'),
             icon: const Icon(Icons.grid_view_rounded, size: 16),
@@ -228,8 +217,7 @@ class _ReadingBody extends ConsumerWidget {
               side: const BorderSide(color: AppTheme.primary, width: 2.5),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             ),
           ),
         ],
@@ -239,7 +227,7 @@ class _ReadingBody extends ConsumerWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Book cover widget (network + fallback)
+// Book cover
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _BookCover extends StatelessWidget {
@@ -273,7 +261,7 @@ class _CoverFallback extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: AppTheme.primarySurface,
+      color: context.primarySurface,
       child: Center(
         child: Padding(
           padding: const EdgeInsets.all(6),
@@ -308,10 +296,10 @@ class _BookmarksList extends StatelessWidget {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(
         'Bookmarks (${bookmarks.length})',
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 24,
           fontWeight: FontWeight.w900,
-          color: Color(0xFF1A0A2E),
+          color: context.textPrimary,
           letterSpacing: -0.3,
         ),
       ),
@@ -328,14 +316,14 @@ class _BookmarksList extends StatelessWidget {
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.cardBg,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFD8B4FE), width: 2.5),
-              boxShadow: const [
+              border: Border.all(color: context.borderPurpleMid, width: 2.5),
+              boxShadow: [
                 BoxShadow(
-                  color: Color(0x0A6B21A8),
+                  color: const Color(0x0A6B21A8),
                   blurRadius: 6,
-                  offset: Offset(0, 2),
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
@@ -344,7 +332,7 @@ class _BookmarksList extends StatelessWidget {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: AppTheme.primarySurface,
+                  color: context.primarySurface,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(Icons.bookmark_rounded,
@@ -389,9 +377,9 @@ class _BookmarksList extends StatelessWidget {
                         const SizedBox(height: 4),
                         Text(
                           note,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
-                            color: Color(0xFF6B7280),
+                            color: context.textSecondary,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -418,13 +406,13 @@ class _NoBookmarksHint extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppTheme.primarySurface,
+          color: context.primarySurface,
           borderRadius: BorderRadius.circular(14),
         ),
-        child: const Row(children: [
-          Icon(Icons.bookmark_border_rounded,
+        child: Row(children: [
+          const Icon(Icons.bookmark_border_rounded,
               color: AppTheme.primary, size: 22),
-          SizedBox(width: 10),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
               'No bookmarks yet — open the reader and highlight text to save passages.',
@@ -442,7 +430,7 @@ class _NoBookmarksHint extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Empty state (no books in library)
+// Empty state
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _EmptyState extends StatelessWidget {
@@ -459,28 +447,28 @@ class _EmptyState extends StatelessWidget {
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              color: AppTheme.primarySurface,
+              color: context.primarySurface,
               borderRadius: BorderRadius.circular(24),
             ),
             child: const Icon(Icons.menu_book_rounded,
                 color: AppTheme.primary, size: 40),
           ),
           const SizedBox(height: 20),
-          const Text(
+          Text(
             'Nothing to read yet',
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w900,
-              color: Color(0xFF1F2937),
+              color: context.textPrimary,
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Add a book from the library to start your reading journey.',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 14,
-              color: Color(0xFF9CA3AF),
+              color: context.textSecondary,
               height: 1.5,
             ),
           ),
@@ -496,8 +484,7 @@ class _EmptyState extends StatelessWidget {
               elevation: 0,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14)),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
             ),
           ),
         ]),

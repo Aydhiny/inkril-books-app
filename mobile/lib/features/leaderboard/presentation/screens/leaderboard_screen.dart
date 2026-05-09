@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_error_widget.dart';
 import '../../../../core/widgets/shimmer_loading.dart';
@@ -14,19 +15,19 @@ class LeaderboardScreen extends ConsumerWidget {
     final leaderboardAsync = ref.watch(leaderboardProvider);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.scaffoldBg,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 20, 20, 4),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
               child: Text(
                 'Leaderboard',
                 style: TextStyle(
                   fontSize: 34,
                   fontWeight: FontWeight.w900,
-                  color: Color(0xFF1A0A2E),
+                  color: context.textPrimary,
                   letterSpacing: -0.5,
                 ),
               ),
@@ -59,25 +60,24 @@ class LeaderboardScreen extends ConsumerWidget {
                               borderRadius: BorderRadius.circular(24),
                             ),
                             child: const Center(
-                              child: Text('🏆',
-                                  style: TextStyle(fontSize: 40)),
+                              child: Text('🏆', style: TextStyle(fontSize: 40)),
                             ),
                           ),
                           const SizedBox(height: 20),
-                          const Text(
+                          Text(
                             'No readers yet',
                             style: TextStyle(
                               fontSize: 22,
                               fontWeight: FontWeight.w900,
-                              color: Color(0xFF1A0A2E),
+                              color: context.textPrimary,
                             ),
                           ),
                           const SizedBox(height: 8),
-                          const Text(
+                          Text(
                             'Start reading to claim the top spot!',
                             style: TextStyle(
                               fontSize: 14,
-                              color: Color(0xFF9CA3AF),
+                              color: context.textSecondary,
                             ),
                           ),
                         ],
@@ -85,7 +85,6 @@ class LeaderboardScreen extends ConsumerWidget {
                     );
                   }
 
-                  // Flat ranked list — no podium
                   return ListView.separated(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                     itemCount: entries.length,
@@ -129,51 +128,44 @@ class _LeaderRow extends StatelessWidget {
       required this.isCurrentUser,
       required this.onTap});
 
-  static const _goldBg     = Color(0xFFFFFBEB);
-  static const _goldBorder = Color(0xFFF59E0B);
-  static const _silverBg   = Color(0xFFF8F8F8);
-  static const _silverBorder = Color(0xFFB0BEC5);
-  static const _bronzeBg   = Color(0xFFFFF3E0);
-  static const _bronzeBorder = Color(0xFFFF8F00);
-
   @override
   Widget build(BuildContext context) {
-    final rank      = entry['rank']            as int? ?? 0;
-    final userName  = entry['userName']        as String? ?? '';
-    final minutes   = entry['totalMinutesRead'] as int? ?? 0;
-    final streak    = entry['currentStreak']   as int? ?? 0;
-    final hours     = (minutes / 60).toStringAsFixed(1);
-    final initials  = userName.isNotEmpty ? userName[0].toUpperCase() : '?';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final rank = entry['rank'] as int? ?? 0;
+    final userName = entry['userName'] as String? ?? '';
+    final minutes = entry['totalMinutesRead'] as int? ?? 0;
+    final streak = entry['currentStreak'] as int? ?? 0;
+    final hours = (minutes / 60).toStringAsFixed(1);
+    final initials = userName.isNotEmpty ? userName[0].toUpperCase() : '?';
 
-    // Styling per rank
-    Color bg, border;
-    Color nameColor;
+    // Colors per rank — dark-mode aware
+    Color bg, border, nameColor;
     double borderWidth;
 
     if (isCurrentUser) {
-      bg = const Color(0xFFF3EEFF);
+      bg = context.primarySurface;
       border = AppTheme.primary;
       nameColor = AppTheme.primary;
       borderWidth = 2;
     } else if (rank == 1) {
-      bg = _goldBg;
-      border = _goldBorder;
+      bg = isDark ? const Color(0xFF1E1600) : const Color(0xFFFFFBEB);
+      border = const Color(0xFFF59E0B);
       nameColor = const Color(0xFFB45309);
       borderWidth = 2.5;
     } else if (rank == 2) {
-      bg = _silverBg;
-      border = _silverBorder;
-      nameColor = const Color(0xFF546E7A);
+      bg = isDark ? const Color(0xFF141414) : const Color(0xFFF8F8F8);
+      border = isDark ? const Color(0xFF546E7A) : const Color(0xFFB0BEC5);
+      nameColor = isDark ? const Color(0xFF90A4AE) : const Color(0xFF546E7A);
       borderWidth = 1.5;
     } else if (rank == 3) {
-      bg = _bronzeBg;
-      border = _bronzeBorder;
+      bg = isDark ? const Color(0xFF1A1000) : const Color(0xFFFFF3E0);
+      border = const Color(0xFFFF8F00);
       nameColor = const Color(0xFFE65100);
       borderWidth = 1.5;
     } else {
-      bg = Colors.white;
-      border = const Color(0xFFE9D5FF);
-      nameColor = const Color(0xFF1A0A2E);
+      bg = context.cardBg;
+      border = context.borderPurple;
+      nameColor = context.textPrimary;
       borderWidth = 1.5;
     }
 
@@ -205,7 +197,7 @@ class _LeaderRow extends StatelessWidget {
                           fontWeight: FontWeight.w800,
                           color: isCurrentUser
                               ? AppTheme.primary
-                              : const Color(0xFF9CA3AF),
+                              : context.textSecondary,
                         ),
                       ),
                     ),
@@ -219,13 +211,13 @@ class _LeaderRow extends StatelessWidget {
                 shape: BoxShape.circle,
                 color: isCurrentUser
                     ? AppTheme.primary
-                    : const Color(0xFFE5E7EB),
+                    : context.subtleBg,
               ),
               child: Center(
                 child: Text(
                   isCurrentUser ? 'Y' : initials,
                   style: TextStyle(
-                    color: isCurrentUser ? Colors.white : const Color(0xFF9CA3AF),
+                    color: isCurrentUser ? Colors.white : context.textSecondary,
                     fontWeight: FontWeight.w800,
                     fontSize: 16,
                   ),
@@ -248,7 +240,6 @@ class _LeaderRow extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            // Streak
             const SizedBox(width: 8),
             const Text('🔥', style: TextStyle(fontSize: 16)),
             const SizedBox(width: 3),
@@ -261,7 +252,6 @@ class _LeaderRow extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 12),
-            // Hours with clock icon
             const Text('⏰', style: TextStyle(fontSize: 16)),
             const SizedBox(width: 3),
             Text(

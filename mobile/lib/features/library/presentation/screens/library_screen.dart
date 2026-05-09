@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/api/api_client.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/animated_empty_state.dart';
 import '../../../../core/widgets/shimmer_loading.dart';
@@ -18,8 +19,6 @@ class LibraryScreen extends ConsumerWidget {
     final userLibraryAsync = ref.watch(userLibraryProvider);
     final profileAsync = ref.watch(myProfileProvider);
 
-    // Last-read book: most recently opened book from the user's library.
-    // Falls back to the first public book so the banner is always visible.
     final _sortedRead = userLibraryAsync.valueOrNull
         ?.where((b) => b['lastReadAt'] != null)
         .toList()
@@ -34,7 +33,6 @@ class LibraryScreen extends ConsumerWidget {
     final _firstPublic = publicBooksAsync.valueOrNull?.isNotEmpty == true
         ? publicBooksAsync.valueOrNull!.first
         : null;
-    // Prefer most recently read, then any library book, then first public book
     final lastReadBook = (_sortedRead?.isNotEmpty == true
             ? _sortedRead!.first
             : null) ??
@@ -42,7 +40,7 @@ class LibraryScreen extends ConsumerWidget {
         _firstPublic;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.scaffoldBg,
       body: SafeArea(
         child: RefreshIndicator(
           color: AppTheme.primary,
@@ -53,33 +51,27 @@ class LibraryScreen extends ConsumerWidget {
           },
           child: CustomScrollView(
             slivers: [
-              // ── Stats top bar ───────────────────────────────────────
               SliverToBoxAdapter(
                 child: _StatsTopBar(profileAsync: profileAsync),
               ),
-              // ── Search + Upload ────────────────────────────────────
               SliverToBoxAdapter(
                 child: _SearchUploadRow(ref: ref),
               ),
-              // ── Continue reading CTA ──────────────────────────────
               SliverToBoxAdapter(
                 child: _ContinueReadingButton(lastReadBook: lastReadBook),
               ),
-              // ── My book library ────────────────────────────────────
-              const SliverToBoxAdapter(
+              SliverToBoxAdapter(
                 child: _SectionTitle(title: 'My book library'),
               ),
               SliverToBoxAdapter(
                 child: _MyLibraryScroll(userLibraryAsync: userLibraryAsync),
               ),
-              // ── Public library ────────────────────────────────────
-              const SliverToBoxAdapter(
+              SliverToBoxAdapter(
                 child: _SectionTitle(title: 'Public library'),
               ),
               SliverToBoxAdapter(
                 child: _PublicLibraryScroll(publicBooksAsync: publicBooksAsync),
               ),
-              // ── Today's Quote ─────────────────────────────────────
               const SliverToBoxAdapter(child: _TodaysQuoteSection()),
               const SliverToBoxAdapter(child: SizedBox(height: 24)),
             ],
@@ -91,7 +83,7 @@ class LibraryScreen extends ConsumerWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Stats top bar: avatar | 🔥 streak | ⏱ reading time | 🔔 bell
+// Stats top bar
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _StatsTopBar extends StatelessWidget {
@@ -114,7 +106,6 @@ class _StatsTopBar extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
       child: Row(
         children: [
-          // Avatar — tapping opens the profile
           GestureDetector(
             onTap: () => context.push('/profile'),
             child: CircleAvatar(
@@ -131,13 +122,10 @@ class _StatsTopBar extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          // Streak
           _TopBadge(emoji: '🔥', value: '$streak', color: AppTheme.streakOrange),
           const SizedBox(width: 10),
-          // Daily reading time
           _TopBadge(emoji: '⏱', value: timeDisplay, color: const Color(0xFFEF4444)),
           const SizedBox(width: 10),
-          // Notifications bell
           GestureDetector(
             onTap: () => context.push('/notifications'),
             child: Container(
@@ -146,8 +134,7 @@ class _StatsTopBar extends StatelessWidget {
               decoration: BoxDecoration(
                 color: const Color(0xFFFEF9C3),
                 borderRadius: BorderRadius.circular(12),
-                border:
-                    Border.all(color: const Color(0xFFFDE68A), width: 1.5),
+                border: Border.all(color: const Color(0xFFFDE68A), width: 1.5),
               ),
               child: const Center(
                 child: Text('🔔', style: TextStyle(fontSize: 20)),
@@ -175,8 +162,7 @@ class _TopBadge extends StatelessWidget {
   final String emoji;
   final String value;
   final Color color;
-  const _TopBadge(
-      {required this.emoji, required this.value, required this.color});
+  const _TopBadge({required this.emoji, required this.value, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -223,29 +209,27 @@ class _SearchUploadRow extends StatelessWidget {
             child: Container(
               height: 50,
               decoration: BoxDecoration(
-                color: const Color(0xFFF3F4F6),
+                color: context.subtleBg,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFFD8B4FE), width: 2),
+                border: Border.all(color: context.borderPurpleMid, width: 2),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 14),
-              child: const Row(children: [
-                Icon(Icons.search_rounded, color: Color(0xFF9CA3AF), size: 20),
-                SizedBox(width: 8),
+              child: Row(children: [
+                Icon(Icons.search_rounded, color: context.textHint, size: 20),
+                const SizedBox(width: 8),
                 Text('Search books...',
-                    style:
-                        TextStyle(color: Color(0xFF9CA3AF), fontSize: 14)),
-                Spacer(),
-                Icon(Icons.tune_rounded,
-                    color: Color(0xFF9CA3AF), size: 18),
+                    style: TextStyle(color: context.textHint, fontSize: 14)),
+                const Spacer(),
+                Icon(Icons.tune_rounded, color: context.textHint, size: 18),
               ]),
             ),
           ),
         ),
         const SizedBox(width: 10),
         OutlinedButton.icon(
-          onPressed: () => _showUploadDialog(context),
+          onPressed: () => _showUploadSheet(context),
           icon: const Icon(Icons.upload_rounded, size: 18),
-          label: const Text('Upload Book',
+          label: const Text('Upload',
               style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
           style: OutlinedButton.styleFrom(
             foregroundColor: AppTheme.primary,
@@ -253,74 +237,172 @@ class _SearchUploadRow extends StatelessWidget {
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14)),
             minimumSize: const Size(0, 50),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
           ),
         ),
       ]),
     );
   }
 
-  void _showUploadDialog(BuildContext context) {
+  void _showUploadSheet(BuildContext context) {
     final titleCtrl = TextEditingController();
     final authorCtrl = TextEditingController();
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Upload Book',
-            style: TextStyle(fontWeight: FontWeight.w800)),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => _UploadBookSheet(
+        titleCtrl: titleCtrl,
+        authorCtrl: authorCtrl,
+        onUpload: () async {
+          Navigator.pop(sheetCtx);
+          try {
+            final dio = ref.read(dioProvider);
+            await dio.post('/api/books', data: {
+              'title': titleCtrl.text.trim(),
+              'author': authorCtrl.text.trim(),
+              'totalPages': 0,
+              'isPublic': true,
+            });
+            ref.invalidate(publicBooksProvider);
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text('Book uploaded! 🎉'),
+                  backgroundColor: AppTheme.progressGreen,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+              );
+            }
+          } catch (_) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Upload failed — check permissions.')),
+              );
+            }
+          }
+        },
+      ),
+    );
+  }
+}
+
+// Duolingo-style upload bottom sheet
+class _UploadBookSheet extends StatelessWidget {
+  final TextEditingController titleCtrl;
+  final TextEditingController authorCtrl;
+  final VoidCallback onUpload;
+  const _UploadBookSheet({
+    required this.titleCtrl,
+    required this.authorCtrl,
+    required this.onUpload,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        decoration: BoxDecoration(
+          color: context.cardBg,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          border: Border(top: BorderSide(color: context.borderPurpleMid, width: 2)),
+        ),
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          // Handle
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: context.borderPurpleMid,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 20),
+          // Icon + title
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: context.primarySurface,
+              shape: BoxShape.circle,
+            ),
+            child: const Center(
+              child: Text('📚', style: TextStyle(fontSize: 28)),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Upload a Book',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              color: context.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Add a new book to the public library',
+            style: TextStyle(fontSize: 14, color: context.textSecondary),
+          ),
+          const SizedBox(height: 24),
           TextField(
             controller: titleCtrl,
-            decoration: const InputDecoration(labelText: 'Title'),
+            decoration: InputDecoration(
+              labelText: 'Book Title',
+              prefixIcon: const Icon(Icons.book_outlined, color: AppTheme.primary),
+              labelStyle: TextStyle(color: context.textSecondary),
+            ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           TextField(
             controller: authorCtrl,
-            decoration: const InputDecoration(labelText: 'Author'),
+            decoration: InputDecoration(
+              labelText: 'Author',
+              prefixIcon: const Icon(Icons.person_outline_rounded, color: AppTheme.primary),
+              labelStyle: TextStyle(color: context.textSecondary),
+            ),
           ),
+          const SizedBox(height: 24),
+          Row(children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(context),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: context.textSecondary,
+                  side: BorderSide(color: context.borderGray, width: 1.5),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                  minimumSize: const Size(0, 52),
+                ),
+                child: const Text('Cancel',
+                    style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              flex: 2,
+              child: ElevatedButton.icon(
+                onPressed: onUpload,
+                icon: const Icon(Icons.upload_rounded, size: 18),
+                label: const Text('Upload Book',
+                    style: TextStyle(fontWeight: FontWeight.w700)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(0, 52),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                  elevation: 0,
+                ),
+              ),
+            ),
+          ]),
         ]),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(dialogContext);
-              try {
-                final dio = ref.read(dioProvider);
-                await dio.post('/api/books', data: {
-                  'title': titleCtrl.text.trim(),
-                  'author': authorCtrl.text.trim(),
-                  'totalPages': 0,
-                  'isPublic': true,
-                });
-                ref.invalidate(publicBooksProvider);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text('Book uploaded!'),
-                      backgroundColor: AppTheme.progressGreen,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                  );
-                }
-              } catch (_) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Upload failed — check permissions.')),
-                  );
-                }
-              }
-            },
-            child: const Text('Upload'),
-          ),
-        ],
       ),
     );
   }
@@ -340,10 +422,10 @@ class _SectionTitle extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
       child: Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 24,
           fontWeight: FontWeight.w900,
-          color: Color(0xFF1A0A2E),
+          color: context.textPrimary,
           letterSpacing: -0.3,
         ),
       ),
@@ -365,9 +447,9 @@ class _MyLibraryScroll extends StatelessWidget {
       height: 300,
       child: userLibraryAsync.when(
         loading: () => const ShimmerBookScroll(),
-        error: (_, __) => const Center(
+        error: (_, __) => Center(
             child: Text('Could not load your books',
-                style: TextStyle(color: Color(0xFF9CA3AF)))),
+                style: TextStyle(color: context.textSecondary))),
         data: (books) {
           if (books.isEmpty) {
             return AnimatedEmptyState(
@@ -406,7 +488,7 @@ class _PublicLibraryScroll extends StatelessWidget {
         loading: () => const ShimmerBookScroll(),
         error: (e, _) => Center(
             child: Text('Failed to load: $e',
-                style: const TextStyle(color: Color(0xFF9CA3AF)))),
+                style: TextStyle(color: context.textSecondary))),
         data: (books) => ListView.separated(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           scrollDirection: Axis.horizontal,
@@ -421,20 +503,18 @@ class _PublicLibraryScroll extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Large book card — used by both sections
+// Large book card
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _LibraryBookCard extends StatelessWidget {
   final Map<String, dynamic> book;
   final bool showProgress;
-  const _LibraryBookCard(
-      {required this.book, required this.showProgress});
+  const _LibraryBookCard({required this.book, required this.showProgress});
 
   @override
   Widget build(BuildContext context) {
     final bookId = book['bookId'] as String? ?? book['id'] as String? ?? '';
-    final progress =
-        (book['readingProgressPercent'] as num? ?? 0).toDouble();
+    final progress = (book['readingProgressPercent'] as num? ?? 0).toDouble();
     final coverUrl = book['coverImageUrl'] as String?;
 
     return GestureDetector(
@@ -442,8 +522,7 @@ class _LibraryBookCard extends StatelessWidget {
       child: Container(
         width: 165,
         decoration: BoxDecoration(
-          color: Colors.white,
-          // Slightly rounded outer container, but cover image itself is sharp
+          color: context.cardBg,
           borderRadius: BorderRadius.circular(6),
           border: Border.all(color: const Color(0xFF9333EA), width: 3.5),
           boxShadow: [
@@ -456,7 +535,6 @@ class _LibraryBookCard extends StatelessWidget {
         ),
         child: Column(
           children: [
-            // Cover — sharp corners, fills most of the card
             Expanded(
               child: SizedBox(
                 width: double.infinity,
@@ -464,15 +542,14 @@ class _LibraryBookCard extends StatelessWidget {
                     ? Image.network(
                         coverUrl,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const _CoverPlaceholder(),
+                        errorBuilder: (_, __, ___) => _CoverPlaceholder(),
                       )
-                    : const _CoverPlaceholder(),
+                    : _CoverPlaceholder(),
               ),
             ),
-            // Progress strip
             if (showProgress)
               Container(
-                color: Colors.white,
+                color: context.cardBg,
                 padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -480,12 +557,12 @@ class _LibraryBookCard extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
+                        Text(
                           'Progress:',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF374151),
+                            color: context.textBody,
                           ),
                         ),
                         Text(
@@ -504,7 +581,7 @@ class _LibraryBookCard extends StatelessWidget {
                       child: LinearProgressIndicator(
                         value: progress / 100,
                         minHeight: 7,
-                        backgroundColor: const Color(0xFFE9D5FF),
+                        backgroundColor: context.borderPurple,
                         valueColor: const AlwaysStoppedAnimation<Color>(
                             AppTheme.primary),
                       ),
@@ -520,38 +597,31 @@ class _LibraryBookCard extends StatelessWidget {
 }
 
 class _CoverPlaceholder extends StatelessWidget {
-  const _CoverPlaceholder();
-
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: AppTheme.primarySurface,
+      color: context.primarySurface,
       child: const Center(
-        child: Icon(Icons.menu_book_rounded,
-            size: 48, color: AppTheme.primary),
+        child: Icon(Icons.menu_book_rounded, size: 48, color: AppTheme.primary),
       ),
     );
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Continue reading CTA — dark gradient banner with floating book icons
+// Continue reading CTA
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _ContinueReadingButton extends StatelessWidget {
   final Map<String, dynamic>? lastReadBook;
-  // True when the book came from the user's own library (has lastReadAt or bookId)
   bool get _hasProgress =>
       lastReadBook != null &&
-      (lastReadBook!['lastReadAt'] != null ||
-          lastReadBook!['bookId'] != null);
+      (lastReadBook!['lastReadAt'] != null || lastReadBook!['bookId'] != null);
   const _ContinueReadingButton({required this.lastReadBook});
 
   @override
   Widget build(BuildContext context) {
     if (lastReadBook == null) return const SizedBox(height: 8);
-
-    // UserBook entries use 'bookId'; public Book entries use 'id'
     final bookId =
         lastReadBook!['bookId'] as String? ?? lastReadBook!['id'] as String? ?? '';
     final title = lastReadBook!['title'] as String? ?? 'Your next read';
@@ -581,7 +651,6 @@ class _ContinueReadingButton extends StatelessWidget {
           ),
           child: Stack(
             children: [
-              // Floating book icons scattered in background
               const Positioned(top: 12, right: 16,
                   child: Opacity(opacity: 0.15,
                       child: Text('📚', style: TextStyle(fontSize: 36)))),
@@ -594,7 +663,6 @@ class _ContinueReadingButton extends StatelessWidget {
               const Positioned(bottom: 14, right: 16,
                   child: Opacity(opacity: 0.12,
                       child: Text('📗', style: TextStyle(fontSize: 20)))),
-              // Dark fade from bottom (extra depth)
               Positioned.fill(
                 child: DecoratedBox(
                   decoration: BoxDecoration(
@@ -610,7 +678,6 @@ class _ContinueReadingButton extends StatelessWidget {
                   ),
                 ),
               ),
-              // Content
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 100, 0),
                 child: Column(
@@ -679,55 +746,23 @@ class _ContinueReadingButton extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Today's Quote section
+// Today's Quote
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _TodaysQuoteSection extends StatelessWidget {
   const _TodaysQuoteSection();
 
-  // Rotates daily using day-of-year index.
-  // Explicit type so Dart infers List<(String,String)>, enabling .$1 / .$2.
   static const List<(String, String)> _quotes = [
-    (
-      '"It is not our abilities that show what we truly are. It is our choices."',
-      'Moby Dick',
-    ),
-    (
-      '"I\'m unpredictable, I never know where I\'m going until I get there, I\'m so random."',
-      'Pride and Prejudice',
-    ),
-    (
-      '"It does not do to dwell on dreams and forget to live."',
-      'The Great Gatsby',
-    ),
-    (
-      '"The person, be it gentleman or lady, who has not pleasure in a good novel, must be intolerably stupid."',
-      'Pride and Prejudice',
-    ),
-    (
-      '"I must not fear. Fear is the mind-killer."',
-      'Dune',
-    ),
-    (
-      '"So we beat on, boats against the current, borne back ceaselessly into the past."',
-      'The Great Gatsby',
-    ),
-    (
-      '"War is peace. Freedom is slavery. Ignorance is strength."',
-      '1984',
-    ),
-    (
-      '"Call me Ishmael. Some years ago—never mind how long precisely—I thought I would sail about a little."',
-      'Moby Dick',
-    ),
-    (
-      '"It was a bright cold day in April, and the clocks were striking thirteen."',
-      '1984',
-    ),
-    (
-      '"It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife."',
-      'Pride and Prejudice',
-    ),
+    ('"It is not our abilities that show what we truly are. It is our choices."', 'Moby Dick'),
+    ('"I\'m unpredictable, I never know where I\'m going until I get there."', 'Pride and Prejudice'),
+    ('"It does not do to dwell on dreams and forget to live."', 'The Great Gatsby'),
+    ('"The person who has not pleasure in a good novel must be intolerably stupid."', 'Pride and Prejudice'),
+    ('"I must not fear. Fear is the mind-killer."', 'Dune'),
+    ('"So we beat on, boats against the current, borne back ceaselessly into the past."', 'The Great Gatsby'),
+    ('"War is peace. Freedom is slavery. Ignorance is strength."', '1984'),
+    ('"Call me Ishmael. Some years ago I thought I would sail about a little."', 'Moby Dick'),
+    ('"It was a bright cold day in April, and the clocks were striking thirteen."', '1984'),
+    ('"It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife."', 'Pride and Prejudice'),
   ];
 
   @override
@@ -740,7 +775,7 @@ class _TodaysQuoteSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             "Today's Quote",
             style: TextStyle(
               fontSize: 24,
@@ -753,14 +788,14 @@ class _TodaysQuoteSection extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.cardBg,
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xFFD8B4FE), width: 2.5),
-              boxShadow: const [
+              border: Border.all(color: context.borderPurpleMid, width: 2.5),
+              boxShadow: [
                 BoxShadow(
-                  color: Color(0x0A6B21A8),
+                  color: const Color(0x0A6B21A8),
                   blurRadius: 8,
-                  offset: Offset(0, 3),
+                  offset: const Offset(0, 3),
                 ),
               ],
             ),
@@ -773,9 +808,9 @@ class _TodaysQuoteSection extends StatelessWidget {
                     children: [
                       Text(
                         quote.$1,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
-                          color: Color(0xFF374151),
+                          color: context.textBody,
                           height: 1.6,
                           fontStyle: FontStyle.italic,
                         ),
@@ -797,7 +832,7 @@ class _TodaysQuoteSection extends StatelessWidget {
                   width: 64,
                   height: 64,
                   decoration: BoxDecoration(
-                    color: AppTheme.primarySurface,
+                    color: context.primarySurface,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Center(
@@ -814,7 +849,7 @@ class _TodaysQuoteSection extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Search delegate (placeholder)
+// Search delegate
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _BookSearchDelegate extends SearchDelegate<String> {

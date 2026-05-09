@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/api/api_client.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/animated_empty_state.dart';
 import '../../../../core/widgets/app_error_widget.dart';
@@ -76,7 +77,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
     final showSearch = _searchCtrl.text.trim().isNotEmpty;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.scaffoldBg,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -99,21 +100,21 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
                     height: 40,
                     margin: const EdgeInsets.only(right: 10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF3EEFF),
+                      color: context.primarySurface,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                          color: const Color(0xFFD8B4FE), width: 1.5),
+                          color: context.borderPurpleMid, width: 1.5),
                     ),
-                    child: const Icon(Icons.arrow_back_rounded,
-                        color: Color(0xFF1A0A2E), size: 20),
+                    child: Icon(Icons.arrow_back_rounded,
+                        color: context.textPrimary, size: 20),
                   ),
                 ),
-                const Text(
+                Text(
                   'Friends',
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.w900,
-                    color: Color(0xFF1A0A2E),
+                    color: context.textPrimary,
                   ),
                 ),
                 const Spacer(),
@@ -161,32 +162,32 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
               child: Container(
                 height: 48,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF9FAFB),
+                  color: context.inputBg,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFE5E7EB)),
+                  border: Border.all(color: context.borderGray),
                 ),
                 child: Row(children: [
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
                     child: Icon(Icons.search_rounded,
-                        color: Color(0xFF9CA3AF), size: 22),
+                        color: context.textHint, size: 22),
                   ),
                   Expanded(
                     child: TextField(
                       controller: _searchCtrl,
                       onChanged: _search,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         hintText: 'Search by username…',
                         hintStyle: TextStyle(
-                          color: Color(0xFFD1D5DB),
+                          color: context.textHint,
                           fontSize: 15,
                         ),
                         border: InputBorder.none,
                         isDense: true,
                         contentPadding: EdgeInsets.zero,
                       ),
-                      style: const TextStyle(
-                          fontSize: 15, color: Color(0xFF1F2937)),
+                      style: TextStyle(
+                          fontSize: 15, color: context.textPrimary),
                     ),
                   ),
                   if (_searching)
@@ -405,9 +406,9 @@ class _UserCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.cardBg,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE5E7EB), width: 1.5),
+          border: Border.all(color: context.borderGray, width: 1.5),
         ),
         child: Row(children: [
           // Avatar
@@ -435,32 +436,32 @@ class _UserCard extends StatelessWidget {
                 children: [
                   Text(
                     displayName.isNotEmpty ? displayName : username,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF1F2937),
+                      color: context.textPrimary,
                     ),
                   ),
                   if (username.isNotEmpty) ...[
                     const SizedBox(height: 2),
                     Text(
                       '@$username',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
-                        color: Color(0xFF9CA3AF),
+                        color: context.textSecondary,
                       ),
                     ),
                   ],
                   const SizedBox(height: 5),
                   Row(children: [
-                    const Icon(Icons.access_time_rounded,
-                        size: 13, color: Color(0xFF9CA3AF)),
+                    Icon(Icons.access_time_rounded,
+                        size: 13, color: context.textSecondary),
                     const SizedBox(width: 3),
                     Text(
                       _fmtMinutes(readingMinutes),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: Color(0xFF9CA3AF),
+                        color: context.textSecondary,
                       ),
                     ),
                   ]),
@@ -474,7 +475,7 @@ class _UserCard extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF3F4F6),
+                      color: context.subtleBg,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Text(
@@ -550,8 +551,9 @@ class _PendingSheet extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.cardBg,
         borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: context.borderPurpleMid, width: 1.5),
         boxShadow: const [
           BoxShadow(
             color: Color(0x1A6B21A8),
@@ -570,19 +572,19 @@ class _PendingSheet extends StatelessWidget {
               height: 4,
               margin: const EdgeInsets.only(bottom: 20),
               decoration: BoxDecoration(
-                color: const Color(0xFFE5E7EB),
+                color: context.borderPurpleMid,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
           ),
-          const Align(
+          Align(
             alignment: Alignment.centerLeft,
             child: Text(
               'Friend Requests',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
-                color: Color(0xFF1F2937),
+                color: context.textPrimary,
               ),
             ),
           ),
@@ -606,8 +608,8 @@ class _PendingSheet extends StatelessWidget {
                   Container(
                     width: 44,
                     height: 44,
-                    decoration: const BoxDecoration(
-                      color: AppTheme.primarySurface,
+                    decoration: BoxDecoration(
+                      color: context.primarySurface,
                       shape: BoxShape.circle,
                     ),
                     child: Center(
@@ -627,10 +629,10 @@ class _PendingSheet extends StatelessWidget {
                   Expanded(
                     child: Text(
                       senderName,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF1F2937),
+                        color: context.textPrimary,
                       ),
                     ),
                   ),

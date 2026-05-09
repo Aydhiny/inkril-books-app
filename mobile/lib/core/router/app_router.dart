@@ -18,7 +18,9 @@ import '../../features/profile/presentation/screens/edit_profile_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
 import '../../features/welcome/presentation/screens/welcome_screen.dart';
 import '../providers/auth_provider.dart';
+import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
+import '../../features/reading/presentation/screens/reading_stats_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Welcome-seen flag — read once at startup
@@ -144,6 +146,7 @@ final routerProvider = Provider.family<GoRouter, String>((ref, initialLocation) 
           GoRoute(path: '/friends',       pageBuilder: (_, s) => _slide(s, const FriendsScreen())),
           GoRoute(path: '/notifications', pageBuilder: (_, s) => _slide(s, const NotificationsScreen())),
           GoRoute(path: '/settings',      pageBuilder: (_, s) => _slide(s, const SettingsScreen())),
+          GoRoute(path: '/reading-stats', pageBuilder: (_, s) => _slide(s, const ReadingStatsScreen())),
         ],
       ),
     ],
@@ -165,15 +168,14 @@ class _AppShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final idx = _selectedIndex(context);
     return Scaffold(
-      // Subtle gradient: pure white at top → very light lavender at bottom
-      backgroundColor: Colors.white,
+      backgroundColor: context.scaffoldBg,
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Colors.white, Color(0xFFF3EEFF)],
-            stops: [0.0, 1.0],
+            colors: [context.shellGradientTop, context.shellGradientBottom],
+            stops: const [0.0, 1.0],
           ),
         ),
         child: child,
@@ -203,12 +205,12 @@ class _BottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: 80,
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: context.navBg,
         border: Border(
-          top: BorderSide(color: Color(0xFFE9D5FF), width: 2.5),
+          top: BorderSide(color: context.navBorder, width: 2.5),
         ),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
             color: Color(0x1A6B21A8),
             blurRadius: 24,
@@ -303,7 +305,7 @@ class _NavItem extends StatelessWidget {
             child: Icon(
               icon,
               size: isSelected ? 30 : 26,
-              color: isSelected ? color : const Color(0xFFD1D5DB),
+              color: isSelected ? color : context.textHint,
             ),
           ),
         ),

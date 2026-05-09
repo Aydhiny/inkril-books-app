@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../../core/config/app_config.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/library_provider.dart';
 
@@ -18,7 +19,7 @@ class BookDetailScreen extends ConsumerWidget {
     final reviewsAsync = ref.watch(bookReviewsProvider(bookId));
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F5FF),
+      backgroundColor: context.scaffoldBg,
       body: bookAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
@@ -39,7 +40,7 @@ class BookDetailScreen extends ConsumerWidget {
               // ── Sticky title bar ──────────────────────────────────
               SliverAppBar(
                 pinned: true,
-                backgroundColor: const Color(0xFFF8F5FF),
+                backgroundColor: context.scaffoldBg,
                 surfaceTintColor: Colors.transparent,
                 elevation: 0,
                 leading: IconButton(
@@ -233,19 +234,19 @@ class _BookBody extends StatelessWidget {
           // ── Title + author ────────────────────────────────────────
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 30,
               fontWeight: FontWeight.w900,
-              color: Color(0xFF1A0A2E),
+              color: context.textPrimary,
               letterSpacing: -0.5,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             author,
-            style: const TextStyle(
+            style: TextStyle(
                 fontSize: 16,
-                color: Color(0xFF6B7280),
+                color: context.textSecondary,
                 fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 10),
@@ -257,17 +258,15 @@ class _BookBody extends StatelessWidget {
                 if (progress != null) '${progress.toInt()}%',
                 if (lastReadStr != null) lastReadStr,
               ].join(', '),
-              style: const TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF6B7280)),
+              style: TextStyle(fontSize: 13, color: context.textSecondary),
             ),
           const SizedBox(height: 4),
           Text(
             'PDF, $fileSizeMb, Files: 1',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF1A0A2E),
+              color: context.textPrimary,
             ),
           ),
           const SizedBox(height: 14),
@@ -282,7 +281,7 @@ class _BookBody extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 5),
                         decoration: BoxDecoration(
-                          color: AppTheme.primarySurface,
+                          color: context.primarySurface,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
                               color: const Color(0xFF9333EA), width: 2),
@@ -327,27 +326,23 @@ class _BookBody extends StatelessWidget {
 
           // ── Description ───────────────────────────────────────────
           if (description.isNotEmpty) ...[
-            const Text('About this book',
+            Text('About this book',
                 style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w900,
-                    color: Color(0xFF1A0A2E),
+                    color: context.textPrimary,
                     letterSpacing: -0.2)),
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: context.cardBg,
                 borderRadius: BorderRadius.circular(14),
-                border:
-                    Border.all(color: const Color(0xFFD8B4FE), width: 2.5),
+                border: Border.all(color: context.borderPurpleMid, width: 2.5),
               ),
               child: Text(
                 description,
-                style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF374151),
-                    height: 1.6),
+                style: TextStyle(fontSize: 14, color: context.textBody, height: 1.6),
               ),
             ),
             const SizedBox(height: 20),
@@ -355,11 +350,11 @@ class _BookBody extends StatelessWidget {
 
           // ── Reviews header ────────────────────────────────────────
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            const Text('Reviews',
+            Text('Reviews',
                 style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w900,
-                    color: Color(0xFF1A0A2E),
+                    color: context.textPrimary,
                     letterSpacing: -0.2)),
             TextButton(
               onPressed: () => _showReviewDialog(context, ref),
@@ -418,77 +413,39 @@ class _BookBody extends StatelessWidget {
   }
 
   void _showReviewDialog(BuildContext context, WidgetRef ref) {
-    int rating = 5;
-    final commentCtrl = TextEditingController();
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (_) => StatefulBuilder(
-        builder: (ctx, setS) => AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('Write a Review',
-              style: TextStyle(fontWeight: FontWeight.w800)),
-          content: Column(mainAxisSize: MainAxisSize.min, children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(
-                  5,
-                  (i) => IconButton(
-                        icon: Icon(
-                          i < rating
-                              ? Icons.star_rounded
-                              : Icons.star_outline_rounded,
-                          color: AppTheme.goldMedal,
-                          size: 32,
-                        ),
-                        onPressed: () => setS(() => rating = i + 1),
-                      )),
-            ),
-            TextField(
-              controller: commentCtrl,
-              decoration: const InputDecoration(
-                  labelText: 'Comment (optional)'),
-              maxLines: 3,
-            ),
-          ]),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel')),
-            ElevatedButton(
-              onPressed: () async {
-                try {
-                  final dio = ref.read(dioProvider);
-                  await dio.post('/api/books/$bookId/reviews', data: {
-                    'bookId': bookId,
-                    'rating': rating,
-                    'comment': commentCtrl.text.trim().isEmpty
-                        ? null
-                        : commentCtrl.text.trim(),
-                  });
-                  ref.invalidate(bookDetailProvider(bookId));
-                  ref.invalidate(bookReviewsProvider(bookId));
-                  if (ctx.mounted) Navigator.pop(ctx);
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: const Text('Review submitted!'),
-                      backgroundColor: AppTheme.progressGreen,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ));
-                  }
-                } catch (e) {
-                  if (ctx.mounted) {
-                    ScaffoldMessenger.of(ctx)
-                        .showSnackBar(SnackBar(content: Text('Error: $e')));
-                  }
-                }
-              },
-              child: const Text('Submit'),
-            ),
-          ],
-        ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => _ReviewSheet(
+        bookId: bookId,
+        onSubmit: (rating, comment) async {
+          try {
+            final dio = ref.read(dioProvider);
+            await dio.post('/api/books/$bookId/reviews', data: {
+              'bookId': bookId,
+              'rating': rating,
+              'comment': comment.isEmpty ? null : comment,
+            });
+            ref.invalidate(bookDetailProvider(bookId));
+            ref.invalidate(bookReviewsProvider(bookId));
+            if (sheetCtx.mounted) Navigator.pop(sheetCtx);
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: const Text('Review submitted! ⭐'),
+                backgroundColor: AppTheme.progressGreen,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ));
+            }
+          } catch (e) {
+            if (sheetCtx.mounted) {
+              ScaffoldMessenger.of(sheetCtx)
+                  .showSnackBar(SnackBar(content: Text('Error: $e')));
+            }
+          }
+        },
       ),
     );
   }
@@ -530,9 +487,9 @@ class _ReviewCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.cardBg,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFD8B4FE), width: 2.5),
+        border: Border.all(color: context.borderPurpleMid, width: 2.5),
         boxShadow: const [
           BoxShadow(
             color: Color(0x08000000),
@@ -544,7 +501,7 @@ class _ReviewCard extends StatelessWidget {
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         CircleAvatar(
           radius: 18,
-          backgroundColor: AppTheme.primarySurface,
+          backgroundColor: context.primarySurface,
           child: Text(initial,
               style: const TextStyle(
                   color: AppTheme.primary, fontWeight: FontWeight.w800)),
@@ -554,10 +511,10 @@ class _ReviewCard extends StatelessWidget {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
               Text(userName,
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 13,
-                      color: Color(0xFF1A0A2E))),
+                      color: context.textPrimary)),
               Row(
                   children: List.generate(
                       5,
@@ -572,14 +529,172 @@ class _ReviewCard extends StatelessWidget {
             if (comment != null && comment.isNotEmpty) ...[
               const SizedBox(height: 4),
               Text(comment,
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 13,
-                      color: Color(0xFF4B5563),
+                      color: context.textBody,
                       height: 1.4)),
             ],
           ]),
         ),
       ]),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Duolingo-style review bottom sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ReviewSheet extends StatefulWidget {
+  final String bookId;
+  final Future<void> Function(int rating, String comment) onSubmit;
+  const _ReviewSheet({required this.bookId, required this.onSubmit});
+
+  @override
+  State<_ReviewSheet> createState() => _ReviewSheetState();
+}
+
+class _ReviewSheetState extends State<_ReviewSheet> {
+  int _rating = 5;
+  final _commentCtrl = TextEditingController();
+  bool _submitting = false;
+
+  @override
+  void dispose() {
+    _commentCtrl.dispose();
+    super.dispose();
+  }
+
+  static const _labels = ['Terrible', 'Poor', 'Okay', 'Good', 'Amazing!'];
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        decoration: BoxDecoration(
+          color: context.cardBg,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          border:
+              Border(top: BorderSide(color: context.borderPurpleMid, width: 2)),
+        ),
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          // Handle
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: context.borderPurpleMid,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text('⭐', style: TextStyle(fontSize: 36)),
+          const SizedBox(height: 8),
+          Text(
+            'Write a Review',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              color: context.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'How would you rate this book?',
+            style: TextStyle(fontSize: 14, color: context.textSecondary),
+          ),
+          const SizedBox(height: 20),
+          // Star picker — big tappable stars
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(5, (i) {
+              final filled = i < _rating;
+              return GestureDetector(
+                onTap: () => setState(() => _rating = i + 1),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: Icon(
+                    filled ? Icons.star_rounded : Icons.star_outline_rounded,
+                    color: filled
+                        ? AppTheme.goldMedal
+                        : context.textHint,
+                    size: 44,
+                  ),
+                ),
+              );
+            }),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _labels[_rating - 1],
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.goldMedal,
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _commentCtrl,
+            maxLines: 3,
+            decoration: InputDecoration(
+              hintText: 'Share your thoughts (optional)',
+              hintStyle: TextStyle(color: context.textHint),
+              labelStyle: TextStyle(color: context.textSecondary),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Row(children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(context),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: context.textSecondary,
+                  side: BorderSide(color: context.borderGray, width: 1.5),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                  minimumSize: const Size(0, 52),
+                ),
+                child: const Text('Cancel',
+                    style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              flex: 2,
+              child: ElevatedButton(
+                onPressed: _submitting
+                    ? null
+                    : () async {
+                        setState(() => _submitting = true);
+                        await widget.onSubmit(
+                            _rating, _commentCtrl.text.trim());
+                        if (mounted) setState(() => _submitting = false);
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(0, 52),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                  elevation: 0,
+                ),
+                child: _submitting
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
+                    : const Text('Submit Review',
+                        style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+            ),
+          ]),
+        ]),
+      ),
     );
   }
 }

@@ -6,11 +6,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../../core/config/app_config.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../library/presentation/providers/library_provider.dart';
+import '../../../profile/presentation/providers/profile_provider.dart';
 import '../../../reading/presentation/screens/reading_hub_screen.dart';
 
 class ReaderScreen extends ConsumerStatefulWidget {
@@ -100,20 +102,22 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
   /// Called when the user deliberately exits via "Back to App".
   /// Shows a brief summary overlay, ends the session, then pops.
+  /// If the session was 5+ minutes, navigates to Reading Stats screen.
   Future<void> _closeReader() async {
-    // Show summary overlay for 2.5 s
     setState(() => _showSummary = true);
-    final minutesRead = (_elapsedSeconds / 60).ceil().clamp(1, 9999);
-    final progress = _totalPages > 0
-        ? ((_currentPage + 1) / _totalPages * 100).clamp(0.0, 100.0)
-        : 0.0;
+    final sessionSeconds = _elapsedSeconds; // capture before async gap
 
     await Future.wait([
       _endSession(),
       Future.delayed(const Duration(milliseconds: 2500)),
     ]);
 
-    if (mounted) Navigator.of(context).pop();
+    if (!mounted) return;
+    Navigator.of(context).pop();
+    // 5+ minute session → streak celebration
+    if (sessionSeconds >= 300 && mounted) {
+      context.push('/reading-stats');
+    }
   }
 
   Future<void> _syncProgress(int page) async {
@@ -196,6 +200,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       });
       ref.invalidate(userLibraryProvider);
       ref.invalidate(bookDetailProvider(widget.bookId));
+      // Refresh home stats bar so reading time shows immediately
+      ref.invalidate(myProfileProvider);
     } catch (_) {}
   }
 

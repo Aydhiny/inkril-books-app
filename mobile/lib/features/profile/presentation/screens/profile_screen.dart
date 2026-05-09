@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/animated_empty_state.dart';
 import '../../../../core/widgets/app_error_widget.dart';
@@ -17,7 +18,7 @@ class ProfileScreen extends ConsumerWidget {
     final profileAsync = ref.watch(myProfileProvider);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.scaffoldBg,
       body: SafeArea(
         child: profileAsync.when(
           loading: () => _ProfileShimmer(),
@@ -38,11 +39,11 @@ class ProfileScreen extends ConsumerWidget {
                   const SizedBox(height: 20),
                   _IdentityBlock(profile: profile),
                   const SizedBox(height: 20),
-                  const Divider(height: 1, color: Color(0xFFE9D5FF)),
+                  Divider(height: 1, color: context.borderPurple),
                   const SizedBox(height: 16),
                   _AddFriendsButton(),
                   const SizedBox(height: 16),
-                  const Divider(height: 1, color: Color(0xFFE9D5FF)),
+                  Divider(height: 1, color: context.borderPurple),
                   const SizedBox(height: 24),
                   _StatisticsSection(profile: profile),
                   const SizedBox(height: 24),
@@ -140,22 +141,10 @@ class _TopBar extends StatelessWidget {
   }
 
   Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showModalBottomSheet<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Sign Out',
-            style: TextStyle(fontWeight: FontWeight.w800)),
-        content: const Text('Are you sure you want to sign out?'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
-          ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Sign Out')),
-        ],
-      ),
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => _LogoutSheet(),
     );
     if (confirmed == true && context.mounted) {
       await ref.read(authNotifierProvider.notifier).logout();
@@ -177,9 +166,9 @@ class _MiniIconBtn extends StatelessWidget {
         height: 34,
         margin: const EdgeInsets.only(left: 6),
         decoration: BoxDecoration(
-          color: const Color(0xFFF3EEFF),
+          color: context.primarySurface,
           shape: BoxShape.circle,
-          border: Border.all(color: const Color(0xFFD8B4FE), width: 1.5),
+          border: Border.all(color: context.borderPurpleMid, width: 1.5),
         ),
         child: Icon(icon, size: 16, color: AppTheme.primary),
       ),
@@ -207,12 +196,12 @@ class _IdentityBlock extends StatelessWidget {
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       // "User Profile" title
-      const Text(
+      Text(
         'User Profile',
         style: TextStyle(
           fontSize: 26,
           fontWeight: FontWeight.w900,
-          color: Color(0xFF1A0A2E),
+          color: context.textPrimary,
           letterSpacing: -0.5,
         ),
       ),
@@ -222,25 +211,25 @@ class _IdentityBlock extends StatelessWidget {
       if (fullName.isNotEmpty || userName.isNotEmpty)
         RichText(
           text: TextSpan(
-            style: const TextStyle(fontSize: 15, height: 1.4),
+            style: TextStyle(fontSize: 15, height: 1.4, color: context.textBody),
             children: [
               if (fullName.isNotEmpty)
                 TextSpan(
                   text: fullName,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF1A0A2E),
+                    color: context.textPrimary,
                   ),
                 ),
               if (fullName.isNotEmpty && userName.isNotEmpty)
-                const TextSpan(
+                TextSpan(
                   text: ' · ',
-                  style: TextStyle(color: Color(0xFF9CA3AF)),
+                  style: TextStyle(color: context.textSecondary),
                 ),
               if (userName.isNotEmpty)
                 TextSpan(
                   text: userName,
-                  style: const TextStyle(color: Color(0xFF6B7280)),
+                  style: TextStyle(color: context.textSecondary),
                 ),
             ],
           ),
@@ -248,15 +237,11 @@ class _IdentityBlock extends StatelessWidget {
 
       const SizedBox(height: 4),
 
-      // "Joined 2024, 32 Books read."
       Text(
         joinedYear != null
             ? 'Joined $joinedYear, $booksRead Books read.'
             : '$booksRead Books read.',
-        style: const TextStyle(
-          fontSize: 13,
-          color: Color(0xFF6B7280),
-        ),
+        style: TextStyle(fontSize: 13, color: context.textSecondary),
       ),
 
       const SizedBox(height: 6),
@@ -329,32 +314,38 @@ class _StatisticsSection extends StatelessWidget {
         : totalHoursRaw.toStringAsFixed(1);
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text(
+      Text(
         'Statistics',
         style: TextStyle(
           fontSize: 22,
           fontWeight: FontWeight.w900,
-          color: Color(0xFF1A0A2E),
+          color: context.textPrimary,
           letterSpacing: -0.3,
         ),
       ),
       const SizedBox(height: 14),
       Row(children: [
         Expanded(
-          child: _StatCard(
-            emoji: '🔥',
-            rawValue: streak.toDouble(),
-            suffix: '',
-            label: 'Longest Streak',
+          child: GestureDetector(
+            onTap: () => context.push('/reading-stats'),
+            child: _StatCard(
+              emoji: '🔥',
+              rawValue: streak.toDouble(),
+              suffix: '',
+              label: 'Longest Streak',
+            ),
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: _StatCard(
-            emoji: '⏰',
-            rawValue: totalHoursRaw,
-            suffix: 'h',
-            label: 'Hours read',
+          child: GestureDetector(
+            onTap: () => context.push('/reading-stats'),
+            child: _StatCard(
+              emoji: '⏰',
+              rawValue: totalHoursRaw,
+              suffix: 'h',
+              label: 'Hours read',
+            ),
           ),
         ),
       ]),
@@ -379,9 +370,9 @@ class _StatCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.cardBg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE9D5FF), width: 1.5),
+        border: Border.all(color: context.borderPurple, width: 1.5),
         boxShadow: [
           BoxShadow(
             color: AppTheme.primary.withValues(alpha: 0.06),
@@ -397,19 +388,19 @@ class _StatCard extends StatelessWidget {
           AnimatedCount(
             target: rawValue,
             suffix: suffix,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 26,
               fontWeight: FontWeight.w900,
-              color: Color(0xFF1A0A2E),
+              color: context.textPrimary,
             ),
           ),
         ]),
         const SizedBox(height: 4),
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 12,
-            color: Color(0xFF6B7280),
+            color: context.textSecondary,
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -431,12 +422,12 @@ class _WeeklyProgressSection extends StatelessWidget {
     final weeklyStats = profile['weeklyStats'] as List? ?? [];
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text(
+      Text(
         'Weekly progress',
         style: TextStyle(
           fontSize: 22,
           fontWeight: FontWeight.w900,
-          color: Color(0xFF1A0A2E),
+          color: context.textPrimary,
           letterSpacing: -0.3,
         ),
       ),
@@ -444,9 +435,9 @@ class _WeeklyProgressSection extends StatelessWidget {
       Container(
         padding: const EdgeInsets.fromLTRB(8, 16, 16, 8),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.cardBg,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE9D5FF), width: 1.5),
+          border: Border.all(color: context.borderPurple, width: 1.5),
         ),
         child: SizedBox(
           height: 200,
@@ -525,10 +516,10 @@ class _LineChart extends StatelessWidget {
                   padding: const EdgeInsets.only(top: 6),
                   child: Text(
                     dayLabels[idx],
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF9CA3AF),
+                      color: context.textSecondary,
                     ),
                   ),
                 );
@@ -541,17 +532,9 @@ class _LineChart extends StatelessWidget {
               reservedSize: 36,
               interval: chartMax / 4,
               getTitlesWidget: (v, _) {
-                if (v == 0 || v == chartMax) {
-                  return Text(
-                    v.toInt().toString(),
-                    style: const TextStyle(
-                        fontSize: 10, color: Color(0xFF9CA3AF)),
-                  );
-                }
                 return Text(
                   v.toInt().toString(),
-                  style:
-                      const TextStyle(fontSize: 10, color: Color(0xFF9CA3AF)),
+                  style: TextStyle(fontSize: 10, color: context.textSecondary),
                 );
               },
             ),
@@ -565,8 +548,8 @@ class _LineChart extends StatelessWidget {
           show: true,
           drawVerticalLine: false,
           horizontalInterval: chartMax / 4,
-          getDrawingHorizontalLine: (_) => const FlLine(
-            color: Color(0xFFF3F4F6),
+          getDrawingHorizontalLine: (_) => FlLine(
+            color: context.divider,
             strokeWidth: 1,
           ),
         ),
@@ -624,11 +607,11 @@ class _ProfileShimmer extends StatelessWidget {
         const SizedBox(height: 8),
         ShimmerWrapper(child: ShimmerBox(width: 140, height: 14, radius: 5)),
         const SizedBox(height: 20),
-        const Divider(height: 1, color: Color(0xFFE9D5FF)),
+        Divider(height: 1, color: context.borderPurple),
         const SizedBox(height: 16),
         ShimmerWrapper(child: ShimmerBox(width: double.infinity, height: 52, radius: 14)),
         const SizedBox(height: 16),
-        const Divider(height: 1, color: Color(0xFFE9D5FF)),
+        Divider(height: 1, color: context.borderPurple),
         const SizedBox(height: 24),
         ShimmerWrapper(child: ShimmerBox(width: 100, height: 20, radius: 6)),
         const SizedBox(height: 14),
@@ -640,12 +623,94 @@ class _ProfileShimmer extends StatelessWidget {
           child: Container(
             height: 200,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.cardBg,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppTheme.primarySurface, width: 1.5),
+              border: Border.all(color: context.borderPurple, width: 1.5),
             ),
           ),
         ),
+      ]),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Duolingo-style logout confirmation bottom sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _LogoutSheet extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: context.cardBg,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        border: Border(top: BorderSide(color: context.borderPurpleMid, width: 2)),
+      ),
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 36),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Container(
+          width: 40, height: 4,
+          decoration: BoxDecoration(
+            color: context.borderPurpleMid,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(height: 24),
+        Container(
+          width: 64, height: 64,
+          decoration: BoxDecoration(
+            color: const Color(0xFFFEF2F2),
+            shape: BoxShape.circle,
+          ),
+          child: const Center(child: Text('👋', style: TextStyle(fontSize: 32))),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'Sign Out?',
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w900,
+            color: context.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'You\'ll need to sign back in to access your reading progress.',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 14, color: context.textSecondary, height: 1.5),
+        ),
+        const SizedBox(height: 28),
+        Row(children: [
+          Expanded(
+            child: OutlinedButton(
+              onPressed: () => Navigator.pop(context, false),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: context.textSecondary,
+                side: BorderSide(color: context.borderGray, width: 1.5),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+                minimumSize: const Size(0, 52),
+              ),
+              child: const Text('Stay', style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFEF4444),
+                foregroundColor: Colors.white,
+                minimumSize: const Size(0, 52),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+                elevation: 0,
+              ),
+              child: const Text('Sign Out', style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
+          ),
+        ]),
       ]),
     );
   }
