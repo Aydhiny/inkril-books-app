@@ -11,10 +11,22 @@ class BooksScreen extends ConsumerStatefulWidget {
 
 class _BooksScreenState extends ConsumerState<BooksScreen> {
   String _searchTerm = '';
+  String? _selectedGenreId;
+  DateTime? _publishedFrom;
+  DateTime? _publishedTo;
+
+  ({String searchTerm, String? genreId, DateTime? publishedFrom, DateTime? publishedTo})
+      get _params => (
+            searchTerm: _searchTerm,
+            genreId: _selectedGenreId,
+            publishedFrom: _publishedFrom,
+            publishedTo: _publishedTo,
+          );
 
   @override
   Widget build(BuildContext context) {
-    final booksAsync = ref.watch(adminBooksProvider(searchTerm: _searchTerm));
+    final booksAsync = ref.watch(adminBooksProvider(_params));
+    final genresAsync = ref.watch(adminGenresProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -28,16 +40,103 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
           const SizedBox(width: 16),
         ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(64),
+          preferredSize: const Size.fromHeight(112),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: TextField(
-              decoration: const InputDecoration(
-                hintText: 'Search by title, author...',
-                prefixIcon: Icon(Icons.search),
-                isDense: true,
-              ),
-              onChanged: (v) => setState(() => _searchTerm = v),
+            child: Column(
+              children: [
+                // Row 1: text search
+                TextField(
+                  decoration: const InputDecoration(
+                    hintText: 'Search by title, author...',
+                    prefixIcon: Icon(Icons.search),
+                    isDense: true,
+                  ),
+                  onChanged: (v) => setState(() => _searchTerm = v),
+                ),
+                const SizedBox(height: 8),
+                // Row 2: genre + date filters
+                Row(children: [
+                  // Genre filter
+                  genresAsync.when(
+                    loading: () => const SizedBox(width: 140, child: LinearProgressIndicator()),
+                    error: (_, __) => const SizedBox.shrink(),
+                    data: (genres) => SizedBox(
+                      width: 160,
+                      child: DropdownButtonFormField<String?>(
+                        value: _selectedGenreId,
+                        decoration: const InputDecoration(
+                          labelText: 'Genre',
+                          isDense: true,
+                        ),
+                        items: [
+                          const DropdownMenuItem(value: null, child: Text('All genres')),
+                          ...genres.map((g) {
+                            final gMap = g as Map;
+                            return DropdownMenuItem(
+                              value: gMap['id'] as String,
+                              child: Text(gMap['name'] as String),
+                            );
+                          }),
+                        ],
+                        onChanged: (v) => setState(() => _selectedGenreId = v),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // Published from
+                  _DateFilterChip(
+                    label: _publishedFrom == null
+                        ? 'From date'
+                        : 'From: ${_publishedFrom!.year}-${_publishedFrom!.month.toString().padLeft(2, '0')}-${_publishedFrom!.day.toString().padLeft(2, '0')}',
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: _publishedFrom ?? DateTime(2000),
+                        firstDate: DateTime(1900),
+                        lastDate: DateTime.now(),
+                      );
+                      if (picked != null) setState(() => _publishedFrom = picked);
+                    },
+                    onClear: _publishedFrom == null
+                        ? null
+                        : () => setState(() => _publishedFrom = null),
+                  ),
+                  const SizedBox(width: 8),
+                  // Published to
+                  _DateFilterChip(
+                    label: _publishedTo == null
+                        ? 'To date'
+                        : 'To: ${_publishedTo!.year}-${_publishedTo!.month.toString().padLeft(2, '0')}-${_publishedTo!.day.toString().padLeft(2, '0')}',
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: _publishedTo ?? DateTime.now(),
+                        firstDate: DateTime(1900),
+                        lastDate: DateTime.now(),
+                      );
+                      if (picked != null) setState(() => _publishedTo = picked);
+                    },
+                    onClear: _publishedTo == null
+                        ? null
+                        : () => setState(() => _publishedTo = null),
+                  ),
+                  const Spacer(),
+                  // Clear all filters
+                  if (_selectedGenreId != null ||
+                      _publishedFrom != null ||
+                      _publishedTo != null)
+                    TextButton.icon(
+                      icon: const Icon(Icons.clear_all, size: 16),
+                      label: const Text('Clear filters'),
+                      onPressed: () => setState(() {
+                        _selectedGenreId = null;
+                        _publishedFrom = null;
+                        _publishedTo = null;
+                      }),
+                    ),
+                ]),
+              ],
             ),
           ),
         ),
@@ -60,45 +159,60 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
                   DataColumn(label: Text('Title')),
                   DataColumn(label: Text('Author')),
                   DataColumn(label: Text('Genre')),
+                  DataColumn(label: Text('Published')),
                   DataColumn(label: Text('Rating')),
                   DataColumn(label: Text('Actions')),
                 ],
                 rows: books.map((b) {
                   final book = b as Map;
+                  final published = book['publishedDate'] as String? ?? '';
+                  final publishedShort = published.length >= 10
+                      ? published.substring(0, 10)
+                      : published;
                   return DataRow(cells: [
                     DataCell(book['coverImageUrl'] != null
-                        ? Image.network(book['coverImageUrl'] as String, width: 40, height: 50, fit: BoxFit.cover)
+                        ? Image.network(book['coverImageUrl'] as String,
+                            width: 40, height: 50, fit: BoxFit.cover)
                         : const Icon(Icons.book, size: 40)),
                     DataCell(SizedBox(
                       width: 200,
-                      child: Text(book['title'] as String, maxLines: 2, overflow: TextOverflow.ellipsis),
+                      child: Text(book['title'] as String,
+                          maxLines: 2, overflow: TextOverflow.ellipsis),
                     )),
                     DataCell(Text(book['author'] as String? ?? '')),
-                    DataCell(Text((book['genres'] as List? ?? []).join(', '))),
+                    DataCell(Text(
+                        (book['genres'] as List? ?? []).join(', '))),
+                    DataCell(Text(publishedShort)),
                     DataCell(Row(children: [
                       const Icon(Icons.star, size: 16, color: Colors.amber),
-                      Text(' ${(book['averageRating'] as num?)?.toStringAsFixed(1) ?? '0'}'),
+                      Text(
+                          ' ${(book['averageRating'] as num?)?.toStringAsFixed(1) ?? '0'}'),
                     ])),
                     DataCell(Row(mainAxisSize: MainAxisSize.min, children: [
                       IconButton(
                         icon: const Icon(Icons.upload_file_outlined),
                         tooltip: 'Upload PDF',
-                        onPressed: () => _uploadPdf(context, ref, book['id'] as String),
+                        onPressed: () =>
+                            _uploadPdf(context, ref, book['id'] as String),
                       ),
                       IconButton(
                         icon: const Icon(Icons.image_outlined),
                         tooltip: 'Upload Cover',
-                        onPressed: () => _uploadCover(context, ref, book['id'] as String),
+                        onPressed: () =>
+                            _uploadCover(context, ref, book['id'] as String),
                       ),
                       IconButton(
                         icon: const Icon(Icons.edit_outlined),
                         tooltip: 'Edit',
-                        onPressed: () => _showBookDialog(context, ref, book),
+                        onPressed: () =>
+                            _showBookDialog(context, ref, book),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.delete_outline, color: Colors.red),
+                        icon: const Icon(Icons.delete_outline,
+                            color: Colors.red),
                         tooltip: 'Delete',
-                        onPressed: () => _confirmDelete(context, ref, book['id'] as String),
+                        onPressed: () =>
+                            _confirmDelete(context, ref, book['id'] as String),
                       ),
                     ])),
                   ]);
@@ -114,24 +228,29 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
   void _showBookDialog(BuildContext context, WidgetRef ref, Map? book) {
     showDialog(
       context: context,
-      builder: (_) => _BookFormDialog(book: book, onSaved: () {
-        ref.invalidate(adminBooksProvider(searchTerm: _searchTerm));
-      }),
+      builder: (_) => _BookFormDialog(
+        book: book,
+        onSaved: () => ref.invalidate(adminBooksProvider(_params)),
+      ),
     );
   }
 
-  Future<void> _confirmDelete(BuildContext context, WidgetRef ref, String bookId) async {
+  Future<void> _confirmDelete(
+      BuildContext context, WidgetRef ref, String bookId) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Delete Book'),
         content: const Text('This action cannot be undone. Are you sure?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+            child: const Text('Delete',
+                style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -139,40 +258,69 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
     if (confirm != true) return;
     try {
       await deleteBook(bookId);
-      ref.invalidate(adminBooksProvider(searchTerm: _searchTerm));
+      ref.invalidate(adminBooksProvider(_params));
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }
 
-  Future<void> _uploadPdf(BuildContext context, WidgetRef ref, String bookId) async {
+  Future<void> _uploadPdf(
+      BuildContext context, WidgetRef ref, String bookId) async {
     try {
       await uploadBookPdf(bookId);
-      ref.invalidate(adminBooksProvider(searchTerm: _searchTerm));
+      ref.invalidate(adminBooksProvider(_params));
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('PDF uploaded.')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('PDF uploaded.')));
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }
 
-  Future<void> _uploadCover(BuildContext context, WidgetRef ref, String bookId) async {
+  Future<void> _uploadCover(
+      BuildContext context, WidgetRef ref, String bookId) async {
     try {
       await uploadBookCover(bookId);
-      ref.invalidate(adminBooksProvider(searchTerm: _searchTerm));
+      ref.invalidate(adminBooksProvider(_params));
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cover uploaded.')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Cover uploaded.')));
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
+  }
+}
+
+/// Small chip-style button for date range selection.
+class _DateFilterChip extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  final VoidCallback? onClear;
+  const _DateFilterChip(
+      {required this.label, required this.onTap, this.onClear});
+
+  @override
+  Widget build(BuildContext context) {
+    return InputChip(
+      label: Text(label, style: const TextStyle(fontSize: 12)),
+      avatar: const Icon(Icons.calendar_today, size: 14),
+      deleteIcon: onClear != null
+          ? const Icon(Icons.close, size: 14)
+          : null,
+      onDeleted: onClear,
+      onPressed: onTap,
+    );
   }
 }
 
@@ -211,7 +359,9 @@ class _BookFormDialogState extends ConsumerState<_BookFormDialog> {
 
   @override
   void dispose() {
-    for (final c in [_titleCtrl, _authorCtrl, _descCtrl, _isbnCtrl]) c.dispose();
+    for (final c in [_titleCtrl, _authorCtrl, _descCtrl, _isbnCtrl]) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -224,7 +374,9 @@ class _BookFormDialogState extends ConsumerState<_BookFormDialog> {
           id: widget.book!['id'] as String,
           title: _titleCtrl.text.trim(),
           author: _authorCtrl.text.trim(),
-          description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
+          description: _descCtrl.text.trim().isEmpty
+              ? null
+              : _descCtrl.text.trim(),
           isbn: _isbnCtrl.text.trim().isEmpty ? null : _isbnCtrl.text.trim(),
           isPublic: _isPublic,
           genreIds: _selectedGenreIds,
@@ -234,7 +386,9 @@ class _BookFormDialogState extends ConsumerState<_BookFormDialog> {
         await createBook(
           title: _titleCtrl.text.trim(),
           author: _authorCtrl.text.trim(),
-          description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
+          description: _descCtrl.text.trim().isEmpty
+              ? null
+              : _descCtrl.text.trim(),
           isbn: _isbnCtrl.text.trim().isEmpty ? null : _isbnCtrl.text.trim(),
           isPublic: _isPublic,
           genreIds: _selectedGenreIds,
@@ -245,7 +399,8 @@ class _BookFormDialogState extends ConsumerState<_BookFormDialog> {
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -267,13 +422,16 @@ class _BookFormDialogState extends ConsumerState<_BookFormDialog> {
               TextFormField(
                 controller: _titleCtrl,
                 decoration: const InputDecoration(labelText: 'Title *'),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Title is required.' : null,
+                validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? 'Title is required.' : null,
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _authorCtrl,
                 decoration: const InputDecoration(labelText: 'Author *'),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Author is required.' : null,
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? 'Author is required.'
+                    : null,
               ),
               const SizedBox(height: 12),
               TextFormField(
@@ -300,7 +458,8 @@ class _BookFormDialogState extends ConsumerState<_BookFormDialog> {
                 data: (genres) => Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Genres', style: TextStyle(fontWeight: FontWeight.w500)),
+                    const Text('Genres',
+                        style: TextStyle(fontWeight: FontWeight.w500)),
                     const SizedBox(height: 6),
                     Wrap(
                       spacing: 6,
@@ -312,8 +471,11 @@ class _BookFormDialogState extends ConsumerState<_BookFormDialog> {
                           label: Text(gMap['name'] as String),
                           selected: selected,
                           onSelected: (v) => setState(() {
-                            if (v) _selectedGenreIds.add(id);
-                            else _selectedGenreIds.remove(id);
+                            if (v) {
+                              _selectedGenreIds.add(id);
+                            } else {
+                              _selectedGenreIds.remove(id);
+                            }
                           }),
                         );
                       }).toList(),
@@ -326,11 +488,16 @@ class _BookFormDialogState extends ConsumerState<_BookFormDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel')),
         ElevatedButton(
           onPressed: _loading ? null : _submit,
           child: _loading
-              ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
+              ? const SizedBox(
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2))
               : Text(_isEditing ? 'Save Changes' : 'Add Book'),
         ),
       ],

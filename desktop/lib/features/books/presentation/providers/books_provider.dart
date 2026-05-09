@@ -9,7 +9,9 @@ Dio _authDio() {
   return Dio(BaseOptions(baseUrl: AppConfig.apiBaseUrl));
 }
 
-final adminBooksProvider = FutureProvider.family<Map<String, dynamic>, ({String searchTerm})>(
+final adminBooksProvider = FutureProvider.family<
+    Map<String, dynamic>,
+    ({String searchTerm, String? genreId, DateTime? publishedFrom, DateTime? publishedTo})>(
   (ref, params) async {
     const storage = FlutterSecureStorage();
     final token = await storage.read(key: 'access_token');
@@ -19,6 +21,11 @@ final adminBooksProvider = FutureProvider.family<Map<String, dynamic>, ({String 
     ));
     final queryParams = <String, dynamic>{
       if (params.searchTerm.isNotEmpty) 'searchTerm': params.searchTerm,
+      if (params.genreId != null) 'genreId': params.genreId,
+      if (params.publishedFrom != null)
+        'publishedFrom': params.publishedFrom!.toIso8601String(),
+      if (params.publishedTo != null)
+        'publishedTo': params.publishedTo!.toIso8601String(),
     };
     final response = await dio.get('/api/books', queryParameters: queryParams);
     return response.data as Map<String, dynamic>;

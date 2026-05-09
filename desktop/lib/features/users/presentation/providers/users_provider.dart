@@ -19,3 +19,40 @@ final usersProvider = FutureProvider.family<Map<String, dynamic>, ({String searc
     return response.data as Map<String, dynamic>;
   },
 );
+
+Future<void> blockUser(String userId, bool block) async {
+  const storage = FlutterSecureStorage();
+  final token = await storage.read(key: 'access_token');
+  final dio = Dio(BaseOptions(
+    baseUrl: AppConfig.apiBaseUrl,
+    headers: {'Authorization': 'Bearer $token'},
+  ));
+  await dio.put('/api/users/$userId/status', data: {
+    'userId': userId,
+    'isBlocked': block,
+    'reason': null,
+  });
+}
+
+Future<void> deleteUser(String userId) async {
+  const storage = FlutterSecureStorage();
+  final token = await storage.read(key: 'access_token');
+  final dio = Dio(BaseOptions(
+    baseUrl: AppConfig.apiBaseUrl,
+    headers: {'Authorization': 'Bearer $token'},
+  ));
+  await dio.delete('/api/users/$userId');
+}
+
+Future<void> updateUserRoles(String userId, List<String> roles) async {
+  const storage = FlutterSecureStorage();
+  final token = await storage.read(key: 'access_token');
+  final dio = Dio(BaseOptions(
+    baseUrl: AppConfig.apiBaseUrl,
+    headers: {'Authorization': 'Bearer $token'},
+  ));
+  await dio.put('/api/users/$userId/roles', data: {
+    'userId': userId,
+    'roles': roles,
+  });
+}
