@@ -14,14 +14,17 @@ class ProfileScreen extends ConsumerWidget {
     final profileAsync = ref.watch(myProfileProvider);
 
     return Scaffold(
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: profileAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () =>
+              const Center(child: CircularProgressIndicator(color: AppTheme.primary)),
           error: (e, _) => Center(
             child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
               const Icon(Icons.error_outline, size: 48, color: Color(0xFF9CA3AF)),
               const SizedBox(height: 16),
-              Text('$e', textAlign: TextAlign.center,
+              Text('$e',
+                  textAlign: TextAlign.center,
                   style: const TextStyle(color: Color(0xFF6B7280))),
               const SizedBox(height: 16),
               ElevatedButton(
@@ -35,13 +38,24 @@ class ProfileScreen extends ConsumerWidget {
             onRefresh: () async => ref.invalidate(myProfileProvider),
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _ProfileHeader(profile: profile, ref: ref),
-                  _StatsRow(profile: profile),
-                  _WeeklySection(profile: profile),
-                  _FriendsSection(profile: profile),
-                  const SizedBox(height: 32),
+                  _TopBar(profile: profile, ref: ref),
+                  const SizedBox(height: 20),
+                  _IdentityBlock(profile: profile),
+                  const SizedBox(height: 20),
+                  const Divider(height: 1, color: Color(0xFFE9D5FF)),
+                  const SizedBox(height: 16),
+                  _AddFriendsButton(),
+                  const SizedBox(height: 16),
+                  const Divider(height: 1, color: Color(0xFFE9D5FF)),
+                  const SizedBox(height: 24),
+                  _StatisticsSection(profile: profile),
+                  const SizedBox(height: 24),
+                  _WeeklyProgressSection(profile: profile),
+                  const SizedBox(height: 16),
                 ],
               ),
             ),
@@ -53,180 +67,76 @@ class ProfileScreen extends ConsumerWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Header — avatar, name, username, add friends, settings
+// Top bar — back arrow (left) + avatar circle (right)
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _ProfileHeader extends StatelessWidget {
+class _TopBar extends StatelessWidget {
   final Map<String, dynamic> profile;
   final WidgetRef ref;
-  const _ProfileHeader({required this.profile, required this.ref});
+  const _TopBar({required this.profile, required this.ref});
 
   @override
   Widget build(BuildContext context) {
     final firstName = profile['firstName'] as String? ?? '';
-    final lastName = profile['lastName'] as String? ?? '';
-    final userName = profile['userName'] as String? ?? '';
-    final fullName = [firstName, lastName].where((s) => s.isNotEmpty).join(' ');
-    final initials = _initials(firstName, lastName, userName);
-    final streak = profile['currentStreak'] as int? ?? 0;
+    final lastName  = profile['lastName']  as String? ?? '';
+    final userName  = profile['userName']  as String? ?? '';
+    final initials  = _initials(firstName, lastName, userName);
+    final photoUrl  = profile['profilePhotoUrl'] as String?;
 
-    return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF6B21A8), Color(0xFF9333EA)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        // ← back / close
+        GestureDetector(
+          onTap: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/library');
+            }
+          },
+          child: const Icon(Icons.chevron_left_rounded,
+              size: 30, color: AppTheme.primary),
         ),
-      ),
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-      child: Column(
-        children: [
-          // Top row: title + edit + settings + logout
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'User Profile',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.3,
-                ),
+        const Spacer(),
+        // Avatar
+        Stack(
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                    color: const Color(0xFFD8B4FE), width: 2.5),
+                color: const Color(0xFFEDE9FE),
               ),
-              Row(children: [
-                IconButton(
-                  icon: const Icon(Icons.edit_outlined, color: Colors.white70),
-                  onPressed: () => context.push('/profile/edit'),
-                  tooltip: 'Edit profile',
-                ),
-                IconButton(
-                  icon: const Icon(Icons.settings_outlined, color: Colors.white70),
-                  onPressed: () => context.go('/settings'),
-                  tooltip: 'Settings',
-                ),
-                IconButton(
-                  icon: const Icon(Icons.logout_rounded, color: Colors.white70),
-                  onPressed: () => _confirmLogout(context, ref),
-                  tooltip: 'Sign out',
-                ),
+              clipBehavior: Clip.antiAlias,
+              child: photoUrl != null && photoUrl.isNotEmpty
+                  ? Image.network(photoUrl, fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) =>
+                          _AvatarInitials(initials: initials, large: true))
+                  : _AvatarInitials(initials: initials, large: true),
+            ),
+            // Gear + logout overlay buttons — small, bottom-right of avatar
+            Positioned(
+              bottom: 0,
+              right: 0,
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                _MiniIconBtn(
+                    icon: Icons.settings_outlined,
+                    onTap: () => context.go('/settings')),
               ]),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // Avatar
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              Container(
-                width: 90,
-                height: 90,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 3),
-                  color: Colors.white.withValues(alpha: 0.2),
-                ),
-                child: profile['profilePhotoUrl'] != null
-                    ? ClipOval(
-                        child: Image.network(
-                          profile['profilePhotoUrl'] as String,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
-                              _AvatarInitials(initials: initials),
-                        ),
-                      )
-                    : _AvatarInitials(initials: initials),
-              ),
-              if (streak > 0)
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppTheme.streakOrange,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.white, width: 1.5),
-                    ),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      const Text('🔥', style: TextStyle(fontSize: 10)),
-                      Text(
-                        '$streak',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ]),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (fullName.isNotEmpty)
-            Text(
-              fullName,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          if (userName.isNotEmpty) ...[
-            const SizedBox(height: 2),
-            Text(
-              '@$userName',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.75),
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
             ),
           ],
-          // Joined date
-          if (profile['createdAt'] != null || profile['joinedAt'] != null) ...[
-            const SizedBox(height: 6),
-            Text(
-              'Joined ${_joinedDate(profile)}',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.6),
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-          if (profile['bio'] != null &&
-              (profile['bio'] as String).isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              profile['bio'] as String,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.8),
-                fontSize: 13,
-              ),
-            ),
-          ],
-          const SizedBox(height: 16),
-          OutlinedButton.icon(
-            onPressed: () => context.push('/friends'),
-            icon: const Icon(Icons.person_add_outlined,
-                size: 16, color: Colors.white),
-            label: const Text('Add Friends',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: Colors.white, width: 2),
-              minimumSize: const Size(160, 40),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(width: 4),
+        // Logout
+        _MiniIconBtn(
+          icon: Icons.logout_rounded,
+          onTap: () => _confirmLogout(context, ref),
+        ),
+      ],
     );
   }
 
@@ -237,38 +147,21 @@ class _ProfileHeader extends StatelessWidget {
     return user.isNotEmpty ? user[0].toUpperCase() : '?';
   }
 
-  String _joinedDate(Map<String, dynamic> profile) {
-    final raw = profile['createdAt'] as String?
-        ?? profile['joinedAt'] as String?;
-    if (raw == null) return 'recently';
-    final dt = DateTime.tryParse(raw);
-    if (dt == null) return 'recently';
-    const months = [
-      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    ];
-    return '${months[dt.month]} ${dt.year}';
-  }
-
   Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
-    // dialogContext is the dialog's own BuildContext — must use it for
-    // Navigator.pop() so only the dialog closes, not the profile screen.
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Sign Out',
             style: TextStyle(fontWeight: FontWeight.w800)),
         content: const Text('Are you sure you want to sign out?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
-          ),
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
           ElevatedButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Sign Out'),
-          ),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Sign Out')),
         ],
       ),
     );
@@ -278,19 +171,149 @@ class _ProfileHeader extends StatelessWidget {
   }
 }
 
-class _AvatarInitials extends StatelessWidget {
-  final String initials;
-  const _AvatarInitials({required this.initials});
+class _MiniIconBtn extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  const _MiniIconBtn({required this.icon, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Text(
-        initials,
-        style: const TextStyle(
-          color: Colors.white,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 34,
+        height: 34,
+        margin: const EdgeInsets.only(left: 6),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF3EEFF),
+          shape: BoxShape.circle,
+          border: Border.all(color: const Color(0xFFD8B4FE), width: 1.5),
+        ),
+        child: Icon(icon, size: 16, color: AppTheme.primary),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Identity block — title, name · username, joined line, friends count
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _IdentityBlock extends StatelessWidget {
+  final Map<String, dynamic> profile;
+  const _IdentityBlock({required this.profile});
+
+  @override
+  Widget build(BuildContext context) {
+    final firstName   = profile['firstName']   as String? ?? '';
+    final lastName    = profile['lastName']    as String? ?? '';
+    final userName    = profile['userName']    as String? ?? '';
+    final booksRead   = profile['booksRead']   as int?    ?? 0;
+    final friendCount = profile['friendCount'] as int?    ?? 0;
+    final fullName    = [firstName, lastName].where((s) => s.isNotEmpty).join(' ');
+    final joinedYear  = _joinedYear(profile);
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      // "User Profile" title
+      const Text(
+        'User Profile',
+        style: TextStyle(
+          fontSize: 26,
           fontWeight: FontWeight.w900,
-          fontSize: 28,
+          color: Color(0xFF1A0A2E),
+          letterSpacing: -0.5,
+        ),
+      ),
+      const SizedBox(height: 6),
+
+      // Name · username
+      if (fullName.isNotEmpty || userName.isNotEmpty)
+        RichText(
+          text: TextSpan(
+            style: const TextStyle(fontSize: 15, height: 1.4),
+            children: [
+              if (fullName.isNotEmpty)
+                TextSpan(
+                  text: fullName,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF1A0A2E),
+                  ),
+                ),
+              if (fullName.isNotEmpty && userName.isNotEmpty)
+                const TextSpan(
+                  text: ' · ',
+                  style: TextStyle(color: Color(0xFF9CA3AF)),
+                ),
+              if (userName.isNotEmpty)
+                TextSpan(
+                  text: userName,
+                  style: const TextStyle(color: Color(0xFF6B7280)),
+                ),
+            ],
+          ),
+        ),
+
+      const SizedBox(height: 4),
+
+      // "Joined 2024, 32 Books read."
+      Text(
+        joinedYear != null
+            ? 'Joined $joinedYear, $booksRead Books read.'
+            : '$booksRead Books read.',
+        style: const TextStyle(
+          fontSize: 13,
+          color: Color(0xFF6B7280),
+        ),
+      ),
+
+      const SizedBox(height: 6),
+
+      // Friends count — purple, tappable
+      GestureDetector(
+        onTap: () => context.push('/friends'),
+        child: Text(
+          '$friendCount ${friendCount == 1 ? 'Friend' : 'Friends'}',
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w800,
+            color: AppTheme.primary,
+          ),
+        ),
+      ),
+    ]);
+  }
+
+  String? _joinedYear(Map<String, dynamic> profile) {
+    final raw = profile['createdAt'] as String? ?? profile['joinedAt'] as String?;
+    if (raw == null) return null;
+    final dt = DateTime.tryParse(raw);
+    return dt != null ? '${dt.year}' : null;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Add Friends button — full width
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _AddFriendsButton extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: OutlinedButton.icon(
+        onPressed: () => context.push('/friends'),
+        icon: const Icon(Icons.person_add_outlined, size: 18),
+        label: const Text(
+          'Add Friends',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+        ),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppTheme.primary,
+          backgroundColor: AppTheme.primarySurface,
+          side: const BorderSide(color: AppTheme.primary, width: 2),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         ),
       ),
     );
@@ -298,271 +321,277 @@ class _AvatarInitials extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Stats row
+// Statistics — two side-by-side cards
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _StatsRow extends StatelessWidget {
+class _StatisticsSection extends StatelessWidget {
   final Map<String, dynamic> profile;
-  const _StatsRow({required this.profile});
+  const _StatisticsSection({required this.profile});
 
   @override
   Widget build(BuildContext context) {
-    final booksRead = profile['booksRead'] as int? ?? 0;
+    final streak     = profile['currentStreak']     as int? ?? 0;
     final totalHours = profile['totalReadingHours'] as int? ?? 0;
-    final streak = profile['currentStreak'] as int? ?? 0;
-    final friends = profile['friendCount'] as int? ?? 0;
 
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text(
+        'Statistics',
+        style: TextStyle(
+          fontSize: 22,
+          fontWeight: FontWeight.w900,
+          color: Color(0xFF1A0A2E),
+          letterSpacing: -0.3,
+        ),
+      ),
+      const SizedBox(height: 14),
+      Row(children: [
+        Expanded(
+          child: _StatCard(
+            emoji: '🔥',
+            value: '$streak',
+            label: 'Longest Streak',
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _StatCard(
+            emoji: '⏰',
+            value: '${totalHours}h',
+            label: 'Hours read',
+          ),
+        ),
+      ]),
+    ]);
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  final String emoji;
+  final String value;
+  final String label;
+  const _StatCard(
+      {required this.emoji, required this.value, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE9D5FF), width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.primary.withValues(alpha: 0.08),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
+            color: AppTheme.primary.withValues(alpha: 0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _StatItem(value: '$booksRead', label: 'Books\nRead', emoji: '📚'),
-          _Divider(),
-          _StatItem(value: '${totalHours}h', label: 'Reading\nTime', emoji: '⏱'),
-          _Divider(),
-          _StatItem(value: '$streak', label: 'Day\nStreak', emoji: '🔥'),
-          _Divider(),
-          _StatItem(value: '$friends', label: 'Friends', emoji: '👥'),
-        ],
-      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Text(emoji, style: const TextStyle(fontSize: 22)),
+          const SizedBox(width: 8),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF1A0A2E),
+            ),
+          ),
+        ]),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            color: Color(0xFF6B7280),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ]),
     );
   }
 }
 
-class _StatItem extends StatelessWidget {
-  final String value;
-  final String label;
-  final String emoji;
-  const _StatItem(
-      {required this.value, required this.label, required this.emoji});
+// ─────────────────────────────────────────────────────────────────────────────
+// Weekly progress — LINE chart matching the screenshot
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _WeeklyProgressSection extends StatelessWidget {
+  final Map<String, dynamic> profile;
+  const _WeeklyProgressSection({required this.profile});
 
   @override
   Widget build(BuildContext context) {
-    return Column(mainAxisSize: MainAxisSize.min, children: [
-      Text(emoji, style: const TextStyle(fontSize: 18)),
-      const SizedBox(height: 4),
-      Text(
-        value,
-        style: const TextStyle(
-          fontSize: 18,
+    final weeklyStats = profile['weeklyStats'] as List? ?? [];
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text(
+        'Weekly progress',
+        style: TextStyle(
+          fontSize: 22,
           fontWeight: FontWeight.w900,
-          color: AppTheme.primary,
+          color: Color(0xFF1A0A2E),
+          letterSpacing: -0.3,
         ),
       ),
-      Text(
-        label,
-        textAlign: TextAlign.center,
-        style: const TextStyle(
-          fontSize: 10,
-          color: Color(0xFF6B7280),
-          fontWeight: FontWeight.w500,
+      const SizedBox(height: 14),
+      Container(
+        padding: const EdgeInsets.fromLTRB(8, 16, 16, 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE9D5FF), width: 1.5),
+        ),
+        child: SizedBox(
+          height: 200,
+          child: _LineChart(weeklyStats: weeklyStats),
         ),
       ),
     ]);
   }
 }
 
-class _Divider extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(height: 40, width: 1, color: const Color(0xFFE9D5FF));
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Weekly reading chart
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _WeeklySection extends StatelessWidget {
-  final Map<String, dynamic> profile;
-  const _WeeklySection({required this.profile});
+class _LineChart extends StatelessWidget {
+  final List weeklyStats;
+  const _LineChart({required this.weeklyStats});
 
   @override
   Widget build(BuildContext context) {
-    final weeklyStats = profile['weeklyStats'] as List? ?? [];
+    const dayLabels = ['M', 'Tu', 'W', 'Th', 'Fr', 'Sa', 'Su'];
 
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE9D5FF), width: 1.5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Weekly Reading',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF1A0A2E),
+    // Build data points; if no data show flat line at 0
+    final spots = <FlSpot>[];
+    for (int i = 0; i < 7; i++) {
+      double val = 0;
+      if (i < weeklyStats.length) {
+        val = ((weeklyStats[i] as Map)['minutesRead'] as num? ?? 0).toDouble();
+      }
+      spots.add(FlSpot(i.toDouble(), val));
+    }
+
+    final maxY = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
+    final chartMax = maxY < 10 ? 60.0 : (maxY * 1.25).ceilToDouble();
+
+    return LineChart(
+      LineChartData(
+        minX: 0,
+        maxX: 6,
+        minY: 0,
+        maxY: chartMax,
+        lineBarsData: [
+          LineChartBarData(
+            spots: spots,
+            isCurved: true,
+            curveSmoothness: 0.3,
+            color: AppTheme.primary,
+            barWidth: 2.5,
+            dotData: FlDotData(
+              show: true,
+              getDotPainter: (spot, _, __, ___) => FlDotCirclePainter(
+                radius: 4,
+                color: AppTheme.primary,
+                strokeWidth: 2,
+                strokeColor: Colors.white,
+              ),
+            ),
+            belowBarData: BarAreaData(
+              show: true,
+              gradient: LinearGradient(
+                colors: [
+                  AppTheme.primary.withValues(alpha: 0.15),
+                  AppTheme.primary.withValues(alpha: 0.0),
+                ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
             ),
           ),
-          const SizedBox(height: 4),
-          const Text(
-            'Minutes per day this week',
-            style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 140,
-            child: _WeeklyChart(weeklyStats: weeklyStats),
-          ),
         ],
+        titlesData: FlTitlesData(
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              interval: 1,
+              getTitlesWidget: (v, _) {
+                final idx = v.toInt();
+                if (idx < 0 || idx >= dayLabels.length) return const SizedBox();
+                return Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    dayLabels[idx],
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF9CA3AF),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 36,
+              interval: chartMax / 4,
+              getTitlesWidget: (v, _) {
+                if (v == 0 || v == chartMax) {
+                  return Text(
+                    v.toInt().toString(),
+                    style: const TextStyle(
+                        fontSize: 10, color: Color(0xFF9CA3AF)),
+                  );
+                }
+                return Text(
+                  v.toInt().toString(),
+                  style:
+                      const TextStyle(fontSize: 10, color: Color(0xFF9CA3AF)),
+                );
+              },
+            ),
+          ),
+          topTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        ),
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          horizontalInterval: chartMax / 4,
+          getDrawingHorizontalLine: (_) => const FlLine(
+            color: Color(0xFFF3F4F6),
+            strokeWidth: 1,
+          ),
+        ),
+        borderData: FlBorderData(show: false),
       ),
     );
   }
 }
 
-class _WeeklyChart extends StatelessWidget {
-  final List weeklyStats;
-  const _WeeklyChart({required this.weeklyStats});
+// ─────────────────────────────────────────────────────────────────────────────
+// Avatar initials fallback
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _AvatarInitials extends StatelessWidget {
+  final String initials;
+  final bool large;
+  const _AvatarInitials({required this.initials, this.large = false});
 
   @override
   Widget build(BuildContext context) {
-    const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-    final maxY = weeklyStats.isEmpty
-        ? 60.0
-        : weeklyStats
-            .map((s) => (s as Map)['minutesRead'] as num? ?? 0)
-            .reduce((a, b) => a > b ? a : b)
-            .toDouble()
-            .clamp(1, double.infinity);
-
-    return BarChart(BarChartData(
-      maxY: maxY * 1.2,
-      barGroups: List.generate(
-        weeklyStats.length.clamp(0, 7),
-        (i) {
-          final stat = weeklyStats[i] as Map;
-          final val = (stat['minutesRead'] as num? ?? 0).toDouble();
-          return BarChartGroupData(
-            x: i,
-            barRods: [
-              BarChartRodData(
-                toY: val,
-                gradient: const LinearGradient(
-                  colors: [AppTheme.primary, AppTheme.primaryLight],
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
-                ),
-                width: 18,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
-                backDrawRodData: BackgroundBarChartRodData(
-                  show: true,
-                  toY: maxY * 1.2,
-                  color: const Color(0xFFF3E8FF),
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-      titlesData: FlTitlesData(
-        bottomTitles: AxisTitles(
-          sideTitles: SideTitles(
-            showTitles: true,
-            getTitlesWidget: (v, _) => Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                v.toInt() < days.length ? days[v.toInt()] : '',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF9CA3AF),
-                ),
-              ),
-            ),
-          ),
+    return Center(
+      child: Text(
+        initials,
+        style: TextStyle(
+          color: AppTheme.primary,
+          fontWeight: FontWeight.w900,
+          fontSize: large ? 24 : 18,
         ),
-        leftTitles:
-            AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        topTitles:
-            AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        rightTitles:
-            AxisTitles(sideTitles: SideTitles(showTitles: false)),
-      ),
-      gridData: const FlGridData(show: false),
-      borderData: FlBorderData(show: false),
-    ));
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Friends section
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _FriendsSection extends StatelessWidget {
-  final Map<String, dynamic> profile;
-  const _FriendsSection({required this.profile});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE9D5FF), width: 1.5),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: AppTheme.primarySurface,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(Icons.group_outlined,
-                  color: AppTheme.primary, size: 22),
-            ),
-            const SizedBox(width: 12),
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text(
-                'Friends',
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 15,
-                  color: Color(0xFF1A0A2E),
-                ),
-              ),
-              Text(
-                '${profile['friendCount'] ?? 0} reading buddies',
-                style: const TextStyle(
-                    fontSize: 12, color: Color(0xFF6B7280)),
-              ),
-            ]),
-          ]),
-          TextButton(
-            onPressed: () => context.push('/friends'),
-            child: const Text(
-              'See all →',
-              style: TextStyle(
-                color: AppTheme.primary,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
