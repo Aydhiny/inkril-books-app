@@ -97,9 +97,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-if (!app.Environment.IsDevelopment())
-    app.UseHttpsRedirection();
-
+// HTTPS termination is handled by the reverse proxy in production.
+// Kestrel runs plain HTTP inside Docker on port 8080.
 app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
