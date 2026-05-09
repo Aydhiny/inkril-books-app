@@ -25,4 +25,13 @@ public class AuthController(IMediator mediator) : ControllerBase
             ? Ok(result.Value)
             : Unauthorized(new { errors = result.Errors });
     }
+
+    [HttpPost("refresh")]
+    public async Task<IActionResult> Refresh([FromBody] RefreshTokenCommand cmd, CancellationToken ct)
+    {
+        var result = await mediator.Send(cmd, ct);
+        return result.Succeeded
+            ? Ok(result.Value)
+            : Unauthorized(new { errors = result.Errors });
+    }
 }

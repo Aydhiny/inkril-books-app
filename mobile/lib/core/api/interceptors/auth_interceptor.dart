@@ -1,17 +1,32 @@
 import 'package:dio/dio.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-final authInterceptorProvider = Provider<AuthInterceptor>((ref) {
-  return AuthInterceptor(const FlutterSecureStorage());
-});
-
-/// Attaches the JWT Bearer token to every request.
-/// On 401, attempts a token refresh before retrying once.
+/// Attaches the JWT Bearer token to every outgoing request.
+///
+/// On a 401 response it attempts a silent token refresh via
+/// POST /api/auth/refresh.  If the refresh succeeds the original
+/// request is retried transparently.  If it fails (invalid / expired
+/// refresh token) all stored credentials are wiped and [onForceLogout]
+/// is called so the router redirects the user to the login screen.
 class AuthInterceptor extends Interceptor {
   final FlutterSecureStorage _storage;
+  final String _baseUrl;
+  final void Function() onForceLogout;
 
-  AuthInterceptor(this._storage);
+  // Guard against infinite retry loops: if we're already refreshing,
+  // don't attempt another refresh on the retry's 401.
+  bool _isRefreshing = false;
+
+  AuthInterceptor({
+    required FlutterSecureStorage storage,
+    required String baseUrl,
+    required this.onForceLogout,
+  })  : _storage = storage,
+        _baseUrl = baseUrl.endsWith('/')
+            ? baseUrl.substring(0, baseUrl.length - 1)
+            : baseUrl;
+
+  // ── Attach token ──────────────────────────────────────────────────────────
 
   @override
   Future<void> onRequest(
@@ -25,36 +40,61 @@ class AuthInterceptor extends Interceptor {
     handler.next(options);
   }
 
+  // ── Handle 401 ───────────────────────────────────────────────────────────
+
   @override
   Future<void> onError(
     DioException err,
     ErrorInterceptorHandler handler,
   ) async {
-    if (err.response?.statusCode == 401) {
-      final refreshToken = await _storage.read(key: 'refresh_token');
-      if (refreshToken != null) {
-        try {
-          // Attempt token refresh
-          final refreshDio = Dio();
-          final response = await refreshDio.post(
-            '${err.requestOptions.baseUrl}/api/auth/refresh',
-            data: {'refreshToken': refreshToken},
-          );
-
-          final newToken = response.data['accessToken'] as String;
-          await _storage.write(key: 'access_token', value: newToken);
-
-          // Retry original request with new token
-          err.requestOptions.headers['Authorization'] = 'Bearer $newToken';
-          final retryResponse = await refreshDio.fetch(err.requestOptions);
-          handler.resolve(retryResponse);
-          return;
-        } catch (_) {
-          // Refresh failed — clear tokens, user must re-login
-          await _storage.deleteAll();
-        }
-      }
+    if (err.response?.statusCode != 401 || _isRefreshing) {
+      handler.next(err);
+      return;
     }
-    handler.next(err);
+
+    final refreshToken = await _storage.read(key: 'refresh_token');
+    if (refreshToken == null) {
+      // No refresh token stored — force login
+      await _clearAndLogout();
+      handler.next(err);
+      return;
+    }
+
+    _isRefreshing = true;
+    try {
+      // Use a plain Dio (no interceptors) to avoid recursive 401 handling
+      final refreshDio = Dio(BaseOptions(
+        connectTimeout: const Duration(seconds: 15),
+        receiveTimeout: const Duration(seconds: 15),
+      ));
+
+      final response = await refreshDio.post(
+        '$_baseUrl/api/auth/refresh',
+        data: {'refreshToken': refreshToken},
+      );
+
+      final newAccessToken  = response.data['accessToken']  as String;
+      final newRefreshToken = response.data['refreshToken'] as String;
+
+      // Persist both tokens — not just the access token
+      await _storage.write(key: 'access_token',  value: newAccessToken);
+      await _storage.write(key: 'refresh_token', value: newRefreshToken);
+
+      // Retry the original request with the fresh token
+      err.requestOptions.headers['Authorization'] = 'Bearer $newAccessToken';
+      final retryResponse = await refreshDio.fetch(err.requestOptions);
+      handler.resolve(retryResponse);
+    } catch (_) {
+      // Refresh itself failed — clear everything and send the user to login
+      await _clearAndLogout();
+      handler.next(err);
+    } finally {
+      _isRefreshing = false;
+    }
+  }
+
+  Future<void> _clearAndLogout() async {
+    await _storage.deleteAll();
+    onForceLogout();
   }
 }
