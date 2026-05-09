@@ -101,12 +101,14 @@ public class DataSeeder(
             new() { Title = "The Great Gatsby", Author = "F. Scott Fitzgerald",
                     Description = "A classic American novel set in the Jazz Age.",
                     FilePath = "/uploads/books/great-gatsby.pdf", TotalPages = 180,
-                    FileSizeBytes = 1024 * 512, PublishedDate = new DateTime(1925, 4, 10),
+                    FileSizeBytes = 1024 * 512,
+                    PublishedDate = new DateTime(1925, 4, 10, 0, 0, 0, DateTimeKind.Utc),
                     IsPublic = true, BookGenres = [new BookGenre { GenreId = fictionGenreId }] },
             new() { Title = "Dune", Author = "Frank Herbert",
                     Description = "An epic science fiction saga on the desert planet Arrakis.",
                     FilePath = "/uploads/books/dune.pdf", TotalPages = 688,
-                    FileSizeBytes = 1024 * 1024 * 2, PublishedDate = new DateTime(1965, 8, 1),
+                    FileSizeBytes = 1024 * 1024 * 2,
+                    PublishedDate = new DateTime(1965, 8, 1, 0, 0, 0, DateTimeKind.Utc),
                     IsPublic = true, BookGenres = [new BookGenre { GenreId = scifiGenreId }] },
         };
 
