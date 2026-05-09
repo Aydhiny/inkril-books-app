@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../../core/api/api_client.dart';
+import '../../../../core/providers/theme_provider.dart';
 import '../../../../core/theme/app_theme.dart';
 
 // ── Providers ──────────────────────────────────────────────────────────────
@@ -205,6 +207,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 12),
+                    // Appearance
+                    _SettingsCard(
+                      children: [
+                        _AppearanceRow(),
+                      ],
+                    ),
                     const SizedBox(height: 32),
                   ],
                 ),
@@ -345,7 +354,10 @@ class _CheckboxTrailing extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onChanged != null ? () => onChanged!(!value) : null,
+      onTap: onChanged != null ? () {
+        HapticFeedback.lightImpact();
+        onChanged!(!value);
+      } : null,
       child: Container(
         width: 32,
         height: 32,
@@ -407,5 +419,93 @@ class _Divider extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Divider(height: 1, indent: 16, endIndent: 16,
         color: Color(0xFFF3F4F6));
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Appearance — light / dark / system toggle
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _AppearanceRow extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final current = ref.watch(themeProvider);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text(
+          'Appearance',
+          style: TextStyle(
+            fontSize: 15,
+            color: Color(0xFF4B5563),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(children: [
+          _ThemeChip(
+            label: '☀️ Light',
+            selected: current == ThemeMode.light,
+            onTap: () {
+              HapticFeedback.selectionClick();
+              ref.read(themeProvider.notifier).setMode(ThemeMode.light);
+            },
+          ),
+          const SizedBox(width: 8),
+          _ThemeChip(
+            label: '🌙 Dark',
+            selected: current == ThemeMode.dark,
+            onTap: () {
+              HapticFeedback.selectionClick();
+              ref.read(themeProvider.notifier).setMode(ThemeMode.dark);
+            },
+          ),
+          const SizedBox(width: 8),
+          _ThemeChip(
+            label: '⚙️ Auto',
+            selected: current == ThemeMode.system,
+            onTap: () {
+              HapticFeedback.selectionClick();
+              ref.read(themeProvider.notifier).setMode(ThemeMode.system);
+            },
+          ),
+        ]),
+      ]),
+    );
+  }
+}
+
+class _ThemeChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  const _ThemeChip({required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? AppTheme.primarySurface : const Color(0xFFF3F4F6),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: selected ? AppTheme.primary : const Color(0xFFE5E7EB),
+            width: selected ? 2 : 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            color: selected ? AppTheme.primary : const Color(0xFF6B7280),
+          ),
+        ),
+      ),
+    );
   }
 }

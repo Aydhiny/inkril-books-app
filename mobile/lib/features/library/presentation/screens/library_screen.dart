@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter/services.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/animated_empty_state.dart';
+import '../../../../core/widgets/shimmer_loading.dart';
 import '../providers/library_provider.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
 
@@ -361,27 +364,16 @@ class _MyLibraryScroll extends StatelessWidget {
     return SizedBox(
       height: 300,
       child: userLibraryAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) =>
-            const Center(child: Text('Could not load your books')),
+        loading: () => const ShimmerBookScroll(),
+        error: (_, __) => const Center(
+            child: Text('Could not load your books',
+                style: TextStyle(color: Color(0xFF9CA3AF)))),
         data: (books) {
           if (books.isEmpty) {
-            return Center(
-              child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.library_add_outlined,
-                        size: 44,
-                        color: AppTheme.primary.withValues(alpha: 0.35)),
-                    const SizedBox(height: 10),
-                    const Text('Your library is empty',
-                        style: TextStyle(
-                            color: Color(0xFF6B7280), fontSize: 14)),
-                    const SizedBox(height: 6),
-                    TextButton(
-                        onPressed: () {},
-                        child: const Text('Browse public books →')),
-                  ]),
+            return AnimatedEmptyState(
+              emoji: '📚',
+              title: 'Your library is empty',
+              subtitle: 'Browse public books below to get started',
             );
           }
           return ListView.separated(
@@ -411,9 +403,10 @@ class _PublicLibraryScroll extends StatelessWidget {
     return SizedBox(
       height: 300,
       child: publicBooksAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) =>
-            Center(child: Text('Failed to load: $e')),
+        loading: () => const ShimmerBookScroll(),
+        error: (e, _) => Center(
+            child: Text('Failed to load: $e',
+                style: const TextStyle(color: Color(0xFF9CA3AF)))),
         data: (books) => ListView.separated(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           scrollDirection: Axis.horizontal,

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
@@ -39,6 +40,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   // ── Page-change debounce — syncs progress to backend ~5 s after last turn ──
   Timer? _progressDebounce;
 
+  // ── Confetti — fires once when the book is completed ──────────────────────
+  late final ConfettiController _confetti;
+  bool _confettiFired = false;
+
+  // ── Session summary overlay ────────────────────────────────────────────────
+  bool _showSummary = false;
+
   String get _elapsedFormatted {
     final m = _elapsedSeconds ~/ 60;
     final s = _elapsedSeconds % 60;
@@ -59,6 +67,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   @override
   void initState() {
     super.initState();
+    _confetti = ConfettiController(duration: const Duration(seconds: 4));
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     _loadBook();
   }
@@ -67,6 +76,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   void dispose() {
     _readingTimer?.cancel();
     _progressDebounce?.cancel();
+    _confetti.dispose();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _endSession();
     super.dispose();
@@ -74,11 +84,36 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
   /// Debounced — called every time the user turns a page.
   /// Waits 5 s of inactivity before syncing to avoid hammering the API
-  /// on fast page-flips.
+  /// on fast page-flips. Also triggers confetti when the last page is reached.
   void _onPageChanged(int page) {
     setState(() => _currentPage = page);
     _progressDebounce?.cancel();
     _progressDebounce = Timer(const Duration(seconds: 5), () => _syncProgress(page));
+
+    // Confetti on book completion (last page reached)
+    if (!_confettiFired && _totalPages > 0 && page >= _totalPages - 1) {
+      _confettiFired = true;
+      _confetti.play();
+      HapticFeedback.heavyImpact();
+    }
+  }
+
+  /// Called when the user deliberately exits via "Back to App".
+  /// Shows a brief summary overlay, ends the session, then pops.
+  Future<void> _closeReader() async {
+    // Show summary overlay for 2.5 s
+    setState(() => _showSummary = true);
+    final minutesRead = (_elapsedSeconds / 60).ceil().clamp(1, 9999);
+    final progress = _totalPages > 0
+        ? ((_currentPage + 1) / _totalPages * 100).clamp(0.0, 100.0)
+        : 0.0;
+
+    await Future.wait([
+      _endSession(),
+      Future.delayed(const Duration(milliseconds: 2500)),
+    ]);
+
+    if (mounted) Navigator.of(context).pop();
   }
 
   Future<void> _syncProgress(int page) async {
@@ -214,7 +249,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               bookTitle: _bookTitle,
               bookmarksActive: _showBookmarksPanel,
               elapsedFormatted: _elapsedFormatted,
-              onBack: () => Navigator.of(context).pop(),
+              onBack: _closeReader,
               onBookmark: _addBookmark,
               onToggleBookmarks: () =>
                   setState(() => _showBookmarksPanel = !_showBookmarksPanel),
@@ -239,7 +274,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 onNext: _currentPage < _totalPages - 1
                     ? () => _pdfController?.setPage(_currentPage + 1)
                     : null,
-                onBack: () => Navigator.of(context).pop(),
+                onBack: _closeReader,
               ),
             ),
           ),
@@ -257,6 +292,38 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 ),
               ),
             ),
+
+          // ── Confetti cannon — fires from top-center ──────────────────
+          Align(
+            alignment: Alignment.topCenter,
+            child: ConfettiWidget(
+              confettiController: _confetti,
+              blastDirectionality: BlastDirectionality.explosive,
+              emissionFrequency: 0.05,
+              numberOfParticles: 24,
+              gravity: 0.2,
+              colors: const [
+                Color(0xFF6B21A8),
+                Color(0xFFA855F7),
+                Color(0xFFF59E0B),
+                Color(0xFF22C55E),
+                Color(0xFFEF4444),
+              ],
+            ),
+          ),
+
+          // ── Session summary overlay ───────────────────────────────────
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            child: _showSummary
+                ? _SessionSummary(
+                    elapsedSeconds: _elapsedSeconds,
+                    currentPage: _currentPage,
+                    totalPages: _totalPages,
+                    bookTitle: _bookTitle,
+                  )
+                : const SizedBox.shrink(),
+          ),
 
           // ── Bookmarks side panel ─────────────────────────────────────
           AnimatedSlide(
@@ -310,6 +377,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                   : noteCtrl.text.trim(),
             });
             // Invalidate so the Reading Hub panel refreshes
+            HapticFeedback.mediumImpact();
             ref.invalidate(bookBookmarksProvider(widget.bookId));
             if (sheetCtx.mounted) {
               Navigator.pop(sheetCtx);
@@ -996,5 +1064,180 @@ class _BookmarkSheet extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Session summary overlay — slides up from bottom when user exits reader
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _SessionSummary extends StatefulWidget {
+  final int elapsedSeconds;
+  final int currentPage;
+  final int totalPages;
+  final String bookTitle;
+
+  const _SessionSummary({
+    required this.elapsedSeconds,
+    required this.currentPage,
+    required this.totalPages,
+    required this.bookTitle,
+  });
+
+  @override
+  State<_SessionSummary> createState() => _SessionSummaryState();
+}
+
+class _SessionSummaryState extends State<_SessionSummary>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<Offset> _slide;
+  late final Animation<double> _fade;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 350));
+    _slide = Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
+        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
+    _fade = Tween<double>(begin: 0, end: 1)
+        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
+    _ctrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mins = widget.elapsedSeconds ~/ 60;
+    final secs = widget.elapsedSeconds % 60;
+    final timeStr = mins > 0 ? '${mins}m ${secs}s' : '${secs}s';
+    final progress = widget.totalPages > 0
+        ? ((widget.currentPage + 1) / widget.totalPages * 100).clamp(0.0, 100.0)
+        : 0.0;
+    final isComplete = progress >= 99.9;
+
+    return FadeTransition(
+      opacity: _fade,
+      child: Container(
+        color: Colors.black.withValues(alpha: 0.65),
+        child: SlideTransition(
+          position: _slide,
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 40),
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF1A0A2E), Color(0xFF3B0764)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: const Color(0xFF6B21A8), width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF6B21A8).withValues(alpha: 0.4),
+                    blurRadius: 24,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                // Emoji header
+                Text(
+                  isComplete ? '🎉' : '📚',
+                  style: const TextStyle(fontSize: 40),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  isComplete ? 'Book complete!' : 'Session complete!',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  widget.bookTitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.6),
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                // Stats row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _SummaryChip(emoji: '⏱', label: 'Read', value: timeStr),
+                    _SummaryChip(
+                      emoji: '📖',
+                      label: 'Progress',
+                      value: '${progress.toInt()}%',
+                    ),
+                    _SummaryChip(
+                      emoji: '📄',
+                      label: 'Page',
+                      value:
+                          '${widget.currentPage + 1}/${widget.totalPages}',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Saving your session…',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.4),
+                    fontSize: 12,
+                  ),
+                ),
+              ]),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SummaryChip extends StatelessWidget {
+  final String emoji;
+  final String label;
+  final String value;
+  const _SummaryChip(
+      {required this.emoji, required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      Text(emoji, style: const TextStyle(fontSize: 20)),
+      const SizedBox(height: 4),
+      Text(
+        value,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w800,
+          fontSize: 16,
+        ),
+      ),
+      Text(
+        label,
+        style: TextStyle(
+          color: Colors.white.withValues(alpha: 0.5),
+          fontSize: 11,
+        ),
+      ),
+    ]);
   }
 }

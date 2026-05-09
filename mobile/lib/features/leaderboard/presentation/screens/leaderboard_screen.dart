@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_error_widget.dart';
+import '../../../../core/widgets/shimmer_loading.dart';
 import '../providers/leaderboard_provider.dart';
 
 class LeaderboardScreen extends ConsumerWidget {
@@ -32,8 +33,7 @@ class LeaderboardScreen extends ConsumerWidget {
             ),
             Expanded(
               child: leaderboardAsync.when(
-                loading: () => const Center(
-                    child: CircularProgressIndicator(color: AppTheme.primary)),
+                loading: () => const ShimmerLeaderList(),
                 error: (e, _) => AppErrorWidget(
                   error: e,
                   onRetry: () => ref.invalidate(leaderboardProvider),

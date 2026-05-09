@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/animated_empty_state.dart';
 import '../../../../core/widgets/app_error_widget.dart';
+import '../../../../core/widgets/shimmer_loading.dart';
 import '../providers/profile_provider.dart';
 import '../../../auth/presentation/providers/auth_notifier.dart';
 
@@ -18,8 +20,7 @@ class ProfileScreen extends ConsumerWidget {
       backgroundColor: Colors.white,
       body: SafeArea(
         child: profileAsync.when(
-          loading: () =>
-              const Center(child: CircularProgressIndicator(color: AppTheme.primary)),
+          loading: () => _ProfileShimmer(),
           error: (e, _) => AppErrorWidget(
             error: e,
             onRetry: () => ref.invalidate(myProfileProvider),
@@ -342,7 +343,8 @@ class _StatisticsSection extends StatelessWidget {
         Expanded(
           child: _StatCard(
             emoji: '🔥',
-            value: '$streak',
+            rawValue: streak.toDouble(),
+            suffix: '',
             label: 'Longest Streak',
           ),
         ),
@@ -350,7 +352,8 @@ class _StatisticsSection extends StatelessWidget {
         Expanded(
           child: _StatCard(
             emoji: '⏰',
-            value: '${totalHoursStr}h',
+            rawValue: totalHoursRaw,
+            suffix: 'h',
             label: 'Hours read',
           ),
         ),
@@ -361,10 +364,15 @@ class _StatisticsSection extends StatelessWidget {
 
 class _StatCard extends StatelessWidget {
   final String emoji;
-  final String value;
+  final double rawValue;
+  final String suffix;
   final String label;
-  const _StatCard(
-      {required this.emoji, required this.value, required this.label});
+  const _StatCard({
+    required this.emoji,
+    required this.rawValue,
+    required this.suffix,
+    required this.label,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -386,8 +394,9 @@ class _StatCard extends StatelessWidget {
         Row(children: [
           Text(emoji, style: const TextStyle(fontSize: 22)),
           const SizedBox(width: 8),
-          Text(
-            value,
+          AnimatedCount(
+            target: rawValue,
+            suffix: suffix,
             style: const TextStyle(
               fontSize: 26,
               fontWeight: FontWeight.w900,
@@ -587,6 +596,88 @@ class _AvatarInitials extends StatelessWidget {
           fontSize: large ? 24 : 18,
         ),
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Profile loading shimmer
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ProfileShimmer extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // Top bar skeleton
+        Row(children: [
+          ShimmerWrapper(child: ShimmerBox(width: 30, height: 30, radius: 8)),
+          const Spacer(),
+          ShimmerWrapper(child: ShimmerBox(width: 72, height: 72, radius: 36)),
+        ]),
+        const SizedBox(height: 20),
+        // Identity skeleton
+        ShimmerWrapper(child: ShimmerBox(width: 180, height: 22, radius: 8)),
+        const SizedBox(height: 10),
+        ShimmerWrapper(child: ShimmerBox(width: 240, height: 16, radius: 6)),
+        const SizedBox(height: 8),
+        ShimmerWrapper(child: ShimmerBox(width: 140, height: 14, radius: 5)),
+        const SizedBox(height: 20),
+        const Divider(height: 1, color: Color(0xFFE9D5FF)),
+        const SizedBox(height: 16),
+        ShimmerWrapper(child: ShimmerBox(width: double.infinity, height: 52, radius: 14)),
+        const SizedBox(height: 16),
+        const Divider(height: 1, color: Color(0xFFE9D5FF)),
+        const SizedBox(height: 24),
+        ShimmerWrapper(child: ShimmerBox(width: 100, height: 20, radius: 6)),
+        const SizedBox(height: 14),
+        const ShimmerStatCards(),
+        const SizedBox(height: 24),
+        ShimmerWrapper(child: ShimmerBox(width: 140, height: 20, radius: 6)),
+        const SizedBox(height: 14),
+        ShimmerWrapper(
+          child: Container(
+            height: 200,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppTheme.primarySurface, width: 1.5),
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Count-up animated number — animates from 0 → target over 800 ms on first build
+// ─────────────────────────────────────────────────────────────────────────────
+
+class AnimatedCount extends StatelessWidget {
+  final num target;
+  final String suffix;
+  final TextStyle style;
+  const AnimatedCount({
+    super.key,
+    required this.target,
+    this.suffix = '',
+    required this.style,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: target.toDouble()),
+      duration: const Duration(milliseconds: 900),
+      curve: Curves.easeOutCubic,
+      builder: (_, value, __) {
+        final display = target is int
+            ? '${value.round()}$suffix'
+            : '${value.toStringAsFixed(1)}$suffix';
+        return Text(display, style: style);
+      },
     );
   }
 }

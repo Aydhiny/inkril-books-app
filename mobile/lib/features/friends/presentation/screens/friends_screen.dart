@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/animated_empty_state.dart';
+import '../../../../core/widgets/app_error_widget.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
 
 // ── Providers ──────────────────────────────────────────────────────────────
@@ -55,10 +58,12 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
   }
 
   Future<void> _sendRequest(String receiverId) async {
+    HapticFeedback.mediumImpact();
     try {
       final dio = ref.read(dioProvider);
       await dio.post('/api/friends/requests', data: {'receiverId': receiverId});
       setState(() => _sentRequests.add(receiverId));
+      HapticFeedback.lightImpact();
     } catch (_) {}
   }
 
@@ -269,20 +274,10 @@ class _SearchResults extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (results.isEmpty) {
-      return const Center(
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(Icons.person_search_rounded,
-              size: 56, color: Color(0xFFE5E7EB)),
-          SizedBox(height: 12),
-          Text(
-            'No users found',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
-              color: Color(0xFF9CA3AF),
-            ),
-          ),
-        ]),
+      return AnimatedEmptyState(
+        emoji: '🔍',
+        title: 'No users found',
+        subtitle: 'Try a different username',
       );
     }
 
@@ -318,39 +313,25 @@ class _SearchResults extends StatelessWidget {
 // Friends list
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _FriendsList extends StatelessWidget {
+class _FriendsList extends ConsumerWidget {
   final AsyncValue<List<dynamic>> friendsAsync;
   const _FriendsList({required this.friendsAsync});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return friendsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Error: $e')),
+      loading: () => const Center(
+          child: CircularProgressIndicator(color: AppTheme.primary)),
+      error: (e, _) => AppErrorWidget(
+        error: e,
+        onRetry: () => ref.invalidate(friendsProvider),
+      ),
       data: (friends) {
         if (friends.isEmpty) {
-          return const Center(
-            child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.group_outlined,
-                      size: 56, color: Color(0xFFE5E7EB)),
-                  SizedBox(height: 12),
-                  Text(
-                    'No friends yet',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF9CA3AF),
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    'Search for users above to connect',
-                    style:
-                        TextStyle(fontSize: 13, color: Color(0xFFD1D5DB)),
-                  ),
-                ]),
+          return AnimatedEmptyState(
+            emoji: '👥',
+            title: 'No friends yet',
+            subtitle: 'Search for readers above\nand send a friend request',
           );
         }
 
