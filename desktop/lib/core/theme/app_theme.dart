@@ -10,7 +10,7 @@ class AppTheme {
         colorScheme: ColorScheme.fromSeed(seedColor: _primaryColor),
         dataTableTheme: DataTableThemeData(
           headingTextStyle: const TextStyle(fontWeight: FontWeight.bold),
-          headingRowColor: MaterialStateProperty.all(const Color(0xFFF8F9FA)),
+          headingRowColor: WidgetStateProperty.all(const Color(0xFFF8F9FA)),
         ),
       );
 

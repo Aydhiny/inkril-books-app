@@ -84,7 +84,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       labelText: 'Password',
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
-                        icon: Icon(_obscurePassword ? Icons.visibility_outline : Icons.visibility_off_outline),
+                        icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined),
                         onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                       ),
                     ),

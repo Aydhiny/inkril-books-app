@@ -73,7 +73,7 @@ class NotificationsScreen extends ConsumerWidget {
                   child: ListTile(
                     tileColor: isRead
                         ? null
-                        : Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+                        : Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
                     leading: CircleAvatar(child: Icon(_iconForType(n['type'] as String? ?? ''))),
                     title: Text(
                       n['title'] as String? ?? '',

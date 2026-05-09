@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 class AppTheme {
   AppTheme._();
 
-  static const Color _primaryColor = Color(0xFF4F46E5);   // Indigo
-  static const Color _secondaryColor = Color(0xFF06B6D4); // Cyan
+  static const Color _primaryColor = Color(0xFF4F46E5);
+  static const Color _secondaryColor = Color(0xFF06B6D4);
 
   static ThemeData get light => ThemeData(
         useMaterial3: true,
@@ -18,7 +18,7 @@ class AppTheme {
           elevation: 0,
           scrolledUnderElevation: 1,
         ),
-        cardTheme: CardTheme(
+        cardTheme: CardThemeData(
           elevation: 0,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           clipBehavior: Clip.antiAlias,
@@ -48,7 +48,7 @@ class AppTheme {
           elevation: 0,
           scrolledUnderElevation: 1,
         ),
-        cardTheme: CardTheme(
+        cardTheme: CardThemeData(
           elevation: 0,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           clipBehavior: Clip.antiAlias,
