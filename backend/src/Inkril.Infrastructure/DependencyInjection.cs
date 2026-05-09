@@ -25,13 +25,18 @@ public static class DependencyInjection
                ?? throw new InvalidOperationException("ConnectionStrings:Default not configured")));
 
         // ── ASP.NET Identity ──────────────────────────────────────────────
-        services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(opt =>
+        // AddIdentityCore instead of AddIdentity so that cookie auth is NOT
+        // registered as the default scheme — JWT (configured in Program.cs)
+        // stays the default, meaning [Authorize] challenges return 401 not
+        // a redirect to /Account/Login.
+        services.AddIdentityCore<ApplicationUser>(opt =>
         {
             opt.Password.RequireNonAlphanumeric = false;
             opt.Password.RequireUppercase = false;
             opt.Password.RequiredLength = 6;
             opt.User.RequireUniqueEmail = true;
         })
+        .AddRoles<IdentityRole<Guid>>()
         .AddEntityFrameworkStores<InkrilDbContext>()
         .AddDefaultTokenProviders();
 
