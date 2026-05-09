@@ -1,5 +1,6 @@
 using System.Text;
 using FluentValidation;
+using Inkril.API.Infrastructure;
 using Inkril.API.Middleware;
 using Inkril.Application.Common.Behaviors;
 using Inkril.Infrastructure;
@@ -102,6 +103,18 @@ if (app.Environment.IsDevelopment())
 app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
+
+// ── Static files: serve uploaded PDFs and covers ──────────────────────────
+var uploadsPath = Path.Combine(app.Environment.ContentRootPath, "uploads");
+Directory.CreateDirectory(uploadsPath);
+PlaceholderPdfGenerator.Generate(uploadsPath);   // idempotent: skips existing files
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uploadsPath),
+    RequestPath = "/uploads",
+    ServeUnknownFileTypes = true,  // allow .pdf
+});
+
 app.MapControllers();
 
 app.Run();

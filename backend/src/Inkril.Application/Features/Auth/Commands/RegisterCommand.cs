@@ -57,7 +57,7 @@ public class RegisterCommandHandler(
         await userManager.AddToRoleAsync(user, "mobile");
 
         // Create default settings for new user
-        await uow.UserSettings.AddAsync(new UserSettings { UserId = user.Id }, ct);
+        await uow.UserSettings.AddAsync(new Inkril.Domain.Entities.UserSettings { UserId = user.Id }, ct);
         await uow.SaveChangesAsync(ct);
 
         var (access, refresh) = await tokenService.GenerateTokensAsync(user);
