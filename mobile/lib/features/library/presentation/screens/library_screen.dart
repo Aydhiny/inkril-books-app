@@ -15,17 +15,28 @@ class LibraryScreen extends ConsumerWidget {
     final userLibraryAsync = ref.watch(userLibraryProvider);
     final profileAsync = ref.watch(myProfileProvider);
 
-    // Last-read book for "Continue reading" button
-    final lastReadBook = userLibraryAsync.valueOrNull
+    // Last-read book: most recently opened book from the user's library.
+    // Falls back to the first public book so the banner is always visible.
+    final _sortedRead = userLibraryAsync.valueOrNull
         ?.where((b) => b['lastReadAt'] != null)
-        .fold<Map<String, dynamic>?>(null, (prev, b) {
-      if (prev == null) return b;
-      final prevTime = DateTime.tryParse(prev['lastReadAt'] as String? ?? '');
-      final bTime = DateTime.tryParse(b['lastReadAt'] as String? ?? '');
-      if (bTime == null) return prev;
-      if (prevTime == null) return b;
-      return bTime.isAfter(prevTime) ? b : prev;
-    });
+        .toList()
+      ?..sort((a, b) {
+          final aT = DateTime.tryParse(a['lastReadAt'] as String? ?? '') ?? DateTime(0);
+          final bT = DateTime.tryParse(b['lastReadAt'] as String? ?? '') ?? DateTime(0);
+          return bT.compareTo(aT);
+        });
+    final _anyLibBook = userLibraryAsync.valueOrNull?.isNotEmpty == true
+        ? userLibraryAsync.valueOrNull!.first
+        : null;
+    final _firstPublic = publicBooksAsync.valueOrNull?.isNotEmpty == true
+        ? publicBooksAsync.valueOrNull!.first
+        : null;
+    // Prefer most recently read, then any library book, then first public book
+    final lastReadBook = (_sortedRead?.isNotEmpty == true
+            ? _sortedRead!.first
+            : null) ??
+        _anyLibBook ??
+        _firstPublic;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -536,15 +547,22 @@ class _CoverPlaceholder extends StatelessWidget {
 
 class _ContinueReadingButton extends StatelessWidget {
   final Map<String, dynamic>? lastReadBook;
+  // True when the book came from the user's own library (has lastReadAt or bookId)
+  bool get _hasProgress =>
+      lastReadBook != null &&
+      (lastReadBook!['lastReadAt'] != null ||
+          lastReadBook!['bookId'] != null);
   const _ContinueReadingButton({required this.lastReadBook});
 
   @override
   Widget build(BuildContext context) {
     if (lastReadBook == null) return const SizedBox(height: 8);
 
+    // UserBook entries use 'bookId'; public Book entries use 'id'
     final bookId =
         lastReadBook!['bookId'] as String? ?? lastReadBook!['id'] as String? ?? '';
-    final title = lastReadBook!['title'] as String? ?? 'Your book';
+    final title = lastReadBook!['title'] as String? ?? 'Your next read';
+    if (bookId.isEmpty) return const SizedBox(height: 8);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -606,9 +624,9 @@ class _ContinueReadingButton extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Continue Reading',
-                      style: TextStyle(
+                    Text(
+                      _hasProgress ? 'Continue Reading' : 'Start Reading',
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 20,
                         fontWeight: FontWeight.w900,
@@ -637,19 +655,21 @@ class _ContinueReadingButton extends StatelessWidget {
                             color: Colors.white.withValues(alpha: 0.3),
                             width: 1.5),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            'Pick up where you left off',
-                            style: TextStyle(
+                            _hasProgress
+                                ? 'Pick up where you left off'
+                                : 'Tap to open the reader',
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
-                          SizedBox(width: 6),
-                          Icon(Icons.arrow_forward_rounded,
+                          const SizedBox(width: 6),
+                          const Icon(Icons.arrow_forward_rounded,
                               color: Colors.white, size: 14),
                         ],
                       ),
