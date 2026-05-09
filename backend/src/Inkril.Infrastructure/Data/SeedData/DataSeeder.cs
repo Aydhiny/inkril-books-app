@@ -99,11 +99,14 @@ public class DataSeeder(
         // Cover images via Open Library (free, no auth required)
         var coverMap = new Dictionary<string, string>
         {
-            ["Moby Dick"]           = "https://covers.openlibrary.org/b/isbn/9780142437247-L.jpg",
-            ["1984"]                = "https://covers.openlibrary.org/b/isbn/9780451524935-L.jpg",
-            ["The Great Gatsby"]    = "https://covers.openlibrary.org/b/isbn/9780743273565-L.jpg",
-            ["Pride and Prejudice"] = "https://covers.openlibrary.org/b/isbn/9780141439518-L.jpg",
-            ["Dune"]                = "https://covers.openlibrary.org/b/isbn/9780441013593-L.jpg",
+            ["Moby Dick"]                    = "https://covers.openlibrary.org/b/isbn/9780142437247-L.jpg",
+            ["1984"]                         = "https://covers.openlibrary.org/b/isbn/9780451524935-L.jpg",
+            ["The Great Gatsby"]             = "https://covers.openlibrary.org/b/isbn/9780743273565-L.jpg",
+            ["Pride and Prejudice"]          = "https://covers.openlibrary.org/b/isbn/9780141439518-L.jpg",
+            ["Dune"]                         = "https://covers.openlibrary.org/b/isbn/9780441013593-L.jpg",
+            ["The Alchemist"]                = "https://covers.openlibrary.org/b/isbn/9780061122415-L.jpg",
+            ["To Kill a Mockingbird"]        = "https://covers.openlibrary.org/b/isbn/9780446310789-L.jpg",
+            ["The Little Prince"]            = "https://covers.openlibrary.org/b/isbn/9780156013987-L.jpg",
         };
 
         if (!await context.Books.AnyAsync())
@@ -160,6 +163,36 @@ public class DataSeeder(
                     IsPublic = true,
                     BookGenres = [new BookGenre { GenreId = scifiId }]
                 },
+                new() {
+                    Title = "The Alchemist", Author = "Paulo Coelho",
+                    Description = "A young shepherd's journey to find treasure and discover his Personal Legend.",
+                    CoverImageUrl = coverMap["The Alchemist"],
+                    FilePath = "/uploads/books/alchemist.pdf", TotalPages = 208,
+                    FileSizeBytes = 1024 * 512,
+                    PublishedDate = new DateTime(1988, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                    IsPublic = true,
+                    BookGenres = [new BookGenre { GenreId = fictionId }]
+                },
+                new() {
+                    Title = "To Kill a Mockingbird", Author = "Harper Lee",
+                    Description = "A powerful story of racial injustice and moral growth in the American South.",
+                    CoverImageUrl = coverMap["To Kill a Mockingbird"],
+                    FilePath = "/uploads/books/mockingbird.pdf", TotalPages = 336,
+                    FileSizeBytes = 1024 * 768,
+                    PublishedDate = new DateTime(1960, 7, 11, 0, 0, 0, DateTimeKind.Utc),
+                    IsPublic = true,
+                    BookGenres = [new BookGenre { GenreId = fictionId }]
+                },
+                new() {
+                    Title = "The Little Prince", Author = "Antoine de Saint-Exupéry",
+                    Description = "A beloved novella about love, loss, and the wisdom of childhood.",
+                    CoverImageUrl = coverMap["The Little Prince"],
+                    FilePath = "/uploads/books/little-prince.pdf", TotalPages = 96,
+                    FileSizeBytes = 1024 * 256,
+                    PublishedDate = new DateTime(1943, 4, 6, 0, 0, 0, DateTimeKind.Utc),
+                    IsPublic = true,
+                    BookGenres = [new BookGenre { GenreId = fictionId }]
+                },
             };
 
             await context.Books.AddRangeAsync(books);
@@ -171,6 +204,9 @@ public class DataSeeder(
             // Patch cover URLs for existing books that are missing them
             var existing = await context.Books.ToListAsync();
             bool patched = false;
+            var existingTitles = existing.Select(b => b.Title).ToHashSet();
+
+            // Patch missing covers on already-seeded books
             foreach (var book in existing)
             {
                 if (string.IsNullOrEmpty(book.CoverImageUrl) &&
@@ -180,6 +216,50 @@ public class DataSeeder(
                     patched = true;
                 }
             }
+
+            // Add new books that weren't seeded in earlier runs
+            var newBooks = new List<Book>();
+            if (!existingTitles.Contains("The Alchemist"))
+                newBooks.Add(new Book {
+                    Title = "The Alchemist", Author = "Paulo Coelho",
+                    Description = "A young shepherd's journey to find treasure and discover his Personal Legend.",
+                    CoverImageUrl = coverMap["The Alchemist"],
+                    FilePath = "/uploads/books/alchemist.pdf", TotalPages = 208,
+                    FileSizeBytes = 1024 * 512,
+                    PublishedDate = new DateTime(1988, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                    IsPublic = true,
+                    BookGenres = [new BookGenre { GenreId = fictionId }]
+                });
+            if (!existingTitles.Contains("To Kill a Mockingbird"))
+                newBooks.Add(new Book {
+                    Title = "To Kill a Mockingbird", Author = "Harper Lee",
+                    Description = "A powerful story of racial injustice and moral growth in the American South.",
+                    CoverImageUrl = coverMap["To Kill a Mockingbird"],
+                    FilePath = "/uploads/books/mockingbird.pdf", TotalPages = 336,
+                    FileSizeBytes = 1024 * 768,
+                    PublishedDate = new DateTime(1960, 7, 11, 0, 0, 0, DateTimeKind.Utc),
+                    IsPublic = true,
+                    BookGenres = [new BookGenre { GenreId = fictionId }]
+                });
+            if (!existingTitles.Contains("The Little Prince"))
+                newBooks.Add(new Book {
+                    Title = "The Little Prince", Author = "Antoine de Saint-Exupéry",
+                    Description = "A beloved novella about love, loss, and the wisdom of childhood.",
+                    CoverImageUrl = coverMap["The Little Prince"],
+                    FilePath = "/uploads/books/little-prince.pdf", TotalPages = 96,
+                    FileSizeBytes = 1024 * 256,
+                    PublishedDate = new DateTime(1943, 4, 6, 0, 0, 0, DateTimeKind.Utc),
+                    IsPublic = true,
+                    BookGenres = [new BookGenre { GenreId = fictionId }]
+                });
+
+            if (newBooks.Count > 0)
+            {
+                await context.Books.AddRangeAsync(newBooks);
+                patched = true;
+                logger.LogInformation("Added {Count} new books to existing library", newBooks.Count);
+            }
+
             if (patched) await context.SaveChangesAsync();
         }
     }

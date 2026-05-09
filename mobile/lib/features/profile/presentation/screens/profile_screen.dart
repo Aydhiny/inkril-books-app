@@ -82,16 +82,17 @@ class _ProfileHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
       child: Column(
         children: [
-          // Top row: edit + logout
+          // Top row: title + edit + settings + logout
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'My Profile',
+                'User Profile',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.3,
                 ),
               ),
               Row(children: [
@@ -99,6 +100,11 @@ class _ProfileHeader extends StatelessWidget {
                   icon: const Icon(Icons.edit_outlined, color: Colors.white70),
                   onPressed: () => context.push('/profile/edit'),
                   tooltip: 'Edit profile',
+                ),
+                IconButton(
+                  icon: const Icon(Icons.settings_outlined, color: Colors.white70),
+                  onPressed: () => context.go('/settings'),
+                  tooltip: 'Settings',
                 ),
                 IconButton(
                   icon: const Icon(Icons.logout_rounded, color: Colors.white70),
@@ -179,6 +185,18 @@ class _ProfileHeader extends StatelessWidget {
               ),
             ),
           ],
+          // Joined date
+          if (profile['createdAt'] != null || profile['joinedAt'] != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Joined ${_joinedDate(profile)}',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.6),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
           if (profile['bio'] != null &&
               (profile['bio'] as String).isNotEmpty) ...[
             const SizedBox(height: 8),
@@ -217,6 +235,19 @@ class _ProfileHeader extends StatelessWidget {
       return '${first[0]}${last[0]}'.toUpperCase();
     }
     return user.isNotEmpty ? user[0].toUpperCase() : '?';
+  }
+
+  String _joinedDate(Map<String, dynamic> profile) {
+    final raw = profile['createdAt'] as String?
+        ?? profile['joinedAt'] as String?;
+    if (raw == null) return 'recently';
+    final dt = DateTime.tryParse(raw);
+    if (dt == null) return 'recently';
+    const months = [
+      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${months[dt.month]} ${dt.year}';
   }
 
   Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {

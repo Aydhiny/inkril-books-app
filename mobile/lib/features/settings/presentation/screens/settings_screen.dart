@@ -129,7 +129,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 style: TextStyle(
                   fontSize: 34,
                   fontWeight: FontWeight.w900,
-                  color: AppTheme.primary,
+                  color: Color(0xFF1A0A2E),
                   letterSpacing: -0.5,
                 ),
               ),

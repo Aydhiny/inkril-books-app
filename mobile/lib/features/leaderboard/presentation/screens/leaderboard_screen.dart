@@ -62,6 +62,53 @@ class LeaderboardScreen extends ConsumerWidget {
                 data: (data) {
                   final entries = data['entries'] as List? ?? [];
                   final me = data['currentUserEntry'] as Map?;
+
+                  // Empty state — seeded users haven't loaded or no stats yet
+                  if (entries.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 88,
+                            height: 88,
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF6B21A8), Color(0xFF9333EA)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(24),
+                            ),
+                            child: const Center(
+                              child: Text('🏆',
+                                  style: TextStyle(fontSize: 40)),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          const Text(
+                            'No readers yet',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFF1A0A2E),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Start reading to claim the top spot!',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Color(0xFF9CA3AF),
+                              height: 1.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
                   final top3 = entries.take(3).toList();
                   final rest = entries.skip(3).toList();
 

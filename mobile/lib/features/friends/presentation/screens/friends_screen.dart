@@ -80,12 +80,35 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
               child: Row(children: [
+                // Back arrow — goes back if a route can be popped, else library
+                GestureDetector(
+                  onTap: () {
+                    if (context.canPop()) {
+                      context.pop();
+                    } else {
+                      context.go('/library');
+                    }
+                  },
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    margin: const EdgeInsets.only(right: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF3EEFF),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: const Color(0xFFD8B4FE), width: 1.5),
+                    ),
+                    child: const Icon(Icons.arrow_back_rounded,
+                        color: Color(0xFF1A0A2E), size: 20),
+                  ),
+                ),
                 const Text(
                   'Friends',
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.w900,
-                    color: AppTheme.primary,
+                    color: Color(0xFF1A0A2E),
                   ),
                 ),
                 const Spacer(),
@@ -129,7 +152,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
 
             // ── Search field ───────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
               child: Container(
                 height: 48,
                 decoration: BoxDecoration(
@@ -264,7 +287,7 @@ class _SearchResults extends StatelessWidget {
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       itemCount: results.length,
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (_, i) {

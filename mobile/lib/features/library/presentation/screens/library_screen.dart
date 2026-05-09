@@ -531,7 +531,7 @@ class _CoverPlaceholder extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Continue reading CTA
+// Continue reading CTA — dark gradient banner with floating book icons
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _ContinueReadingButton extends StatelessWidget {
@@ -544,31 +544,121 @@ class _ContinueReadingButton extends StatelessWidget {
 
     final bookId =
         lastReadBook!['bookId'] as String? ?? lastReadBook!['id'] as String? ?? '';
+    final title = lastReadBook!['title'] as String? ?? 'Your book';
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      child: OutlinedButton(
-        onPressed: () => context.push('/reader/$bookId'),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: AppTheme.primary,
-          side: const BorderSide(color: AppTheme.primary, width: 3),
-          minimumSize: const Size(double.infinity, 58),
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(18)),
-          backgroundColor: AppTheme.primarySurface,
-        ),
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'Continue reading ',
-              style: TextStyle(
-                fontWeight: FontWeight.w800,
-                fontSize: 16,
-              ),
+      child: GestureDetector(
+        onTap: () => context.push('/reader/$bookId'),
+        child: Container(
+          height: 120,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFF4C1D95), width: 2.5),
+            gradient: const LinearGradient(
+              colors: [Color(0xFF1A0A2E), Color(0xFF3B0764), Color(0xFF6B21A8)],
+              begin: Alignment.bottomLeft,
+              end: Alignment.topRight,
             ),
-            Icon(Icons.arrow_forward_rounded, size: 20),
-          ],
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF6B21A8).withValues(alpha: 0.4),
+                blurRadius: 20,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              // Floating book icons scattered in background
+              const Positioned(top: 12, right: 16,
+                  child: Opacity(opacity: 0.15,
+                      child: Text('📚', style: TextStyle(fontSize: 36)))),
+              const Positioned(bottom: 10, right: 56,
+                  child: Opacity(opacity: 0.10,
+                      child: Text('📖', style: TextStyle(fontSize: 28)))),
+              const Positioned(top: 18, right: 64,
+                  child: Opacity(opacity: 0.08,
+                      child: Text('📕', style: TextStyle(fontSize: 22)))),
+              const Positioned(bottom: 14, right: 16,
+                  child: Opacity(opacity: 0.12,
+                      child: Text('📗', style: TextStyle(fontSize: 20)))),
+              // Dark fade from bottom (extra depth)
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(18),
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.black.withValues(alpha: 0.3),
+                        Colors.transparent,
+                      ],
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                    ),
+                  ),
+                ),
+              ),
+              // Content
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 100, 0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Continue Reading',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.7),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.3),
+                            width: 1.5),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Pick up where you left off',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          SizedBox(width: 6),
+                          Icon(Icons.arrow_forward_rounded,
+                              color: Colors.white, size: 14),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

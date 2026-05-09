@@ -87,7 +87,7 @@ class _ReadingBody extends ConsumerWidget {
             style: TextStyle(
               fontSize: 34,
               fontWeight: FontWeight.w900,
-              color: AppTheme.primary,
+              color: Color(0xFF1A0A2E),
               letterSpacing: -0.5,
             ),
           ),
@@ -311,7 +311,7 @@ class _BookmarksList extends StatelessWidget {
         style: const TextStyle(
           fontSize: 24,
           fontWeight: FontWeight.w900,
-          color: AppTheme.primary,
+          color: Color(0xFF1A0A2E),
           letterSpacing: -0.3,
         ),
       ),

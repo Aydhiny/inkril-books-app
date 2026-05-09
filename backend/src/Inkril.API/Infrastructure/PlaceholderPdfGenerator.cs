@@ -746,6 +746,449 @@ public static class PlaceholderPdfGenerator
                 "rely on your own judgment, and your own mistakes.\" — Frank Herbert",
             ]
         ),
+
+        new(
+            "alchemist.pdf",
+            "The Alchemist",
+            "Paulo Coelho",
+            [
+                // Page 1
+                "PROLOGUE\n\n" +
+                "The Alchemist picked up a book that someone in the caravan had brought.\n" +
+                "Leafing through the pages, he found a story about Narcissus.\n\n" +
+                "The alchemist knew the legend of Narcissus, a youth who knelt daily beside\n" +
+                "a lake to contemplate his own beauty. He was so fascinated by himself that,\n" +
+                "one morning, he fell into the lake and drowned. At the spot where he fell,\n" +
+                "a flower was born, which was called the narcissus.\n\n" +
+                "But this was not how the author of the book ended the story.\n\n" +
+                "He said that when Narcissus died, the goddesses of the forest appeared and\n" +
+                "found the lake, which had been fresh water, transformed into a lake of\n" +
+                "salty tears.\n\n" +
+                "\"Why do you weep?\" the goddesses asked.\n\n" +
+                "\"I weep for Narcissus,\" the lake replied.",
+
+                // Page 2
+                "\"Ah, it is no surprise that you weep for Narcissus,\" they said, \"for though\n" +
+                "we always pursued him in the forest, you alone could contemplate his beauty\n" +
+                "close at hand.\"\n\n" +
+                "\"But... was Narcissus beautiful?\" the lake asked.\n\n" +
+                "\"Who better than you to know that?\" the goddesses said in wonder. \"After\n" +
+                "all, it was by your banks that he knelt each day to contemplate himself!\"\n\n" +
+                "The lake was silent for some time.\n" +
+                "Finally it said:\n" +
+                "\"I weep for Narcissus, but I never noticed that Narcissus was beautiful.\n" +
+                "I weep because, each time he knelt beside my banks, I could see, in the\n" +
+                "depths of his eyes, my own beauty reflected.\"\n\n" +
+                "\"What a lovely story,\" the Alchemist thought.",
+
+                // Page 3
+                "PART ONE\n\n" +
+                "The boy's name was Santiago. Dusk was falling as the boy arrived with his\n" +
+                "herd at an abandoned church. The roof had fallen in long ago, and an enormous\n" +
+                "sycamore had grown up where the sacristy had once been.\n\n" +
+                "He decided to spend the night there. He saw to it that all the sheep entered\n" +
+                "the ruined gate, and then laid some planks across it to prevent the flock\n" +
+                "from wandering away during the night. There were no wolves in the region,\n" +
+                "but once a sheep had strayed during the night, and the boy had had to spend\n" +
+                "the entire next day searching for it.\n\n" +
+                "He swept the floor with his jacket and lay down, using the book he had just\n" +
+                "finished reading as a pillow. He told himself that he would have to start\n" +
+                "reading thicker books: they lasted longer, and made more comfortable pillows.",
+
+                // Page 4
+                "He had noticed that, in the caravan, everyone spoke of the desert as though\n" +
+                "it were an old friend. This is my desert, one of the camel drivers told him.\n" +
+                "The desert is a capricious woman, and she drives men crazy. But I love her.\n\n" +
+                "Santiago had never thought of the desert as a woman before. For him, it was\n" +
+                "only a destination — the place where he would find his treasure.\n\n" +
+                "\"What draws you to the desert?\" he asked the oldest camel driver.\n\n" +
+                "\"I've made this trip many times,\" the old man answered. \"But the desert is\n" +
+                "so huge, and the horizons so distant, that they make a person feel small,\n" +
+                "and as if he should remain silent. And when you are silent in the desert,\n" +
+                "you begin to hear all sorts of things that are otherwise impossible to hear.\"",
+
+                // Page 5
+                "PART TWO\n\n" +
+                "The boy reached the top of a dune and looked out at the horizon. He saw that\n" +
+                "the desert was enormous and the sky above it vaster still. He felt afraid.\n\n" +
+                "Then the wind began to blow. The wind from the east, the Levant, that carried\n" +
+                "the desert's dust and the dreams of men who had ventured there.\n\n" +
+                "\"I must listen to what the desert is trying to tell me,\" Santiago thought.\n" +
+                "\"The Soul of the World speaks through the desert.\"\n\n" +
+                "He remembered the words of the old king: \"When you want something, all the\n" +
+                "universe conspires in helping you to achieve it.\"\n\n" +
+                "Santiago looked at the sky again, and felt something he had not felt for a\n" +
+                "long time: hope.",
+
+                // Page 6
+                "THE LANGUAGE OF THE WORLD\n\n" +
+                "\"What is the world's greatest lie?\" the boy asked.\n\n" +
+                "\"It's this: that at a certain point in our lives, we lose control of what's\n" +
+                "happening to us, and our lives become controlled by fate.\"\n\n" +
+                "\"That's the world's greatest lie.\"\n\n" +
+                "\"No matter what he does, every person on earth plays a central role in the\n" +
+                "history of the world. And normally he doesn't know it.\"\n\n" +
+                "The Alchemist turned to the boy. \"Your heart already knows all this,\" he\n" +
+                "said. \"What the heart knows, it knows without words. It speaks the Language\n" +
+                "of the World.\"\n\n" +
+                "Santiago placed his hand on his heart.\n" +
+                "\"Tell me what my heart says,\" he asked.\n\n" +
+                "\"Your heart is afraid that it will have to suffer,\" the Alchemist told him.\n" +
+                "\"The fear of suffering is worse than the suffering itself.\"",
+
+                // Page 7
+                "THE PERSONAL LEGEND\n\n" +
+                "There is one great truth on this planet: whoever you are, or whatever it is\n" +
+                "that you do, when you really want something, it's because that desire\n" +
+                "originated in the soul of the universe.\n\n" +
+                "\"It's what you have always wanted to accomplish. Everyone, when they are young,\n" +
+                "knows what their Personal Legend is. At that point in their lives, everything\n" +
+                "is clear and everything is possible. They are not afraid to dream, and to yearn\n" +
+                "for everything they would like to see happen to them in their lives.\"\n\n" +
+                "\"But as time passes, a mysterious force begins to convince them that it will\n" +
+                "be impossible for them to realize their Personal Legend.\"\n\n" +
+                "The wind began to blow again, carrying Santiago's thoughts with it.",
+
+                // Page 8
+                "THE SOUL OF THE WORLD\n\n" +
+                "\"The secret of happiness is to see all the marvels of the world, and never\n" +
+                "to forget the drops of oil on the spoon.\"\n\n" +
+                "Santiago thought about it for a moment. He understood.\n\n" +
+                "There is a force that wants you to realize your Personal Legend; it whets\n" +
+                "your appetite with a taste of success.\n\n" +
+                "\"I don't know why we have to listen to our hearts,\" the boy complained.\n\n" +
+                "\"Because, wherever your heart is, that is where you'll find your treasure.\"\n\n" +
+                "\"But my heart is agitated,\" the boy said. \"It has its dreams, it gets\n" +
+                "emotional, and it's become passionate over a woman of the desert.\"\n\n" +
+                "\"That's good. Your heart is alive. Keep listening to what it has to say.\"",
+
+                // Page 9
+                "THE TREASURE\n\n" +
+                "Santiago dug and dug, his hands raw, until at last he felt something hard.\n" +
+                "He pulled it out: a box, rusted and heavy with gold coins and precious stones.\n\n" +
+                "He laughed aloud, the sound carried away by the wind across the dunes.\n" +
+                "He had come so far — through Spain, through the markets of Tangier, across\n" +
+                "the immensity of the desert — and the treasure had always been here,\n" +
+                "beneath the sycamore tree in the ruined church where he had his first dream.\n\n" +
+                "\"How simple, and yet how right,\" he said to himself. \"To travel the world\n" +
+                "only to find what was already yours.\"\n\n" +
+                "But as he gathered the coins, he understood the truth at last:\n" +
+                "the journey itself was the treasure.",
+
+                // Page 10
+                "PAULO COELHO — A NOTE\n\n" +
+                "The Alchemist was first published in Portuguese in 1988 by Rocco Publishers\n" +
+                "in Brazil. The first edition printed only 900 copies.\n\n" +
+                "His publisher decided not to reprint the book. Coelho refused to give up.\n" +
+                "He found another publisher, and the rest is history.\n\n" +
+                "The Alchemist has sold more than 65 million copies, been translated into\n" +
+                "80 languages, and holds the Guinness World Record for most translated book\n" +
+                "by a living author.\n\n" +
+                "\"When you want something, all the universe conspires in helping you to\n" +
+                "achieve it.\"\n\n" +
+                "This is perhaps the most quoted line in all of Coelho's work — and the\n" +
+                "line that changed the lives of millions of readers around the world.",
+            ]
+        ),
+
+        new(
+            "mockingbird.pdf",
+            "To Kill a Mockingbird",
+            "Harper Lee",
+            [
+                // Page 1
+                "PART ONE — Chapter 1\n\n" +
+                "When he was nearly thirteen, my brother Jem got his arm badly broken at the\n" +
+                "elbow. When it healed, and Jem's fears of never being able to play football\n" +
+                "were assuaged, he was seldom self-conscious about his injury. His left arm\n" +
+                "was somewhat shorter than his right; when he stood or walked, the back of\n" +
+                "his hand was at right angles to his body, his thumb parallel to his thigh.\n\n" +
+                "He couldn't have cared less, so long as he could pass and punt.\n\n" +
+                "When enough years had gone by to enable us to look back on them, we sometimes\n" +
+                "discussed the events leading to his accident. I maintain that the Ewells\n" +
+                "started it all, but Jem, who was four years my senior, said it started long\n" +
+                "before that.",
+
+                // Page 2
+                "Maycomb was an old town, but it was a tired old town when I first knew it.\n" +
+                "In rainy weather the streets turned to red slop; grass grew on the sidewalks,\n" +
+                "the courthouse sagged in the square. Somehow, it was hotter then: a black\n" +
+                "dog suffered on a summer's day; bony mules hitched to Hoover carts flicked\n" +
+                "flies in the sweltering shade of the live oaks on the square.\n\n" +
+                "Men's stiff collars wilted by nine in the morning. Ladies bathed before noon,\n" +
+                "after their three-o'clock naps, and by nightfall were like soft teacakes with\n" +
+                "frostings of sweat and sweet talcum.\n\n" +
+                "People moved slowly then. They ambled across the square, shuffled in and\n" +
+                "out of the stores around it, took their time about everything. A day was\n" +
+                "twenty-four hours long but seemed longer.",
+
+                // Page 3
+                "CHAPTER 3 — Calpurnia\n\n" +
+                "Calpurnia was something else again. She was all angles and bones; she was\n" +
+                "nearsighted; she squinted; her hand was wide as a bed slat and twice as hard.\n" +
+                "She was always ordering me out of the kitchen, asking me why I couldn't\n" +
+                "behave as well as Jem when she knew he was older, and calling me home when I\n" +
+                "wasn't ready to come.\n\n" +
+                "Our battles were epic and one-sided. Calpurnia always won, mainly because\n" +
+                "Atticus always took her side. She had been with us ever since Jem was born,\n" +
+                "and I had felt her tyrannical presence as long as I could remember.\n\n" +
+                "Our father said Calpurnia had more education than most colored folks.",
+
+                // Page 4
+                "PART TWO — Chapter 17\n\n" +
+                "It was Atticus's turn. He sat quietly for a moment, then began:\n\n" +
+                "\"Bob Ewell, would you please write your name for the jury?\" he asked.\n\n" +
+                "Mayella's father hesitated a moment — long enough for the jury to see that\n" +
+                "he had a momentary lapse of memory about which hand he wrote with. He reached\n" +
+                "over and picked up the pen with his left hand.\n\n" +
+                "\"He's left-handed,\" Miss Maudie whispered to me.\n\n" +
+                "Jem was rigid. I touched his arm and felt the muscles tense under my fingers.\n" +
+                "Atticus had sat down again, and I could see him leaning back in his chair\n" +
+                "looking at nothing. He was done for the day.",
+
+                // Page 5
+                "CHAPTER 20 — Atticus's Closing\n\n" +
+                "\"Gentlemen,\" he said. Jem and I again looked at each other: Atticus might\n" +
+                "be talking to us.\n\n" +
+                "\"I shall be brief, but I would like to use my remaining time with you to\n" +
+                "remind you that this case is not a difficult one, it requires no minute\n" +
+                "sifting of complicated facts, but it does require you to be sure beyond all\n" +
+                "reasonable doubt as to the guilt of the defendant.\"\n\n" +
+                "\"To begin with, this case should never have come to trial. This case is\n" +
+                "as simple as black and white.\"\n\n" +
+                "\"The state has not produced one iota of medical evidence to the effect\n" +
+                "that the crime Tom Robinson is charged with ever took place.\"\n\n" +
+                "\"Thomas Robinson now looks at you.\"\n\n" +
+                "\"In the name of God, do your duty.\"\n\n" +
+                "\"In the name of God, believe him.\"",
+
+                // Page 6
+                "CHAPTER 22 — The Verdict\n\n" +
+                "It was Jem's turn to cry. His shoulders shook and his head dropped forward.\n\n" +
+                "\"It ain't right,\" he muttered, all the way to the corner of the square where\n" +
+                "we waited for Atticus. It wasn't right. The jury had been gone less than an\n" +
+                "hour when it returned — a verdict most people could not have foreseen, and\n" +
+                "which should not have been possible.\n\n" +
+                "I looked around. They were standing. All around us and in the balcony on the\n" +
+                "opposite wall, the Negroes were getting to their feet.\n\n" +
+                "Reverend Sykes's voice was as distant as Judge Taylor's:\n" +
+                "\"Miss Jean Louise, stand up. Your father's passin'.\"",
+
+                // Page 7
+                "CHAPTER 25 — Aftermath\n\n" +
+                "Maycomb was interested by the news of Tom's death for perhaps two days;\n" +
+                "two days was enough for the information to spread through the county.\n\n" +
+                "\"Typical of a nigger to cut and run,\" said Mr. Stephanie Crawford.\n" +
+                "\"Scared him to death.\" Tom's death was Maycomb's usual disease.\n\n" +
+                "To Maycomb, Tom's death was typical. Typical of a nigger to cut and run,\n" +
+                "typical of a nigger's mentality to have no plan, no thought for the future,\n" +
+                "just run blind first chance he saw. Funny thing, Atticus Finch might've\n" +
+                "got him off scot free, but wait — ? Hell no. You know how they are.\n" +
+                "Easy come, easy go.\n\n" +
+                "Sure, Atticus Finch might've got him off. Maybe you'll feel better when\n" +
+                "you know that she wasn't — that Tom was a dead man the minute Mayella\n" +
+                "Ewell opened her mouth.",
+
+                // Page 8
+                "CHAPTER 28 — Boo Radley\n\n" +
+                "Jem was beginning to feel nervous. I could feel it. We were almost at the\n" +
+                "tree when I stumbled on something. I went down hard on the ground.\n\n" +
+                "I heard Jem scream, and then a scuffling sound. Then someone coughed nearby.\n\n" +
+                "Jem hollered something, and then he was still. I waited.\n" +
+                "\"Jem?\" Nothing.\n\n" +
+                "There was a crunching sound, then someone pulled me upright. I thought it\n" +
+                "was Jem, but it wasn't. It was someone I didn't know.\n\n" +
+                "He was carrying Jem. He was going up the porch steps.\n\n" +
+                "\"Hey, Boo,\" I said.\n\n" +
+                "\"Will you take me home?\" he almost whispered.\n" +
+                "\"Yes,\" I said, \"I will.\"\n\n" +
+                "I took him by the hand, a hand surprisingly warm and smooth.",
+
+                // Page 9
+                "CHAPTER 31 — Atticus\n\n" +
+                "Atticus was waiting at the door. I walked into his arms.\n\n" +
+                "\"Atticus, he was real nice...\"\n\n" +
+                "His hands were under my chin, pulling up the ruined costume, tearing it away.\n" +
+                "In the faint light Atticus's face was grave.\n\n" +
+                "\"Most people are, Scout, when you finally see them.\"\n\n" +
+                "He turned out the light and went into Jem's room. He would be there all night,\n" +
+                "and he would be there when Jem woke up in the morning.\n\n" +
+                "I was very tired, and I fell asleep as soon as I lay down.\n\n" +
+                "When I woke in the morning I felt a warmth beside me. Atticus had fallen\n" +
+                "asleep reading — a book lay open across his chest, his glasses on his nose.",
+
+                // Page 10
+                "HARPER LEE — A NOTE\n\n" +
+                "To Kill a Mockingbird was published on July 11, 1960. It won the Pulitzer\n" +
+                "Prize for Fiction in 1961, only a year after its release.\n\n" +
+                "Harper Lee had struggled to sell the manuscript. An editor at Lippincott\n" +
+                "told her she would need to rewrite it almost completely, and she did —\n" +
+                "spending the next two and a half years revising.\n\n" +
+                "The novel has sold more than 45 million copies worldwide and remains one of\n" +
+                "the most widely read books in the English language. It is taught in\n" +
+                "virtually every American high school.\n\n" +
+                "In 2006, British librarians ranked it ahead of the Bible as the book \"every\n" +
+                "adult should read before they die.\"\n\n" +
+                "\"You never really understand a person until you consider things from his\n" +
+                "point of view... until you climb into his skin and walk around in it.\"\n" +
+                "— Atticus Finch",
+            ]
+        ),
+
+        new(
+            "little-prince.pdf",
+            "The Little Prince",
+            "Antoine de Saint-Exupery",
+            [
+                // Page 1
+                "CHAPTER I\n\n" +
+                "Once when I was six years old I saw a magnificent picture in a book, called\n" +
+                "True Stories from Nature, about the primeval forest. It was a picture of a\n" +
+                "boa constrictor in the act of swallowing an animal. Here is a copy of the drawing.\n\n" +
+                "In the book it said: \"Boa constrictors swallow their prey whole, without\n" +
+                "chewing it. After that they are not able to move, and they sleep through the\n" +
+                "six months that they need for digestion.\"\n\n" +
+                "I pondered deeply, then, over the adventures of the jungle. And after some\n" +
+                "work with a coloured pencil I succeeded in making my first drawing. My\n" +
+                "Drawing Number One. It looked like this.\n\n" +
+                "I showed my masterpiece to the grown-ups, and asked them whether the drawing\n" +
+                "frightened them.\n" +
+                "But they answered: \"Frighten? Why should any one be frightened by a hat?\"\n\n" +
+                "My drawing was not a picture of a hat. It was a picture of a boa constrictor\n" +
+                "digesting an elephant.",
+
+                // Page 2
+                "CHAPTER II\n\n" +
+                "So I lived my life alone, without anyone that I could really talk to, until\n" +
+                "I had an accident with my plane in the Desert of Sahara, six years ago.\n\n" +
+                "Something was broken in my engine. And as I had with me neither a mechanic\n" +
+                "nor any passengers, I set myself to attempt the difficult repairs all alone.\n" +
+                "It was a question of life or death for me: I had scarcely enough drinking\n" +
+                "water to last a week.\n\n" +
+                "The first night, then, I went to sleep on the sand, a thousand miles from\n" +
+                "any human habitation. I was more isolated than a shipwrecked sailor on a\n" +
+                "raft in the middle of the ocean.\n\n" +
+                "You can imagine my amazement, at sunrise, when I was awakened by an odd\n" +
+                "little voice. It said:\n" +
+                "\"If you please — draw me a sheep!\"",
+
+                // Page 3
+                "CHAPTER VII\n\n" +
+                "\"I know a planet where there is a certain red-faced gentleman. He has never\n" +
+                "smelled a flower. He has never looked at a star. He has never loved any one.\n" +
+                "He has never done anything in his life but add up figures. And all day he\n" +
+                "says over and over, just like you: 'I am busy with matters of consequence!'\n" +
+                "And that makes him swell up with pride. But he is not a man — he is a mushroom!\"\n\n" +
+                "\"A what?\"\n\n" +
+                "\"A mushroom!\"\n\n" +
+                "The little prince was now white with rage.\n\n" +
+                "\"The flowers have been growing thorns for millions of years. For millions of\n" +
+                "years the sheep have been eating them just the same. And is it not a matter\n" +
+                "of consequence to try to understand why the flowers go to so much trouble to\n" +
+                "grow thorns which are never of any use to them?\"",
+
+                // Page 4
+                "CHAPTER XIV — The Lamplighter\n\n" +
+                "The fifth planet was very strange. It was the smallest of all. There was just\n" +
+                "enough room on it for a street lamp and a lamplighter.\n\n" +
+                "The little prince could not understand what good a street lamp and a lamplighter\n" +
+                "could be on a planet with no people and no houses.\n\n" +
+                "But he thought to himself: \"Perhaps this man is absurd. But he is less absurd\n" +
+                "than the king, the conceited man, the businessman, and the tippler. For at\n" +
+                "least his work has some meaning. When he lights his street lamp, it is as if\n" +
+                "he brought one more star to life, or one flower.\"\n\n" +
+                "\"That is a beautiful occupation. And since it is beautiful, it is truly useful.\"",
+
+                // Page 5
+                "CHAPTER XXI — The Fox\n\n" +
+                "It was then that the fox appeared.\n\n" +
+                "\"Good morning,\" said the fox.\n" +
+                "\"Good morning,\" the little prince responded politely.\n\n" +
+                "\"Who are you?\" asked the little prince. \"You are very pretty to look at.\"\n\n" +
+                "\"I am a fox,\" said the fox.\n\n" +
+                "\"Come and play with me,\" proposed the little prince. \"I am so unhappy.\"\n\n" +
+                "\"I cannot play with you,\" the fox said. \"I am not tamed.\"\n\n" +
+                "\"Ah! please excuse me,\" said the little prince. But, after some thought,\n" +
+                "he added: \"What does that mean — 'tame'?\"\n\n" +
+                "\"It means to establish ties,\" said the fox. \"To me, you are still nothing\n" +
+                "more than a little boy who is just like a hundred thousand other little boys.\n" +
+                "And I have no need of you. And you, on your part, have no need of me.\"",
+
+                // Page 6
+                "\"To you, I am nothing more than a fox like a hundred thousand other foxes.\n" +
+                "But if you tame me, then we shall need each other. To me, you will be\n" +
+                "unique in all the world. To you, I shall be unique in all the world.\"\n\n" +
+                "\"My life is very monotonous,\" the fox said. \"I hunt chickens; men hunt me.\n" +
+                "All the chickens are just alike, and all the men are just alike. And, in\n" +
+                "consequence, I am a little bored.\"\n\n" +
+                "\"But if you tame me, it will be as if the sun came to shine on my life.\n" +
+                "I shall know the sound of a step that will be different from all the others.\n" +
+                "Other steps send me hurrying back underneath the ground. Yours will call me,\n" +
+                "like music, out of my burrow.\"\n\n" +
+                "The little prince tamed the fox.\n" +
+                "\"It is only with the heart that one can see rightly; what is essential is\n" +
+                "invisible to the eye.\"",
+
+                // Page 7
+                "CHAPTER XXIV\n\n" +
+                "\"What makes the desert beautiful,\" said the little prince, \"is that somewhere\n" +
+                "it hides a well...\"\n\n" +
+                "I was astonished by a sudden understanding of that mysterious radiation of\n" +
+                "the sands. When I was a little boy I lived in an old house, and legend told\n" +
+                "us that a treasure was buried there. To be sure, no one had ever known how\n" +
+                "to find it; perhaps no one had ever even looked for it.\n\n" +
+                "But it cast an enchantment over that house. My house was hiding a secret in\n" +
+                "the depths of its heart...\n\n" +
+                "\"Yes,\" I said to the little prince, \"whether it is the house, the stars, or\n" +
+                "the desert — what gives them their beauty is something that is invisible!\"\n\n" +
+                "\"I am glad,\" he said, \"that you agree with my fox.\"",
+
+                // Page 8
+                "CHAPTER XXVI — The Snake\n\n" +
+                "\"You have good poison? You are sure that it will not make me suffer too long?\"\n\n" +
+                "The snake appeared.\n" +
+                "\"You have good poison? You are sure that it will not make me suffer too long?\"\n\n" +
+                "I stopped breathing. But I said, one more time:\n" +
+                "\"Now run along, and let me get down from the tree.\"\n\n" +
+                "\"Tonight,\" said the little prince, \"don't come.\"\n" +
+                "\"I shall not leave you.\"\n" +
+                "\"I shall look as if I were suffering. I shall look a little as if I were\n" +
+                "dying. It is like that. Do not come to see that. It is not worth the trouble.\"\n\n" +
+                "\"I shall not leave you.\"\n\n" +
+                "He sat down because he was afraid.\n" +
+                "\"You know — my flower... I am responsible for her.\"\n\n" +
+                "\"The stars are beautiful because of a flower that cannot be seen.\"",
+
+                // Page 9
+                "CHAPTER XXVII\n\n" +
+                "And now six years have already gone by...\n\n" +
+                "I have never yet told this story. The companions who met me on my return\n" +
+                "were well content to see me alive. I was sad, but I told them: \"I am tired.\"\n\n" +
+                "Now my sorrow is comforted a little. That is, not entirely. But I know that\n" +
+                "he did go back to his planet, because I did not find his body at daybreak.\n" +
+                "It was not such a heavy body... and at night I love to listen to the stars.\n" +
+                "It is like five hundred million little bells...\n\n" +
+                "But there is one extraordinary thing... when I drew the muzzle for the little\n" +
+                "prince, I forgot to add the leather strap to it. He will never have been able\n" +
+                "to fasten it on his sheep.\n\n" +
+                "So now I keep wondering: what has happened on his planet?",
+
+                // Page 10
+                "ANTOINE DE SAINT-EXUPERY — A NOTE\n\n" +
+                "The Little Prince was published in French and English simultaneously in the\n" +
+                "United States in April 1943. Saint-Exupery died in July 1944 when the\n" +
+                "reconnaissance plane he was flying disappeared over the Mediterranean.\n\n" +
+                "It is the most-read and most-translated French-language literary work in\n" +
+                "the world. It has been translated into more than 300 languages and dialects\n" +
+                "and has sold more than 140 million copies.\n\n" +
+                "\"Grown-ups never understand anything by themselves, and it is tiresome for\n" +
+                "children to be always and forever explaining things to them.\"\n\n" +
+                "\"All grown-ups were once children — although few of them remember it.\"\n\n" +
+                "The book is dedicated: \"To Leon Werth — I ask the indulgence of the children\n" +
+                "who may read this book for dedicating it to a grown-up. I have a serious\n" +
+                "reason: he is the best friend I have in the world.\"",
+            ]
+        ),
     ];
 
     // ── PDF builder ───────────────────────────────────────────────────────────
