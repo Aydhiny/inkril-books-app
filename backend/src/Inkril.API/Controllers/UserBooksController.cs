@@ -31,6 +31,20 @@ public class UserBooksController(IMediator mediator, ICurrentUserService current
             ? Ok(new { id = result.Value })
             : BadRequest(new { errors = result.Errors });
     }
+
+    /// <summary>
+    /// Lightweight mid-session progress sync. Called by the reader on page turns (debounced ~5 s).
+    /// Persists current page + computed progress % so the user resumes from the right page
+    /// even if the app is force-killed before the session formally ends.
+    /// </summary>
+    [HttpPatch("{bookId:guid}/progress")]
+    public async Task<IActionResult> UpdateProgress(Guid bookId, [FromBody] UpdateProgressRequest req, CancellationToken ct)
+    {
+        var userId = currentUser.UserId ?? throw new UnauthorizedAccessException();
+        var result = await mediator.Send(new UpdateReadingProgressCommand(userId, bookId, req.CurrentPage), ct);
+        return result.Succeeded ? Ok() : BadRequest(new { errors = result.Errors });
+    }
 }
 
 public record AddToLibraryRequest(Guid BookId);
+public record UpdateProgressRequest(int CurrentPage);

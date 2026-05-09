@@ -36,6 +36,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   Timer? _readingTimer;
   int _elapsedSeconds = 0;
 
+  // ── Page-change debounce — syncs progress to backend ~5 s after last turn ──
+  Timer? _progressDebounce;
+
   String get _elapsedFormatted {
     final m = _elapsedSeconds ~/ 60;
     final s = _elapsedSeconds % 60;
@@ -63,9 +66,32 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   @override
   void dispose() {
     _readingTimer?.cancel();
+    _progressDebounce?.cancel();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _endSession();
     super.dispose();
+  }
+
+  /// Debounced — called every time the user turns a page.
+  /// Waits 5 s of inactivity before syncing to avoid hammering the API
+  /// on fast page-flips.
+  void _onPageChanged(int page) {
+    setState(() => _currentPage = page);
+    _progressDebounce?.cancel();
+    _progressDebounce = Timer(const Duration(seconds: 5), () => _syncProgress(page));
+  }
+
+  Future<void> _syncProgress(int page) async {
+    if (_totalPages <= 0) return;
+    try {
+      final dio = ref.read(dioProvider);
+      await dio.patch(
+        '/api/user-books/${widget.bookId}/progress',
+        data: {'currentPage': page},
+      );
+    } catch (_) {
+      // Silently ignore — the final sync in _endSession() is the source of truth.
+    }
   }
 
   Future<void> _loadBook() async {
@@ -169,8 +195,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               backgroundColor: Colors.white,
               onRender: (pages) => setState(() => _totalPages = pages ?? 0),
               onViewCreated: (ctrl) => _pdfController = ctrl,
-              onPageChanged: (page, _) =>
-                  setState(() => _currentPage = page ?? 0),
+              onPageChanged: (page, _) => _onPageChanged(page ?? _currentPage),
               onError: (e) {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(

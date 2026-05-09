@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/app_error_widget.dart';
 import '../providers/profile_provider.dart';
 import '../../../auth/presentation/providers/auth_notifier.dart';
 
@@ -19,19 +20,9 @@ class ProfileScreen extends ConsumerWidget {
         child: profileAsync.when(
           loading: () =>
               const Center(child: CircularProgressIndicator(color: AppTheme.primary)),
-          error: (e, _) => Center(
-            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-              const Icon(Icons.error_outline, size: 48, color: Color(0xFF9CA3AF)),
-              const SizedBox(height: 16),
-              Text('$e',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Color(0xFF6B7280))),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () => ref.invalidate(myProfileProvider),
-                child: const Text('Retry'),
-              ),
-            ]),
+          error: (e, _) => AppErrorWidget(
+            error: e,
+            onRetry: () => ref.invalidate(myProfileProvider),
           ),
           data: (profile) => RefreshIndicator(
             color: AppTheme.primary,
@@ -208,8 +199,8 @@ class _IdentityBlock extends StatelessWidget {
     final firstName   = profile['firstName']   as String? ?? '';
     final lastName    = profile['lastName']    as String? ?? '';
     final userName    = profile['userName']    as String? ?? '';
-    final booksRead   = profile['booksRead']   as int?    ?? 0;
-    final friendCount = profile['friendCount'] as int?    ?? 0;
+    final booksRead   = (profile['booksRead']   as num?)?.toInt() ?? 0;
+    final friendCount = (profile['friendCount'] as num?)?.toInt() ?? 0;
     final fullName    = [firstName, lastName].where((s) => s.isNotEmpty).join(' ');
     final joinedYear  = _joinedYear(profile);
 
@@ -330,8 +321,11 @@ class _StatisticsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final streak     = profile['currentStreak']     as int? ?? 0;
-    final totalHours = profile['totalReadingHours'] as int? ?? 0;
+    final streak        = profile['currentStreak']     as int? ?? 0;
+    final totalHoursRaw = (profile['totalReadingHours'] as num?)?.toDouble() ?? 0.0;
+    final totalHoursStr = totalHoursRaw % 1 == 0
+        ? '${totalHoursRaw.toInt()}'
+        : totalHoursRaw.toStringAsFixed(1);
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       const Text(
@@ -356,7 +350,7 @@ class _StatisticsSection extends StatelessWidget {
         Expanded(
           child: _StatCard(
             emoji: '⏰',
-            value: '${totalHours}h',
+            value: '${totalHoursStr}h',
             label: 'Hours read',
           ),
         ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/app_error_widget.dart';
 import '../providers/leaderboard_provider.dart';
 
 class LeaderboardScreen extends ConsumerWidget {
@@ -33,23 +34,9 @@ class LeaderboardScreen extends ConsumerWidget {
               child: leaderboardAsync.when(
                 loading: () => const Center(
                     child: CircularProgressIndicator(color: AppTheme.primary)),
-                error: (e, _) => Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error_outline,
-                          size: 48, color: Color(0xFF9CA3AF)),
-                      const SizedBox(height: 12),
-                      Text('$e',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: Color(0xFF6B7280))),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: () => ref.invalidate(leaderboardProvider),
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
+                error: (e, _) => AppErrorWidget(
+                  error: e,
+                  onRetry: () => ref.invalidate(leaderboardProvider),
                 ),
                 data: (data) {
                   final entries = data['entries'] as List? ?? [];

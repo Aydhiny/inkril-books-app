@@ -58,6 +58,10 @@ class LibraryScreen extends ConsumerWidget {
               SliverToBoxAdapter(
                 child: _SearchUploadRow(ref: ref),
               ),
+              // ── Continue reading CTA ──────────────────────────────
+              SliverToBoxAdapter(
+                child: _ContinueReadingButton(lastReadBook: lastReadBook),
+              ),
               // ── My book library ────────────────────────────────────
               const SliverToBoxAdapter(
                 child: _SectionTitle(title: 'My book library'),
@@ -74,10 +78,6 @@ class LibraryScreen extends ConsumerWidget {
               ),
               // ── Today's Quote ─────────────────────────────────────
               const SliverToBoxAdapter(child: _TodaysQuoteSection()),
-              // ── Continue reading CTA ──────────────────────────────
-              SliverToBoxAdapter(
-                child: _ContinueReadingButton(lastReadBook: lastReadBook),
-              ),
               const SliverToBoxAdapter(child: SizedBox(height: 24)),
             ],
           ),
@@ -98,10 +98,10 @@ class _StatsTopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final profile = profileAsync.valueOrNull as Map<String, dynamic>?;
-    final streak = profile?['currentStreak'] as int? ?? 0;
+    final streak = (profile?['currentStreak'] as num?)?.toInt() ?? 0;
     final weeklyStats = profile?['weeklyStats'] as List? ?? [];
     final todayMinutes = weeklyStats.isNotEmpty
-        ? (weeklyStats.last as Map)['minutesRead'] as int? ?? 0
+        ? ((weeklyStats.last as Map)['minutesRead'] as num?)?.toInt() ?? 0
         : 0;
     final timeDisplay =
         todayMinutes >= 60 ? '${(todayMinutes / 60).round()}h' : '${todayMinutes}m';

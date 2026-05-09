@@ -59,6 +59,52 @@ class _RouterNotifier extends ChangeNotifier {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Transition helpers — eliminates default iOS/Android swipe animations.
+// All navigation uses one of: fade (tab switches), slide (detail pushes),
+// or slide-up (reader full-screen overlay).
+// ─────────────────────────────────────────────────────────────────────────────
+
+CustomTransitionPage<void> _fade(GoRouterState state, Widget child) =>
+    CustomTransitionPage(
+      key: state.pageKey,
+      child: child,
+      transitionDuration: const Duration(milliseconds: 220),
+      reverseTransitionDuration: const Duration(milliseconds: 180),
+      transitionsBuilder: (_, animation, __, child) =>
+          FadeTransition(opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut), child: child),
+    );
+
+CustomTransitionPage<void> _slide(GoRouterState state, Widget child) =>
+    CustomTransitionPage(
+      key: state.pageKey,
+      child: child,
+      transitionDuration: const Duration(milliseconds: 300),
+      reverseTransitionDuration: const Duration(milliseconds: 250),
+      transitionsBuilder: (_, animation, __, child) {
+        final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+        return SlideTransition(
+          position: Tween(begin: const Offset(0.08, 0), end: Offset.zero).animate(curved),
+          child: FadeTransition(opacity: curved, child: child),
+        );
+      },
+    );
+
+CustomTransitionPage<void> _slideUp(GoRouterState state, Widget child) =>
+    CustomTransitionPage(
+      key: state.pageKey,
+      child: child,
+      transitionDuration: const Duration(milliseconds: 320),
+      reverseTransitionDuration: const Duration(milliseconds: 260),
+      transitionsBuilder: (_, animation, __, child) {
+        final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+        return SlideTransition(
+          position: Tween(begin: const Offset(0, 1), end: Offset.zero).animate(curved),
+          child: child,
+        );
+      },
+    );
+
 // Takes initialLocation so main.dart can pass '/welcome' on first launch
 // or '/library' on subsequent launches without an async redirect flicker.
 final routerProvider = Provider.family<GoRouter, String>((ref, initialLocation) {
@@ -69,34 +115,34 @@ final routerProvider = Provider.family<GoRouter, String>((ref, initialLocation) 
     refreshListenable: notifier,
     redirect: (_, state) => notifier.redirect(state),
     routes: [
-      GoRoute(path: '/welcome',       builder: (_, __) => const WelcomeScreen()),
-      GoRoute(path: '/auth/login',    builder: (_, __) => const LoginScreen()),
-      GoRoute(path: '/auth/register', builder: (_, __) => const RegisterScreen()),
+      GoRoute(path: '/welcome',       pageBuilder: (_, s) => _fade(s, const WelcomeScreen())),
+      GoRoute(path: '/auth/login',    pageBuilder: (_, s) => _fade(s, const LoginScreen())),
+      GoRoute(path: '/auth/register', pageBuilder: (_, s) => _fade(s, const RegisterScreen())),
 
       ShellRoute(
-        builder: (context, state, child) => _AppShell(child: child),
+        pageBuilder: (context, state, child) => _fade(state, _AppShell(child: child)),
         routes: [
-          GoRoute(path: '/library', builder: (_, __) => const LibraryScreen()),
-          GoRoute(path: '/reading', builder: (_, __) => const ReadingHubScreen()),
+          GoRoute(path: '/library', pageBuilder: (_, s) => _fade(s, const LibraryScreen())),
+          GoRoute(path: '/reading', pageBuilder: (_, s) => _fade(s, const ReadingHubScreen())),
           GoRoute(
             path: '/books/:id',
-            builder: (_, s) => BookDetailScreen(bookId: s.pathParameters['id']!),
+            pageBuilder: (_, s) => _slide(s, BookDetailScreen(bookId: s.pathParameters['id']!)),
           ),
           GoRoute(
             path: '/reader/:bookId',
-            builder: (_, s) => ReaderScreen(bookId: s.pathParameters['bookId']!),
+            pageBuilder: (_, s) => _slideUp(s, ReaderScreen(bookId: s.pathParameters['bookId']!)),
           ),
-          GoRoute(path: '/leaderboard', builder: (_, __) => const LeaderboardScreen()),
-          GoRoute(path: '/profile',     builder: (_, __) => const ProfileScreen()),
+          GoRoute(path: '/leaderboard', pageBuilder: (_, s) => _fade(s, const LeaderboardScreen())),
+          GoRoute(path: '/profile',     pageBuilder: (_, s) => _slide(s, const ProfileScreen())),
           // /profile/edit MUST come before /profile/:userId
-          GoRoute(path: '/profile/edit', builder: (_, __) => const EditProfileScreen()),
+          GoRoute(path: '/profile/edit', pageBuilder: (_, s) => _slide(s, const EditProfileScreen())),
           GoRoute(
             path: '/profile/:userId',
-            builder: (_, s) => FriendProfileScreen(userId: s.pathParameters['userId']!),
+            pageBuilder: (_, s) => _slide(s, FriendProfileScreen(userId: s.pathParameters['userId']!)),
           ),
-          GoRoute(path: '/friends',       builder: (_, __) => const FriendsScreen()),
-          GoRoute(path: '/notifications', builder: (_, __) => const NotificationsScreen()),
-          GoRoute(path: '/settings',      builder: (_, __) => const SettingsScreen()),
+          GoRoute(path: '/friends',       pageBuilder: (_, s) => _slide(s, const FriendsScreen())),
+          GoRoute(path: '/notifications', pageBuilder: (_, s) => _slide(s, const NotificationsScreen())),
+          GoRoute(path: '/settings',      pageBuilder: (_, s) => _slide(s, const SettingsScreen())),
         ],
       ),
     ],
