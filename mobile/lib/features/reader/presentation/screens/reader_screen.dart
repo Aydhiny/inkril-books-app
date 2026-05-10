@@ -113,10 +113,15 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     ]);
 
     if (!mounted) return;
+
+    // Capture GoRouter reference BEFORE pop — after pop() the widget
+    // unmounts and mounted becomes false, making context.push unreachable.
+    final router = GoRouter.of(context);
     Navigator.of(context).pop();
-    // 5+ minute session → streak celebration
-    if (sessionSeconds >= 300 && mounted) {
-      context.push('/reading-stats');
+
+    // 5+ minute session → streak celebration (router is still valid after pop)
+    if (sessionSeconds >= 300) {
+      router.push('/reading-stats');
     }
   }
 
@@ -191,16 +196,19 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
   Future<void> _endSession() async {
     if (_sessionId == null) return;
+    final sid = _sessionId!;
+    _sessionId = null; // prevent double-call from dispose + _closeReader
     try {
       final dio = ref.read(dioProvider);
       final minutesRead = (_elapsedSeconds / 60).ceil().clamp(1, 9999);
-      await dio.put('/api/reading-sessions/$_sessionId/end', data: {
+      await dio.put('/api/reading-sessions/$sid/end', data: {
         'endPage': _currentPage,
         'durationMinutes': minutesRead,
       });
+      // These may throw if the widget is already disposed (called from dispose()).
+      // The try-catch swallows it — providers will refresh on next navigation anyway.
       ref.invalidate(userLibraryProvider);
       ref.invalidate(bookDetailProvider(widget.bookId));
-      // Refresh home stats bar so reading time shows immediately
       ref.invalidate(myProfileProvider);
     } catch (_) {}
   }
