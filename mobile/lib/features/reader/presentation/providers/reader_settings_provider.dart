@@ -25,6 +25,7 @@ class ReaderSettingsNotifier extends StateNotifier<ReaderSettings> {
   static const _kHorizontal = 'reader_horizontal_scroll';
   static const _kNightMode = 'reader_night_mode';
   static const _kAutoScrollWpm = 'reader_auto_scroll_wpm';
+  static const _kLockPortrait = 'reader_lock_portrait';
 
   ReaderSettingsNotifier(this._prefs) : super(_load(_prefs));
 
@@ -38,6 +39,7 @@ class ReaderSettingsNotifier extends StateNotifier<ReaderSettings> {
         horizontalScroll: p.getBool(_kHorizontal) ?? true,
         isNightMode: p.getBool(_kNightMode) ?? false,
         preferredAutoScrollWpm: p.getInt(_kAutoScrollWpm) ?? 250,
+        lockPortrait: p.getBool(_kLockPortrait) ?? false,
       );
 
   void setTheme(ReaderTheme theme) {
@@ -68,5 +70,10 @@ class ReaderSettingsNotifier extends StateNotifier<ReaderSettings> {
   void setAutoScrollWpm(int wpm) {
     state = state.copyWith(preferredAutoScrollWpm: wpm.clamp(50, 600));
     _prefs.setInt(_kAutoScrollWpm, state.preferredAutoScrollWpm);
+  }
+
+  void setLockPortrait(bool value) {
+    state = state.copyWith(lockPortrait: value);
+    _prefs.setBool(_kLockPortrait, value);
   }
 }

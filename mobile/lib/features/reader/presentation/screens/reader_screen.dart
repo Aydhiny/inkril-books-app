@@ -152,6 +152,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     _searchController.dispose();
     _confetti.dispose();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    // Always restore free rotation when leaving the reader
+    SystemChrome.setPreferredOrientations([]);
     _endSession();
     super.dispose();
   }
@@ -163,6 +165,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       _currentPage = page;
       if (wasForward) _pagesReadThisSession++;
     });
+
+    HapticFeedback.lightImpact(); // tactile page-turn feedback
 
     // Keep the right-panel in sync during two-page spread
     _pdfController2?.setPage(page + 1);
@@ -344,6 +348,24 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     }
 
     final settings = ref.watch(readerSettingsProvider);
+
+    // Apply / release portrait lock in sync with the setting.
+    // SystemChrome.setPreferredOrientations is idempotent so calling it on
+    // every build (only when value actually changed) is safe and cheap.
+    ref.listen<bool>(
+      readerSettingsProvider.select((s) => s.lockPortrait),
+      (_, locked) => SystemChrome.setPreferredOrientations(
+        locked
+            ? [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]
+            : [],
+      ),
+    );
+    // Also apply immediately on first build
+    SystemChrome.setPreferredOrientations(
+      settings.lockPortrait
+          ? [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]
+          : [],
+    );
 
     // Night mode overrides the selected theme and brightness
     final effectiveTheme =
@@ -1691,6 +1713,21 @@ class _ReadingSettingsSheetState extends State<_ReadingSettingsSheet> {
               ),
             ]),
           ),
+        ),
+
+        const SizedBox(height: 12),
+
+        // ── Portrait lock ─────────────────────────────────────────────────
+        _DirectionTile(
+          icon: Icons.screen_lock_portrait_rounded,
+          label: 'Lock Portrait',
+          subtitle: 'Prevent rotation while reading',
+          selected: _s.lockPortrait,
+          onTap: () {
+            HapticFeedback.selectionClick();
+            widget.settingsNotifier.setLockPortrait(!_s.lockPortrait);
+            setState(() => _s = _s.copyWith(lockPortrait: !_s.lockPortrait));
+          },
         ),
 
         const SizedBox(height: 20),

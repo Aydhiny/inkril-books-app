@@ -21,6 +21,10 @@ class ReaderSettings {
   /// Default 250 WPM ≈ 1 page/min for a standard trade paperback.
   final int preferredAutoScrollWpm;
 
+  /// When true, the reader locks to portrait orientation regardless of device
+  /// rotation. Useful when reading lying on your side.
+  final bool lockPortrait;
+
   const ReaderSettings({
     this.theme = ReaderTheme.white,
     this.brightness = 1.0,
@@ -28,6 +32,7 @@ class ReaderSettings {
     this.horizontalScroll = true,
     this.isNightMode = false,
     this.preferredAutoScrollWpm = 250,
+    this.lockPortrait = false,
   });
 
   ReaderSettings copyWith({
@@ -37,6 +42,7 @@ class ReaderSettings {
     bool? horizontalScroll,
     bool? isNightMode,
     int? preferredAutoScrollWpm,
+    bool? lockPortrait,
   }) =>
       ReaderSettings(
         theme: theme ?? this.theme,
@@ -46,5 +52,6 @@ class ReaderSettings {
         isNightMode: isNightMode ?? this.isNightMode,
         preferredAutoScrollWpm:
             preferredAutoScrollWpm ?? this.preferredAutoScrollWpm,
+        lockPortrait: lockPortrait ?? this.lockPortrait,
       );
 }
