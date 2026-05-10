@@ -11,7 +11,11 @@ namespace Inkril.Application.Features.UserBooks.Commands;
 /// Does NOT create or end a ReadingSession; it just persists the current page position so
 /// that if the app is force-killed the user still resumes from the last synced page.
 /// </summary>
-public record UpdateReadingProgressCommand(Guid UserId, Guid BookId, int CurrentPage) : IRequest<Result>;
+/// <param name="TotalPdfPages">Actual page count reported by the PDF renderer.
+/// When provided and > 0, used instead of <c>book.TotalPages</c> so progress
+/// is always accurate even when the DB value is 0 or stale.</param>
+public record UpdateReadingProgressCommand(
+    Guid UserId, Guid BookId, int CurrentPage, int? TotalPdfPages = null) : IRequest<Result>;
 
 public class UpdateReadingProgressCommandValidator : AbstractValidator<UpdateReadingProgressCommand>
 {
@@ -47,8 +51,12 @@ public class UpdateReadingProgressCommandHandler(IUnitOfWork uow)
 
         userBook.LastReadPageNumber = cmd.CurrentPage;
         userBook.LastReadAt = DateTime.UtcNow;
-        userBook.ReadingProgressPercent = book.TotalPages > 0
-            ? Math.Round((double)cmd.CurrentPage / book.TotalPages * 100, 1)
+
+        // Prefer the actual PDF page count sent by the client over the DB value,
+        // which can be 0 (uploaded books) or a full-book count while the PDF is a preview.
+        var denominator = (cmd.TotalPdfPages is > 0) ? cmd.TotalPdfPages.Value : book.TotalPages;
+        userBook.ReadingProgressPercent = denominator > 0
+            ? Math.Round((double)cmd.CurrentPage / denominator * 100, 1)
             : 0;
 
         if (userBook.ReadingProgressPercent >= 100 && !userBook.IsCompleted)

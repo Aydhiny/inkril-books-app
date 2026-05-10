@@ -41,10 +41,10 @@ public class UserBooksController(IMediator mediator, ICurrentUserService current
     public async Task<IActionResult> UpdateProgress(Guid bookId, [FromBody] UpdateProgressRequest req, CancellationToken ct)
     {
         var userId = currentUser.UserId ?? throw new UnauthorizedAccessException();
-        var result = await mediator.Send(new UpdateReadingProgressCommand(userId, bookId, req.CurrentPage), ct);
+        var result = await mediator.Send(new UpdateReadingProgressCommand(userId, bookId, req.CurrentPage, req.TotalPdfPages), ct);
         return result.Succeeded ? Ok() : BadRequest(new { errors = result.Errors });
     }
 }
 
 public record AddToLibraryRequest(Guid BookId);
-public record UpdateProgressRequest(int CurrentPage);
+public record UpdateProgressRequest(int CurrentPage, int? TotalPdfPages = null);

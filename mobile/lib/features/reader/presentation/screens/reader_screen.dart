@@ -48,6 +48,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
   // ── Session summary overlay ────────────────────────────────────────────────
   bool _showSummary = false;
+  // Completer lets the user tap to skip the 2.5s countdown and pop immediately
+  // (the session-end API call still has to finish first).
+  Completer<void>? _summaryCompleter;
 
   // ── HUD font size (affects top/bottom bar text, not the PDF) ──────────────
   double _hudFontScale = 1.0; // 0.85 | 1.0 | 1.2
@@ -104,15 +107,20 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   }
 
   /// Called when the user deliberately exits via "Back to App".
-  /// Shows a brief summary overlay, ends the session, then pops.
-  /// If the session was 5+ minutes, navigates to Reading Stats screen.
+  /// Shows the summary overlay, ends the session, then pops.
+  /// The user can tap anywhere on the overlay to dismiss early — the 2.5s timer
+  /// and the API call race via Future.any / Future.wait so neither blocks the other.
   Future<void> _closeReader() async {
     setState(() => _showSummary = true);
+    _summaryCompleter = Completer<void>();
     final sessionSeconds = _elapsedSeconds; // capture before async gap
 
     await Future.wait([
       _endSession(),
-      Future.delayed(const Duration(milliseconds: 2500)),
+      Future.any([
+        _summaryCompleter!.future,
+        Future.delayed(const Duration(milliseconds: 2500)),
+      ]),
     ]);
 
     if (!mounted) return;
@@ -134,7 +142,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       final dio = ref.read(dioProvider);
       await dio.patch(
         '/api/user-books/${widget.bookId}/progress',
-        data: {'currentPage': page},
+        data: {'currentPage': page, 'totalPdfPages': _totalPages},
       );
     } catch (_) {
       // Silently ignore — the final sync in _endSession() is the source of truth.
@@ -207,6 +215,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       await dio.put('/api/reading-sessions/$sid/end', data: {
         'endPage': _currentPage,
         'durationMinutes': minutesRead,
+        'totalPdfPages': _totalPages > 0 ? _totalPages : null,
       });
       // These may throw if the widget is already disposed (called from dispose()).
       // The try-catch swallows it — providers will refresh on next navigation anyway.
@@ -345,11 +354,20 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 300),
             child: _showSummary
-                ? _SessionSummary(
-                    elapsedSeconds: _elapsedSeconds,
-                    currentPage: _currentPage,
-                    totalPages: _totalPages,
-                    bookTitle: _bookTitle,
+                ? GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () {
+                      if (_summaryCompleter != null &&
+                          !_summaryCompleter!.isCompleted) {
+                        _summaryCompleter!.complete();
+                      }
+                    },
+                    child: _SessionSummary(
+                      elapsedSeconds: _elapsedSeconds,
+                      currentPage: _currentPage,
+                      totalPages: _totalPages,
+                      bookTitle: _bookTitle,
+                    ),
                   )
                 : const SizedBox.shrink(),
           ),
@@ -1375,7 +1393,7 @@ class _SessionSummaryState extends State<_SessionSummary>
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Saving your session…',
+                  'Tap anywhere to dismiss',
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.4),
                     fontSize: 12,

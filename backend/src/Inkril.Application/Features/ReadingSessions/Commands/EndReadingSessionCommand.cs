@@ -7,7 +7,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Inkril.Application.Features.ReadingSessions.Commands;
 
-public record EndReadingSessionCommand(Guid SessionId, Guid UserId, int EndPage) : IRequest<Result>;
+public record EndReadingSessionCommand(
+    Guid SessionId, Guid UserId, int EndPage, int? TotalPdfPages = null) : IRequest<Result>;
 
 public class EndReadingSessionCommandValidator : AbstractValidator<EndReadingSessionCommand>
 {
@@ -37,7 +38,7 @@ public class EndReadingSessionCommandHandler(IUnitOfWork uow, IMessagePublisher 
         session.UpdatedAt = DateTime.UtcNow;
         uow.ReadingSessions.Update(session);
 
-        await UpdateUserBookProgressAsync(session, ct);
+        await UpdateUserBookProgressAsync(session, cmd.TotalPdfPages, ct);
         var streakDays = await UpsertDailyStatAsync(session, ct);
         await uow.SaveChangesAsync(ct);
 
@@ -57,7 +58,7 @@ public class EndReadingSessionCommandHandler(IUnitOfWork uow, IMessagePublisher 
         return Result.Success();
     }
 
-    private async Task UpdateUserBookProgressAsync(ReadingSession session, CancellationToken ct)
+    private async Task UpdateUserBookProgressAsync(ReadingSession session, int? totalPdfPages, CancellationToken ct)
     {
         var book = await uow.Books.GetByIdAsync(session.BookId, ct);
         if (book is null) return;
@@ -73,8 +74,12 @@ public class EndReadingSessionCommandHandler(IUnitOfWork uow, IMessagePublisher 
 
         userBook.LastReadPageNumber = session.EndPage;
         userBook.LastReadAt = session.EndedAt;
-        userBook.ReadingProgressPercent = book.TotalPages > 0
-            ? Math.Round((double)session.EndPage / book.TotalPages * 100, 1)
+
+        // Use the actual PDF page count from the client if provided — more reliable than
+        // book.TotalPages which can be 0 (user-uploaded) or mismatched (preview PDFs).
+        var denominator = (totalPdfPages is > 0) ? totalPdfPages.Value : book.TotalPages;
+        userBook.ReadingProgressPercent = denominator > 0
+            ? Math.Round((double)session.EndPage / denominator * 100, 1)
             : 0;
 
         if (userBook.ReadingProgressPercent >= 100 && !userBook.IsCompleted)
