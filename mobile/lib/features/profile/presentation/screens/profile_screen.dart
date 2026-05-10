@@ -47,6 +47,8 @@ class ProfileScreen extends ConsumerWidget {
                   const SizedBox(height: 24),
                   _StatisticsSection(profile: profile),
                   const SizedBox(height: 24),
+                  _YearlyGoalSection(profile: profile),
+                  const SizedBox(height: 24),
                   _WeeklyProgressSection(profile: profile),
                   const SizedBox(height: 16),
                 ],
@@ -407,6 +409,222 @@ class _StatCard extends StatelessWidget {
       ]),
     );
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Yearly goal — Goodreads-style ring + progress bar
+// Hidden when yearlyBookGoal == 0 (no goal set).
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _YearlyGoalSection extends StatelessWidget {
+  final Map<String, dynamic> profile;
+  const _YearlyGoalSection({required this.profile});
+
+  @override
+  Widget build(BuildContext context) {
+    final goal = (profile['yearlyBookGoal'] as num?)?.toInt() ?? 0;
+    if (goal == 0) return const SizedBox.shrink();
+
+    final read   = (profile['yearlyBooksRead'] as num?)?.toInt() ?? 0;
+    final year   = DateTime.now().year;
+    final progress = (goal > 0 ? (read / goal).clamp(0.0, 1.0) : 0.0);
+    final done   = read >= goal;
+    final pct    = (progress * 100).round();
+
+    // Ring colours
+    const ringBg    = Color(0xFFEDE9FE);
+    const ringFg    = AppTheme.primary;
+    const goldColor = Color(0xFFF59E0B);
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(
+        '$year Reading Goal',
+        style: TextStyle(
+          fontSize: 22,
+          fontWeight: FontWeight.w900,
+          color: context.textPrimary,
+          letterSpacing: -0.3,
+        ),
+      ),
+      const SizedBox(height: 14),
+      Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: context.cardBg,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: context.borderPurple, width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.primary.withValues(alpha: 0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+          // Ring
+          SizedBox(
+            width: 96,
+            height: 96,
+            child: Stack(alignment: Alignment.center, children: [
+              SizedBox(
+                width: 96,
+                height: 96,
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0, end: progress),
+                  duration: const Duration(milliseconds: 1100),
+                  curve: Curves.easeOutCubic,
+                  builder: (_, value, __) => CustomPaint(
+                    painter: _RingPainter(
+                      progress: value,
+                      bgColor: ringBg,
+                      fgColor: done ? goldColor : ringFg,
+                      strokeWidth: 10,
+                    ),
+                  ),
+                ),
+              ),
+              Column(mainAxisSize: MainAxisSize.min, children: [
+                if (done)
+                  const Text('🏆', style: TextStyle(fontSize: 26))
+                else ...[
+                  Text(
+                    '$pct%',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                      color: context.textPrimary,
+                    ),
+                  ),
+                ],
+              ]),
+            ]),
+          ),
+
+          const SizedBox(width: 20),
+
+          // Right side
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              // "X of Y books" headline
+              RichText(
+                text: TextSpan(
+                  style: TextStyle(fontSize: 15, color: context.textBody),
+                  children: [
+                    TextSpan(
+                      text: '$read ',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                        color: done ? goldColor : context.textPrimary,
+                      ),
+                    ),
+                    TextSpan(
+                      text: 'of $goal books',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: context.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              // Linear progress bar
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0, end: progress),
+                  duration: const Duration(milliseconds: 1100),
+                  curve: Curves.easeOutCubic,
+                  builder: (_, value, __) => LinearProgressIndicator(
+                    value: value,
+                    minHeight: 8,
+                    backgroundColor: ringBg,
+                    valueColor: AlwaysStoppedAnimation(
+                        done ? goldColor : ringFg),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 8),
+
+              // Motivational caption
+              Text(
+                done
+                    ? '🎉 Goal crushed! Set a new one in Settings.'
+                    : _caption(read, goal),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: context.textSecondary,
+                  height: 1.4,
+                ),
+              ),
+            ]),
+          ),
+        ]),
+      ),
+    ]);
+  }
+
+  String _caption(int read, int goal) {
+    final left = goal - read;
+    if (left == 0) return '🎉 Done!';
+    if (left == 1) return 'Just 1 book to go!';
+    return '$left books to go — you got this!';
+  }
+}
+
+// Arc painter — draws a background circle + a foreground arc from 12 o'clock
+class _RingPainter extends CustomPainter {
+  final double progress;
+  final Color bgColor;
+  final Color fgColor;
+  final double strokeWidth;
+  const _RingPainter({
+    required this.progress,
+    required this.bgColor,
+    required this.fgColor,
+    required this.strokeWidth,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (size.width - strokeWidth) / 2;
+    const startAngle = -1.5707963267948966; // -π/2 (12 o'clock)
+    const fullSweep  = 6.283185307179586;   // 2π
+
+    final bgPaint = Paint()
+      ..color = bgColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+
+    final fgPaint = Paint()
+      ..color = fgColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawCircle(center, radius, bgPaint);
+    if (progress > 0) {
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        startAngle,
+        fullSweep * progress,
+        false,
+        fgPaint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_RingPainter old) =>
+      old.progress != progress || old.fgColor != fgColor;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

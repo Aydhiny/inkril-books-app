@@ -21,7 +21,9 @@ public record UserProfileDto(
     double TotalReadingHours,
     int FriendCount,
     int BooksRead,
-    IEnumerable<DailyStatDto> WeeklyStats);
+    IEnumerable<DailyStatDto> WeeklyStats,
+    int YearlyBookGoal,
+    int YearlyBooksRead);
 
 public record GetUserProfileQuery(Guid UserId) : IRequest<Result<UserProfileDto>>;
 
@@ -61,6 +63,16 @@ public class GetUserProfileQueryHandler(
         var friendCount = await uow.Friendships.CountAsync(
             f => f.UserId == q.UserId, ct);
 
+        // Yearly goal — from UserSettings (0 means no goal set)
+        var settings = (await uow.UserSettings.FindAsync(s => s.UserId == q.UserId, ct)).FirstOrDefault();
+        var yearlyBookGoal = settings?.YearlyBookGoal ?? 0;
+
+        // Books completed this calendar year
+        var yearStart = new DateOnly(today.Year, 1, 1);
+        var yearlyBooksRead = statsList
+            .Where(s => s.Date >= yearStart)
+            .Sum(s => s.BooksCompleted);
+
         return Result<UserProfileDto>.Success(new UserProfileDto(
             user.Id,
             user.UserName!,
@@ -73,6 +85,8 @@ public class GetUserProfileQueryHandler(
             Math.Round(totalMinutes / 60.0, 1),
             friendCount,
             booksRead,
-            weeklyStats));
+            weeklyStats,
+            yearlyBookGoal,
+            yearlyBooksRead));
     }
 }
