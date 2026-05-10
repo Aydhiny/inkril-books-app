@@ -142,7 +142,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       final dio = ref.read(dioProvider);
       await dio.patch(
         '/api/user-books/${widget.bookId}/progress',
-        data: {'currentPage': page, 'totalPdfPages': _totalPages},
+        data: {'currentPage': page},
       );
     } catch (_) {
       // Silently ignore — the final sync in _endSession() is the source of truth.
@@ -215,7 +215,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       await dio.put('/api/reading-sessions/$sid/end', data: {
         'endPage': _currentPage,
         'durationMinutes': minutesRead,
-        'totalPdfPages': _totalPages > 0 ? _totalPages : null,
       });
       // These may throw if the widget is already disposed (called from dispose()).
       // The try-catch swallows it — providers will refresh on next navigation anyway.

@@ -28,7 +28,7 @@ public class ReadingSessionsController(
     public async Task<IActionResult> End(Guid id, [FromBody] EndSessionRequest req, CancellationToken ct)
     {
         var userId = currentUser.UserId ?? throw new UnauthorizedAccessException();
-        var result = await mediator.Send(new EndReadingSessionCommand(id, userId, req.EndPage, req.TotalPdfPages), ct);
+        var result = await mediator.Send(new EndReadingSessionCommand(id, userId, req.EndPage), ct);
         return result.Succeeded ? NoContent() : BadRequest(new { errors = result.Errors });
     }
 
@@ -41,4 +41,4 @@ public class ReadingSessionsController(
     }
 }
 
-public record EndSessionRequest(int EndPage, int? TotalPdfPages = null);
+public record EndSessionRequest(int EndPage);

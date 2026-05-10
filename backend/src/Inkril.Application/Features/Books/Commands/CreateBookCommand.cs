@@ -29,7 +29,7 @@ public class CreateBookCommandValidator : AbstractValidator<CreateBookCommand>
         RuleFor(x => x.Title).NotEmpty().MaximumLength(300);
         RuleFor(x => x.Author).NotEmpty().MaximumLength(200);
         RuleFor(x => x.FilePath).NotEmpty();
-        RuleFor(x => x.TotalPages).GreaterThan(0);
+        RuleFor(x => x.TotalPages).GreaterThanOrEqualTo(0);
         RuleFor(x => x.PublishedDate).LessThanOrEqualTo(DateTime.UtcNow);
     }
 }

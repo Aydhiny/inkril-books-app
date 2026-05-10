@@ -4,6 +4,7 @@ using Inkril.Application.Features.Books.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using UglyToad.PdfPig;
 
 namespace Inkril.API.Controllers;
 
@@ -110,10 +111,28 @@ public class BooksController(IMediator mediator, ICurrentUserService currentUser
 
         book.FilePath = $"/uploads/books/{fileName}";
         book.FileSizeBytes = file.Length;
+        book.TotalPages = ExtractPageCount(filePath);
         book.UpdatedAt = DateTime.UtcNow;
         uow.Books.Update(book);
         await uow.SaveChangesAsync(ct);
 
-        return Ok(new { filePath = book.FilePath, fileSizeBytes = book.FileSizeBytes });
+        return Ok(new { filePath = book.FilePath, fileSizeBytes = book.FileSizeBytes, totalPages = book.TotalPages });
+    }
+
+    /// Reads the PDF's cross-reference table to get page count — no text extraction,
+    /// so it's essentially instant even for large files.
+    private static int ExtractPageCount(string filePath)
+    {
+        try
+        {
+            using var pdf = PdfDocument.Open(filePath);
+            return pdf.NumberOfPages;
+        }
+        catch
+        {
+            // Malformed PDF or unsupported encryption — fall back to 0 rather than
+            // failing the upload. The admin can re-upload if TotalPages is wrong.
+            return 0;
+        }
     }
 }

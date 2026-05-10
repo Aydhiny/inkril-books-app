@@ -1,0 +1,110 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+# Defines both services in one file so a single "New Blueprint Instance"
+# in the Render dashboard wires everything up automatically.
+#
+# External dependencies (set these in Render's Environment Groups or per-service):
+#   DATABASE_URL  — Neon serverless Postgres connection string
+#                   e.g. postgresql://user:pass@ep-xxx.neon.tech/220088?sslmode=require
+#   RABBITMQ_URL  — CloudAMQP connection string (free Lemur tier)
+#                   e.g. amqps://user:pass@hawk.rmq.cloudamqp.com/vhost
+#   REDIS_URL     — Render Key Value (Redis) internal URL, injected automatically
+#                   when the redis service below is linked via fromService
+#   JWT_KEY       — Random 256-bit secret, generate with: openssl rand -base64 32
+#   SMTP_*        — Your mail provider credentials (Gmail app password, etc.)
+
+services:
+  # ── API ────────────────────────────────────────────────────────────────────
+  - type: web
+    name: inkril-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile.api
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_URLS
+        value: http://+:8080
+      - key: ConnectionStrings__Default
+        sync: false          # paste your Neon connection string in the dashboard
+      - key: Jwt__Key
+        sync: false
+      - key: Jwt__Issuer
+        value: inkril-api
+      - key: Jwt__Audience
+        value: inkril-clients
+      - key: Jwt__ExpiryMinutes
+        value: "60"
+      - key: RabbitMQ__Host
+        sync: false          # CloudAMQP hostname
+      - key: RabbitMQ__Port
+        value: "5672"
+      - key: RabbitMQ__Username
+        sync: false
+      - key: RabbitMQ__Password
+        sync: false
+      - key: RabbitMQ__VirtualHost
+        sync: false
+      - key: Redis__ConnectionString
+        fromService:
+          type: redis
+          name: inkril-redis
+          property: connectionString
+      - key: Smtp__Host
+        sync: false
+      - key: Smtp__Port
+        value: "587"
+      - key: Smtp__Username
+        sync: false
+      - key: Smtp__Password
+        sync: false
+      - key: Smtp__UseSsl
+        value: "true"
+      - key: Smtp__FromName
+        value: Inkril
+      - key: Smtp__FromEmail
+        sync: false
+
+  # ── Notification Worker ────────────────────────────────────────────────────
+  - type: worker
+    name: inkril-worker
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile.worker
+    dockerContext: ./backend
+    plan: free
+    envVars:
+      - key: DOTNET_ENVIRONMENT
+        value: Production
+      - key: ConnectionStrings__Default
+        sync: false
+      - key: RabbitMQ__Host
+        sync: false
+      - key: RabbitMQ__Port
+        value: "5672"
+      - key: RabbitMQ__Username
+        sync: false
+      - key: RabbitMQ__Password
+        sync: false
+      - key: RabbitMQ__VirtualHost
+        sync: false
+      - key: Smtp__Host
+        sync: false
+      - key: Smtp__Port
+        value: "587"
+      - key: Smtp__Username
+        sync: false
+      - key: Smtp__Password
+        sync: false
+      - key: Smtp__UseSsl
+        value: "true"
+      - key: Smtp__FromName
+        value: Inkril
+      - key: Smtp__FromEmail
+        sync: false
+
+  # ── Redis (Render Key Value) ───────────────────────────────────────────────
+  - type: redis
+    name: inkril-redis
+    plan: free
+    maxmemoryPolicy: allkeys-lru
