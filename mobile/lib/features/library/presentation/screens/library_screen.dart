@@ -854,24 +854,148 @@ class _TodaysQuoteSection extends StatelessWidget {
 
 class _BookSearchDelegate extends SearchDelegate<String> {
   @override
-  List<Widget> buildActions(BuildContext context) =>
-      [IconButton(icon: const Icon(Icons.clear), onPressed: () => query = '')];
+  String get searchFieldLabel => 'Search books or authors…';
+
+  @override
+  List<Widget> buildActions(BuildContext context) => [
+        if (query.isNotEmpty)
+          IconButton(
+              icon: const Icon(Icons.clear_rounded),
+              color: AppTheme.primary,
+              onPressed: () => query = ''),
+      ];
 
   @override
   Widget buildLeading(BuildContext context) => IconButton(
-      icon: const Icon(Icons.arrow_back),
-      onPressed: () => close(context, ''));
+        icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+        color: AppTheme.primary,
+        onPressed: () => close(context, ''),
+      );
 
   @override
-  Widget buildResults(BuildContext context) => _buildSuggestions();
+  Widget buildResults(BuildContext context) => _SearchResults(query: query);
 
   @override
-  Widget buildSuggestions(BuildContext context) => _buildSuggestions();
+  Widget buildSuggestions(BuildContext context) => _SearchResults(query: query);
+}
 
-  Widget _buildSuggestions() {
+// Uses Consumer so it has access to Riverpod without extending SearchDelegate.
+class _SearchResults extends ConsumerWidget {
+  final String query;
+  const _SearchResults({required this.query});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     if (query.trim().isEmpty) {
-      return const Center(child: Text('Search for books or authors'));
+      return Center(
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          const Text('🔍', style: TextStyle(fontSize: 40)),
+          const SizedBox(height: 12),
+          Text('Type to search books or authors',
+              style: TextStyle(color: context.textSecondary, fontSize: 14)),
+        ]),
+      );
     }
-    return const Center(child: Text('Search results coming soon'));
+
+    final resultsAsync = ref.watch(searchBooksProvider(query));
+    return resultsAsync.when(
+      loading: () =>
+          const Center(child: CircularProgressIndicator(color: AppTheme.primary)),
+      error: (_, __) => Center(
+        child: Text('Search failed',
+            style: TextStyle(color: context.textSecondary)),
+      ),
+      data: (books) {
+        if (books.isEmpty) {
+          return Center(
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              const Text('📚', style: TextStyle(fontSize: 40)),
+              const SizedBox(height: 12),
+              Text('No books found for "$query"',
+                  style: TextStyle(color: context.textSecondary)),
+            ]),
+          );
+        }
+        return ListView.separated(
+          padding: const EdgeInsets.all(16),
+          itemCount: books.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 10),
+          itemBuilder: (ctx, i) {
+            final b = books[i];
+            final title   = b['title'] as String? ?? '';
+            final author  = b['author'] as String? ?? '';
+            final cover   = b['coverImageUrl'] as String?;
+            final rating  = (b['averageRating'] as num?)?.toDouble() ?? 0;
+            final bookId  = b['id'] as String? ?? '';
+
+            return GestureDetector(
+              onTap: () {
+                Navigator.of(ctx).pop();
+                GoRouter.of(ctx).push('/books/$bookId');
+              },
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: context.cardBg,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: context.borderPurpleMid, width: 2),
+                ),
+                child: Row(children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: cover != null && cover.isNotEmpty
+                        ? Image.network(cover,
+                            width: 52, height: 72, fit: BoxFit.cover)
+                        : Container(
+                            width: 52,
+                            height: 72,
+                            color: context.primarySurface,
+                            child: const Center(
+                                child: Icon(Icons.book_rounded,
+                                    color: AppTheme.primary, size: 24)),
+                          ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
+                                color: context.textPrimary,
+                              )),
+                          const SizedBox(height: 2),
+                          Text(author,
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: context.textSecondary)),
+                          if (rating > 0) ...[
+                            const SizedBox(height: 4),
+                            Row(children: [
+                              const Icon(Icons.star_rounded,
+                                  color: Color(0xFFF59E0B), size: 14),
+                              const SizedBox(width: 3),
+                              Text(rating.toStringAsFixed(1),
+                                  style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFFF59E0B))),
+                            ]),
+                          ],
+                        ]),
+                  ),
+                  const Icon(Icons.chevron_right_rounded,
+                      color: AppTheme.primary, size: 20),
+                ]),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 }

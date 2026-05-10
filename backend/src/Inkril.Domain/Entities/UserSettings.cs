@@ -23,4 +23,8 @@ public class UserSettings : BaseEntity
     public string Theme { get; set; } = "system";
 
     public string Language { get; set; } = "en";
+
+    /// <summary>How many books the user wants to read this calendar year. 0 = no goal set.</summary>
+    public int YearlyBookGoal { get; set; } = 0;
 }
+

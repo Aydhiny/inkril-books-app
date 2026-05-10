@@ -12,7 +12,8 @@ public record UserSettingsDto(
     bool WeeklySummaryEmail,
     int DailyReadingGoalMinutes,
     string Theme,
-    string Language
+    string Language,
+    int YearlyBookGoal
 );
 
 public class GetUserSettingsQueryHandler(
@@ -43,7 +44,8 @@ public class GetUserSettingsQueryHandler(
             settings.ReceiveWeeklySummaryEmail,
             settings.DailyReadingGoalMinutes,
             settings.Theme,
-            settings.Language
+            settings.Language,
+            settings.YearlyBookGoal
         ));
     }
 }

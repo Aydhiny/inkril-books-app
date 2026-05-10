@@ -49,6 +49,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   // ── Session summary overlay ────────────────────────────────────────────────
   bool _showSummary = false;
 
+  // ── HUD font size (affects top/bottom bar text, not the PDF) ──────────────
+  double _hudFontScale = 1.0; // 0.85 | 1.0 | 1.2
+
   String get _elapsedFormatted {
     final m = _elapsedSeconds ~/ 60;
     final s = _elapsedSeconds % 60;
@@ -263,10 +266,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               bookTitle: _bookTitle,
               bookmarksActive: _showBookmarksPanel,
               elapsedFormatted: _elapsedFormatted,
+              fontScale: _hudFontScale,
               onBack: _closeReader,
               onBookmark: _addBookmark,
               onToggleBookmarks: () =>
                   setState(() => _showBookmarksPanel = !_showBookmarksPanel),
+              onFontSize: _showFontSizePicker,
             ),
           ),
 
@@ -282,6 +287,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               child: _BottomBar(
                 currentPage: _currentPage,
                 totalPages: _totalPages,
+                fontScale: _hudFontScale,
                 onPrev: _currentPage > 0
                     ? () => _pdfController?.setPage(_currentPage - 1)
                     : null,
@@ -355,10 +361,137 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                   _pdfController?.setPage(page - 1);
                   setState(() => _showBookmarksPanel = false);
                 },
+                onExport: _exportBookmarks,
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // ── Export bookmarks ────────────────────────────────────────────────────
+
+  Future<void> _exportBookmarks() async {
+    try {
+      final dio = ref.read(dioProvider);
+      await dio.post('/api/bookmarks/export', data: {'bookId': widget.bookId});
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Highlights emailed to you! 📧'),
+            backgroundColor: AppTheme.progressGreen,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not send email. Try again later.'),
+            backgroundColor: Color(0xFFEF4444),
+          ),
+        );
+      }
+    }
+  }
+
+  // ── Font size picker ────────────────────────────────────────────────────
+
+  void _showFontSizePicker() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            width: 36,
+            height: 4,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE5E7EB),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'HUD Text Size',
+            style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF1F2937)),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Adjusts the size of controls text (title, timer, page counter)',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
+          ),
+          const SizedBox(height: 20),
+          Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+            for (final (label, scale) in [
+              ('Small', 0.85),
+              ('Normal', 1.0),
+              ('Large', 1.2),
+            ])
+              GestureDetector(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  setState(() => _hudFontScale = scale);
+                  Navigator.pop(context);
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  width: 90,
+                  height: 70,
+                  decoration: BoxDecoration(
+                    color: _hudFontScale == scale
+                        ? AppTheme.primarySurface
+                        : const Color(0xFFF9FAFB),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: _hudFontScale == scale
+                          ? AppTheme.primary
+                          : const Color(0xFFE5E7EB),
+                      width: _hudFontScale == scale ? 2 : 1,
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Aa',
+                        style: TextStyle(
+                          fontSize: 18 * scale,
+                          fontWeight: FontWeight.w700,
+                          color: _hudFontScale == scale
+                              ? AppTheme.primary
+                              : const Color(0xFF6B7280),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: _hudFontScale == scale
+                              ? AppTheme.primary
+                              : const Color(0xFF9CA3AF),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ]),
+        ]),
       ),
     );
   }
@@ -495,17 +628,21 @@ class _TopBar extends StatelessWidget {
   final String bookTitle;
   final bool bookmarksActive;
   final String elapsedFormatted;
+  final double fontScale;
   final VoidCallback onBack;
   final VoidCallback onBookmark;
   final VoidCallback onToggleBookmarks;
+  final VoidCallback onFontSize;
 
   const _TopBar({
     required this.bookTitle,
     required this.bookmarksActive,
     required this.elapsedFormatted,
+    required this.fontScale,
     required this.onBack,
     required this.onBookmark,
     required this.onToggleBookmarks,
+    required this.onFontSize,
   });
 
   @override
@@ -533,10 +670,10 @@ class _TopBar extends StatelessWidget {
                 bookTitle,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 15,
+                style: TextStyle(
+                  fontSize: 15 * fontScale,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF1F2937),
+                  color: const Color(0xFF1F2937),
                 ),
               ),
             ),
@@ -555,8 +692,8 @@ class _TopBar extends StatelessWidget {
                 const SizedBox(width: 3),
                 Text(
                   elapsedFormatted,
-                  style: const TextStyle(
-                    fontSize: 12,
+                  style: TextStyle(
+                    fontSize: 12 * fontScale,
                     fontWeight: FontWeight.w700,
                     color: AppTheme.primary,
                   ),
@@ -569,6 +706,13 @@ class _TopBar extends StatelessWidget {
               color: AppTheme.primary,
               tooltip: 'Add Bookmark',
               onPressed: onBookmark,
+            ),
+            // Font size
+            IconButton(
+              icon: const Icon(Icons.text_fields_rounded, size: 20),
+              color: const Color(0xFF9CA3AF),
+              tooltip: 'Text Size',
+              onPressed: onFontSize,
             ),
             // Toggle bookmark list
             IconButton(
@@ -598,6 +742,7 @@ class _TopBar extends StatelessWidget {
 class _BottomBar extends StatelessWidget {
   final int currentPage;
   final int totalPages;
+  final double fontScale;
   final VoidCallback? onPrev;
   final VoidCallback? onNext;
   final VoidCallback onBack;
@@ -605,6 +750,7 @@ class _BottomBar extends StatelessWidget {
   const _BottomBar({
     required this.currentPage,
     required this.totalPages,
+    required this.fontScale,
     required this.onPrev,
     required this.onNext,
     required this.onBack,
@@ -635,10 +781,10 @@ class _BottomBar extends StatelessWidget {
                     totalPages > 0
                         ? 'Page ${currentPage + 1} of $totalPages'
                         : 'Loading…',
-                    style: const TextStyle(
-                      fontSize: 14,
+                    style: TextStyle(
+                      fontSize: 14 * fontScale,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF6B7280),
+                      color: const Color(0xFF6B7280),
                     ),
                   ),
                 ),
@@ -707,11 +853,13 @@ class _BookmarksPanel extends ConsumerWidget {
   final String bookId;
   final VoidCallback onClose;
   final void Function(int page) onGoToPage;
+  final VoidCallback onExport;
 
   const _BookmarksPanel({
     required this.bookId,
     required this.onClose,
     required this.onGoToPage,
+    required this.onExport,
   });
 
   @override
@@ -759,7 +907,14 @@ class _BookmarksPanel extends ConsumerWidget {
                 ),
                 orElse: () => const SizedBox.shrink(),
               ),
-              // Explicit close button — much easier to find than swipe/scrim
+              // Export button
+              IconButton(
+                icon: const Icon(Icons.email_outlined, size: 20),
+                color: AppTheme.primary,
+                tooltip: 'Email highlights',
+                onPressed: onExport,
+              ),
+              // Explicit close button
               IconButton(
                 icon: const Icon(Icons.close_rounded, size: 22),
                 color: const Color(0xFF6B7280),

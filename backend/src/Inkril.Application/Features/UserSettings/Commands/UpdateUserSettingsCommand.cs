@@ -10,7 +10,8 @@ public record UpdateUserSettingsCommand(
     bool WeeklySummaryEmail,
     int DailyReadingGoalMinutes,
     string Theme,
-    string Language
+    string Language,
+    int YearlyBookGoal = 0
 ) : IRequest<Result>;
 
 public class UpdateUserSettingsCommandHandler(
@@ -39,6 +40,7 @@ public class UpdateUserSettingsCommandHandler(
         settings.DailyReadingGoalMinutes            = cmd.DailyReadingGoalMinutes;
         settings.Theme                              = cmd.Theme;
         settings.Language                           = cmd.Language;
+        settings.YearlyBookGoal                     = cmd.YearlyBookGoal;
         settings.UpdatedAt                          = DateTime.UtcNow;
 
         uow.UserSettings.Update(settings);

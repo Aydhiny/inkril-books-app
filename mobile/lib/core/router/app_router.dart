@@ -23,6 +23,7 @@ import '../providers/auth_provider.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../../features/reading/presentation/screens/reading_stats_screen.dart';
+import '../../features/challenges/presentation/screens/challenges_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Welcome-seen flag — read once at startup
@@ -154,6 +155,7 @@ final routerProvider = Provider.family<GoRouter, String>((ref, initialLocation) 
           GoRoute(path: '/notifications', pageBuilder: (_, s) => _slide(s, const NotificationsScreen())),
           GoRoute(path: '/settings',      pageBuilder: (_, s) => _slide(s, const SettingsScreen())),
           GoRoute(path: '/reading-stats', pageBuilder: (_, s) => _slide(s, const ReadingStatsScreen())),
+          GoRoute(path: '/challenges',    pageBuilder: (_, s) => _slide(s, const ChallengesScreen())),
         ],
       ),
     ],

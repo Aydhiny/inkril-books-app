@@ -208,6 +208,11 @@ class _ReadingBody extends ConsumerWidget {
 
           const SizedBox(height: 20),
 
+          // ── Challenges shortcut ───────────────────────────────────────
+          _ChallengesShortcut(),
+
+          const SizedBox(height: 20),
+
           OutlinedButton.icon(
             onPressed: () => context.go('/library'),
             icon: const Icon(Icons.grid_view_rounded, size: 16),
@@ -220,6 +225,11 @@ class _ReadingBody extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             ),
           ),
+
+          const SizedBox(height: 28),
+
+          // ── Activity feed ─────────────────────────────────────────────
+          _ActivityFeedSection(),
         ],
       ),
     );
@@ -426,6 +436,222 @@ class _NoBookmarksHint extends StatelessWidget {
         ]),
       ),
     );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Challenges shortcut banner
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ChallengesShortcut extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final challengesAsync = ref.watch(challengesProvider);
+    final completed = challengesAsync.valueOrNull
+            ?.where((c) => (c as Map)['completed'] == true)
+            .length ??
+        0;
+    final total = challengesAsync.valueOrNull?.length ?? 0;
+
+    return GestureDetector(
+      onTap: () => context.push('/challenges'),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF4C1D95), Color(0xFF7C3AED)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF6B21A8).withValues(alpha: 0.3),
+              blurRadius: 14,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Row(children: [
+          const Text('🎯', style: TextStyle(fontSize: 28)),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text(
+                'Daily Challenges',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              Text(
+                total > 0
+                    ? '$completed / $total completed today'
+                    : 'Tap to view challenges',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.75),
+                  fontSize: 13,
+                ),
+              ),
+            ]),
+          ),
+          if (total > 0)
+            SizedBox(
+              width: 40,
+              height: 40,
+              child: Stack(alignment: Alignment.center, children: [
+                CircularProgressIndicator(
+                  value: total > 0 ? completed / total : 0,
+                  backgroundColor: Colors.white.withValues(alpha: 0.2),
+                  valueColor: const AlwaysStoppedAnimation(Color(0xFFF59E0B)),
+                  strokeWidth: 4,
+                ),
+                Text(
+                  '$completed',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 12,
+                  ),
+                ),
+              ]),
+            )
+          else
+            const Icon(Icons.chevron_right_rounded, color: Colors.white),
+        ]),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Activity feed
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ActivityFeedSection extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final feedAsync = ref.watch(activityFeedProvider);
+    return feedAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (items) {
+        if (items.isEmpty) return const SizedBox.shrink();
+        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(
+            'Friends Activity',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w900,
+              color: context.textPrimary,
+              letterSpacing: -0.3,
+            ),
+          ),
+          const SizedBox(height: 12),
+          ...items.take(8).map((i) => _ActivityItem(item: i as Map)),
+          const SizedBox(height: 16),
+        ]);
+      },
+    );
+  }
+}
+
+class _ActivityItem extends StatelessWidget {
+  final Map item;
+  const _ActivityItem({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    final type     = item['type'] as String;
+    final userName = item['userName'] as String? ?? 'Someone';
+    final bookTitle= item['bookTitle'] as String? ?? '';
+    final coverUrl = item['bookCoverUrl'] as String?;
+    final ts       = DateTime.tryParse(item['timestamp'] as String? ?? '');
+
+    final (emoji, message) = switch (type) {
+      'book_completed' => ('📗', '$userName finished "$bookTitle"'),
+      'review_written' => () {
+        final rating = (item['rating'] as num?)?.toInt() ?? 5;
+        return ('⭐' * rating.clamp(1, 5), '$userName rated "$bookTitle"');
+      }(),
+      'milestone' => () {
+        final pct = (item['milestonePercent'] as num?)?.toInt() ?? 50;
+        return ('📖', '$userName is $pct% through "$bookTitle"');
+      }(),
+      _ => ('📚', '$userName is reading "$bookTitle"'),
+    };
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: context.cardBg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: context.borderPurpleMid, width: 2),
+      ),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // Cover / avatar
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: coverUrl != null && coverUrl.isNotEmpty
+              ? Image.network(coverUrl, width: 44, height: 60, fit: BoxFit.cover)
+              : Container(
+                  width: 44,
+                  height: 60,
+                  color: context.primarySurface,
+                  child: Center(
+                      child: Text(emoji.isEmpty ? '📚' : String.fromCharCodes(emoji.runes.take(2)),
+                          style: const TextStyle(fontSize: 20))),
+                ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(
+              message,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: context.textPrimary,
+                height: 1.4,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            if (type == 'review_written' &&
+                (item['comment'] as String?)?.isNotEmpty == true) ...[
+              const SizedBox(height: 4),
+              Text(
+                '"${item['comment']}"',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontStyle: FontStyle.italic,
+                  color: context.textSecondary,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+            if (ts != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                _relTime(ts),
+                style: TextStyle(fontSize: 11, color: context.textSecondary),
+              ),
+            ],
+          ]),
+        ),
+      ]),
+    );
+  }
+
+  String _relTime(DateTime ts) {
+    final diff = DateTime.now().difference(ts);
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays == 1) return 'Yesterday';
+    return '${diff.inDays}d ago';
   }
 }
 

@@ -29,6 +29,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _friendActivity = true;
   bool _weeklySummary = true;
   int _dailyGoalMinutes = 30;
+  int _yearlyGoalBooks = 0;
   TimeOfDay _reminderTime = const TimeOfDay(hour: 21, minute: 0);
   bool _loaded = false;
 
@@ -63,6 +64,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _friendActivity = data['friendActivityNotifications'] as bool? ?? true;
       _weeklySummary = data['weeklySummaryEmail'] as bool? ?? true;
       _dailyGoalMinutes = data['dailyReadingGoalMinutes'] as int? ?? 30;
+      _yearlyGoalBooks = data['yearlyBookGoal'] as int? ?? 0;
     });
   }
 
@@ -74,6 +76,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         'friendActivityNotifications': _friendActivity,
         'weeklySummaryEmail': _weeklySummary,
         'dailyReadingGoalMinutes': _dailyGoalMinutes,
+        'yearlyBookGoal': _yearlyGoalBooks,
         'theme': 'system',
         'language': 'en',
       });
@@ -196,6 +199,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           onTap: _pickDailyGoal,
                         ),
                       ),
+                      _Divider(),
+                      _SettingsRow(
+                        label: 'Yearly Book Goal',
+                        trailing: _TimeTrailing(
+                          time: _yearlyGoalBooks == 0
+                              ? 'Not set'
+                              : '$_yearlyGoalBooks books',
+                          onTap: _pickYearlyGoal,
+                        ),
+                      ),
                     ]),
                     const SizedBox(height: 12),
                     _SettingsCard(children: [
@@ -252,6 +265,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         onPick: (val) {
           Navigator.pop(sheetCtx);
           setState(() => _dailyGoalMinutes = val);
+          _save();
+        },
+      ),
+    );
+  }
+
+  Future<void> _pickYearlyGoal() async {
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => _YearlyGoalSheet(
+        current: _yearlyGoalBooks,
+        onPick: (val) {
+          Navigator.pop(sheetCtx);
+          setState(() => _yearlyGoalBooks = val);
           _save();
         },
       ),
@@ -358,6 +386,113 @@ class _DailyGoalSheet extends StatelessWidget {
                       ),
                     ],
                   ),
+                ),
+                if (selected)
+                  const Icon(Icons.check_circle_rounded,
+                      color: AppTheme.primary, size: 22),
+              ]),
+            ),
+          );
+        })),
+      ]),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Yearly book goal picker
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _YearlyGoalSheet extends StatelessWidget {
+  final int current;
+  final void Function(int) onPick;
+  const _YearlyGoalSheet({required this.current, required this.onPick});
+
+  static const _goals = [
+    (0,  '🚫 None',    'No goal', 'Remove yearly goal'),
+    (5,  '🌱 Beginner','5 books', 'Just getting started'),
+    (10, '📗 Regular', '10 books','One per month'),
+    (12, '🎯 Classic', '12 books','Goodreads standard'),
+    (24, '🔥 Serious', '24 books','2 per month'),
+    (36, '⚡ Intense', '36 books','3 per month'),
+    (52, '🚀 Ultra',   '52 books','One per week!'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: context.cardBg,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        border: Border(top: BorderSide(color: context.borderPurpleMid, width: 2)),
+      ),
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Container(
+          width: 40,
+          height: 4,
+          decoration: BoxDecoration(
+            color: context.borderPurpleMid,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(height: 20),
+        Text(
+          '${DateTime.now().year} Reading Goal',
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w900,
+            color: context.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'How many books do you want to read this year?',
+          style: TextStyle(fontSize: 14, color: context.textSecondary),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 20),
+        ...(_goals.map((g) {
+          final count = g.$1;
+          final title = g.$2;
+          final countStr = g.$3;
+          final subtitle = g.$4;
+          final selected = current == count;
+          return GestureDetector(
+            onTap: () {
+              HapticFeedback.selectionClick();
+              onPick(count);
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: selected ? context.primarySurface : context.subtleBg,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: selected ? AppTheme.primary : context.borderGray,
+                  width: selected ? 2 : 1,
+                ),
+              ),
+              child: Row(children: [
+                Text(title.split(' ')[0], style: const TextStyle(fontSize: 22)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(
+                      title.substring(title.indexOf(' ') + 1),
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: selected ? AppTheme.primary : context.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      '$countStr • $subtitle',
+                      style: TextStyle(fontSize: 12, color: context.textSecondary),
+                    ),
+                  ]),
                 ),
                 if (selected)
                   const Icon(Icons.check_circle_rounded,

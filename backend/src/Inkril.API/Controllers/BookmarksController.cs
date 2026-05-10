@@ -39,7 +39,18 @@ public class BookmarksController(
         var result = await mediator.Send(new DeleteBookmarkCommand(id, userId), ct);
         return result.Succeeded ? NoContent() : BadRequest(new { errors = result.Errors });
     }
+
+    /// <summary>Emails all highlights for a book to the current user.</summary>
+    [HttpPost("export")]
+    public async Task<IActionResult> Export([FromBody] ExportBookmarksRequest req, CancellationToken ct)
+    {
+        var userId = currentUser.UserId ?? throw new UnauthorizedAccessException();
+        var result = await mediator.Send(new ExportBookmarksCommand(userId, req.BookId), ct);
+        return result.Succeeded ? Ok(new { message = result.Value }) : BadRequest(new { errors = result.Errors });
+    }
 }
+
+public record ExportBookmarksRequest(Guid BookId);
 
 public record CreateBookmarkRequest(
     Guid BookId,
