@@ -12,105 +12,156 @@ class LeaderboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final leaderboardAsync = ref.watch(leaderboardProvider);
-
-    return Scaffold(
-      backgroundColor: context.scaffoldBg,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
-              child: Text(
-                'Leaderboard',
-                style: TextStyle(
-                  fontSize: 34,
-                  fontWeight: FontWeight.w900,
-                  color: context.textPrimary,
-                  letterSpacing: -0.5,
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: context.scaffoldBg,
+        body: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
+                child: Text(
+                  'Leaderboard',
+                  style: TextStyle(
+                    fontSize: 34,
+                    fontWeight: FontWeight.w900,
+                    color: context.textPrimary,
+                    letterSpacing: -0.5,
+                  ),
                 ),
               ),
-            ),
-            Expanded(
-              child: leaderboardAsync.when(
-                loading: () => const ShimmerLeaderList(),
-                error: (e, _) => AppErrorWidget(
-                  error: e,
-                  onRetry: () => ref.invalidate(leaderboardProvider),
+              // Duolingo-style pill tab bar
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                child: Container(
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: context.subtleBg,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: context.borderPurple, width: 1.5),
+                  ),
+                  child: TabBar(
+                    indicatorSize: TabBarIndicatorSize.tab,
+                    indicator: BoxDecoration(
+                      color: AppTheme.primary,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    dividerColor: Colors.transparent,
+                    labelColor: Colors.white,
+                    unselectedLabelColor: context.textSecondary,
+                    labelStyle: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w800),
+                    tabs: const [
+                      Tab(text: '🌍  Global'),
+                      Tab(text: '👥  Friends'),
+                    ],
+                  ),
                 ),
-                data: (data) {
-                  final entries = data['entries'] as List? ?? [];
-                  final me = data['currentUserEntry'] as Map?;
-
-                  if (entries.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 88,
-                            height: 88,
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF6B21A8), Color(0xFF9333EA)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.circular(24),
-                            ),
-                            child: const Center(
-                              child: Text('🏆', style: TextStyle(fontSize: 40)),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          Text(
-                            'No readers yet',
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w900,
-                              color: context.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Start reading to claim the top spot!',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: context.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  return ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                    itemCount: entries.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (context, i) {
-                      final entry = entries[i] as Map;
-                      final isMe = me != null &&
-                          entry['userId'] == me['userId'];
-                      return _LeaderRow(
-                        entry: entry,
-                        isCurrentUser: isMe,
-                        onTap: () {
-                          final uid = entry['userId'] as String?;
-                          if (uid != null && !isMe) {
-                            context.push('/profile/$uid');
-                          }
-                        },
-                      );
-                    },
-                  );
-                },
               ),
-            ),
-          ],
+              Expanded(
+                child: TabBarView(
+                  children: [
+                    _LeaderboardList(
+                      asyncValue: ref.watch(leaderboardProvider),
+                      onRetry: () => ref.invalidate(leaderboardProvider),
+                      emptyMessage: 'Start reading to claim the top spot!',
+                    ),
+                    _LeaderboardList(
+                      asyncValue: ref.watch(friendLeaderboardProvider),
+                      onRetry: () => ref.invalidate(friendLeaderboardProvider),
+                      emptyMessage: 'Add friends to compare your reading!',
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+}
+
+// Extracted shared list widget — used by both Global and Friends tabs
+class _LeaderboardList extends StatelessWidget {
+  final AsyncValue<Map<String, dynamic>> asyncValue;
+  final VoidCallback onRetry;
+  final String emptyMessage;
+  const _LeaderboardList({
+    required this.asyncValue,
+    required this.onRetry,
+    required this.emptyMessage,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return asyncValue.when(
+      loading: () => const ShimmerLeaderList(),
+      error: (e, _) => AppErrorWidget(error: e, onRetry: onRetry),
+      data: (data) {
+        final entries = data['entries'] as List? ?? [];
+        final me = data['currentUserEntry'] as Map?;
+
+        if (entries.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 88,
+                  height: 88,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF6B21A8), Color(0xFF9333EA)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: const Center(
+                    child: Text('🏆', style: TextStyle(fontSize: 40)),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'No readers yet',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    color: context.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  emptyMessage,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14, color: context.textSecondary),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return ListView.separated(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          itemCount: entries.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          itemBuilder: (context, i) {
+            final entry = entries[i] as Map;
+            final isMe = me != null && entry['userId'] == me['userId'];
+            return _LeaderRow(
+              entry: entry,
+              isCurrentUser: isMe,
+              onTap: () {
+                final uid = entry['userId'] as String?;
+                if (uid != null && !isMe) context.push('/profile/$uid');
+              },
+            );
+          },
+        );
+      },
     );
   }
 }

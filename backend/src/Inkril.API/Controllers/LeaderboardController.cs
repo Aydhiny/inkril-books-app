@@ -19,4 +19,13 @@ public class LeaderboardController(IMediator mediator, ICurrentUserService curre
 
         return Ok(await mediator.Send(new GetLeaderboardQuery(userId, top), ct));
     }
+
+    [HttpGet("friends")]
+    public async Task<IActionResult> GetFriends(CancellationToken ct = default)
+    {
+        var userId = currentUser.UserId
+            ?? throw new UnauthorizedAccessException();
+
+        return Ok(await mediator.Send(new GetFriendsLeaderboardQuery(userId), ct));
+    }
 }

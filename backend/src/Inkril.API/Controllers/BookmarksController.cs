@@ -40,6 +40,15 @@ public class BookmarksController(
         return result.Succeeded ? NoContent() : BadRequest(new { errors = result.Errors });
     }
 
+    /// <summary>Returns one of the user's highlighted bookmarks, rotating daily.</summary>
+    [HttpGet("random-highlight")]
+    public async Task<IActionResult> RandomHighlight(CancellationToken ct)
+    {
+        var userId = currentUser.UserId ?? throw new UnauthorizedAccessException();
+        var result = await mediator.Send(new GetRandomHighlightQuery(userId), ct);
+        return result.Succeeded ? Ok(result.Value) : BadRequest(new { errors = result.Errors });
+    }
+
     /// <summary>Emails all highlights for a book to the current user.</summary>
     [HttpPost("export")]
     public async Task<IActionResult> Export([FromBody] ExportBookmarksRequest req, CancellationToken ct)

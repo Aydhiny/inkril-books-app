@@ -227,7 +227,16 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
           body: Center(child: CircularProgressIndicator(color: AppTheme.primary)));
     }
 
-    return Scaffold(
+    // PopScope: intercept the Android system back gesture so it always goes
+    // through _closeReader() — which ends the session, invalidates providers,
+    // and shows the summary. Without this, dispose() fires without a proper await
+    // and ref.invalidate() fails silently, leaving the library showing stale progress.
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) {
+        if (!didPop && !_showSummary) _closeReader();
+      },
+      child: Scaffold(
       backgroundColor: Colors.white,
       body: Stack(
         children: [
@@ -367,7 +376,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
           ),
         ],
       ),
-    );
+    ), // Scaffold
+    ); // PopScope
   }
 
   // ── Export bookmarks ────────────────────────────────────────────────────

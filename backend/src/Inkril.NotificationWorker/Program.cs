@@ -12,6 +12,7 @@ var host = Host.CreateDefaultBuilder(args)
     {
         // Worker service — no API, no controllers, no HTTP pipeline
         services.AddHostedService<NotificationConsumer>();
+        services.AddHostedService<StreakReminderWorker>();
 
         // Scoped services (created per-message via IServiceProvider.CreateScope())
         services.AddScoped<IWorkerEmailService, WorkerEmailService>();

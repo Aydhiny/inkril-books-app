@@ -60,6 +60,10 @@ class LibraryScreen extends ConsumerWidget {
               SliverToBoxAdapter(
                 child: _ContinueReadingButton(lastReadBook: lastReadBook),
               ),
+              // "Currently Reading" shelf — books with 0 < progress < 100
+              SliverToBoxAdapter(
+                child: _CurrentlyReadingSection(userLibraryAsync: userLibraryAsync),
+              ),
               SliverToBoxAdapter(
                 child: _SectionTitle(title: 'My book library'),
               ),
@@ -72,7 +76,7 @@ class LibraryScreen extends ConsumerWidget {
               SliverToBoxAdapter(
                 child: _PublicLibraryScroll(publicBooksAsync: publicBooksAsync),
               ),
-              const SliverToBoxAdapter(child: _TodaysQuoteSection()),
+              SliverToBoxAdapter(child: _TodaysQuoteSection()),
               const SliverToBoxAdapter(child: SizedBox(height: 24)),
             ],
           ),
@@ -409,6 +413,179 @@ class _UploadBookSheet extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Currently Reading shelf — books with progress > 0 and < 100
+// Duolingo pattern: a focused "active tasks" row before the full inventory list
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _CurrentlyReadingSection extends StatelessWidget {
+  final AsyncValue<List<Map<String, dynamic>>> userLibraryAsync;
+  const _CurrentlyReadingSection({required this.userLibraryAsync});
+
+  @override
+  Widget build(BuildContext context) {
+    final all = userLibraryAsync.valueOrNull;
+    if (all == null) return const SizedBox.shrink();
+
+    final inProgress = all.where((b) {
+      final p = (b['readingProgressPercent'] as num? ?? 0).toDouble();
+      return p > 0 && p < 100;
+    }).toList()
+      ..sort((a, b) {
+        final aT = DateTime.tryParse(a['lastReadAt'] as String? ?? '') ?? DateTime(0);
+        final bT = DateTime.tryParse(b['lastReadAt'] as String? ?? '') ?? DateTime(0);
+        return bT.compareTo(aT); // most recently read first
+      });
+
+    if (inProgress.isEmpty) return const SizedBox.shrink();
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
+        child: Row(children: [
+          const Text('📖', style: TextStyle(fontSize: 20)),
+          const SizedBox(width: 8),
+          Text(
+            'Currently Reading',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              color: context.textPrimary,
+              letterSpacing: -0.3,
+            ),
+          ),
+          const Spacer(),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+            decoration: BoxDecoration(
+              color: AppTheme.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              '${inProgress.length}',
+              style: const TextStyle(
+                fontSize: 13, fontWeight: FontWeight.w800, color: AppTheme.primary),
+            ),
+          ),
+        ]),
+      ),
+      SizedBox(
+        height: 174,
+        child: ListView.separated(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          scrollDirection: Axis.horizontal,
+          itemCount: inProgress.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 12),
+          itemBuilder: (context, i) => _CurrentlyReadingCard(book: inProgress[i]),
+        ),
+      ),
+      const SizedBox(height: 4),
+    ]);
+  }
+}
+
+class _CurrentlyReadingCard extends StatelessWidget {
+  final Map<String, dynamic> book;
+  const _CurrentlyReadingCard({required this.book});
+
+  @override
+  Widget build(BuildContext context) {
+    final bookId   = book['bookId'] as String? ?? book['id'] as String? ?? '';
+    final title    = book['title'] as String? ?? 'Untitled';
+    final progress = (book['readingProgressPercent'] as num? ?? 0).toDouble();
+    final coverUrl = book['coverImageUrl'] as String?;
+
+    return GestureDetector(
+      onTap: () => context.push('/reader/$bookId'),
+      child: Container(
+        width: 260,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: context.cardBg,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: context.borderPurpleMid, width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.primary.withValues(alpha: 0.08),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(children: [
+          // Mini cover
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: SizedBox(
+              width: 64,
+              height: 90,
+              child: coverUrl != null
+                  ? Image.network(coverUrl, fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _MiniCoverPlaceholder())
+                  : _MiniCoverPlaceholder(),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(
+                title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  color: context.textPrimary,
+                  height: 1.3,
+                ),
+              ),
+              const SizedBox(height: 10),
+              // Duolingo-style progress row
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                Text(
+                  '${progress.toInt()}% done',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.primary,
+                  ),
+                ),
+                const Icon(Icons.play_circle_fill_rounded,
+                    color: AppTheme.primary, size: 20),
+              ]),
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0, end: progress / 100),
+                  duration: const Duration(milliseconds: 700),
+                  curve: Curves.easeOutCubic,
+                  builder: (_, value, __) => LinearProgressIndicator(
+                    value: value,
+                    minHeight: 8,
+                    backgroundColor: context.borderPurple,
+                    valueColor: const AlwaysStoppedAnimation(AppTheme.primary),
+                  ),
+                ),
+              ),
+            ]),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+class _MiniCoverPlaceholder extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => Container(
+    color: AppTheme.primarySurface,
+    child: const Center(
+      child: Icon(Icons.menu_book_rounded, color: AppTheme.primary, size: 24),
+    ),
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Section title
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -513,9 +690,10 @@ class _LibraryBookCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bookId = book['bookId'] as String? ?? book['id'] as String? ?? '';
-    final progress = (book['readingProgressPercent'] as num? ?? 0).toDouble();
-    final coverUrl = book['coverImageUrl'] as String?;
+    final bookId    = book['bookId'] as String? ?? book['id'] as String? ?? '';
+    final progress  = (book['readingProgressPercent'] as num? ?? 0).toDouble();
+    final coverUrl  = book['coverImageUrl'] as String?;
+    final avgRating = (book['averageRating'] as num? ?? 0).toDouble();
 
     return GestureDetector(
       onTap: () => context.push('/books/$bookId'),
@@ -547,13 +725,30 @@ class _LibraryBookCard extends StatelessWidget {
                     : _CoverPlaceholder(),
               ),
             ),
-            if (showProgress)
-              Container(
-                color: context.cardBg,
-                padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+            Container(
+              color: context.cardBg,
+              padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Star rating row (always shown when avgRating > 0)
+                  if (avgRating > 0) ...[
+                    Row(children: [
+                      const Icon(Icons.star_rounded,
+                          color: Color(0xFFF59E0B), size: 13),
+                      const SizedBox(width: 3),
+                      Text(
+                        avgRating.toStringAsFixed(1),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFFF59E0B),
+                        ),
+                      ),
+                    ]),
+                    const SizedBox(height: 4),
+                  ],
+                  if (showProgress) ...[
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -575,7 +770,7 @@ class _LibraryBookCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 5),
+                    const SizedBox(height: 4),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(6),
                       child: LinearProgressIndicator(
@@ -587,8 +782,9 @@ class _LibraryBookCard extends StatelessWidget {
                       ),
                     ),
                   ],
-                ),
+                ],
               ),
+            ),
           ],
         ),
       ),
@@ -746,55 +942,74 @@ class _ContinueReadingButton extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Today's Quote
+// Today's Quote — uses user's own highlights when available, falls back
+// to static literary quotes when they haven't highlighted anything yet.
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _TodaysQuoteSection extends StatelessWidget {
+class _TodaysQuoteSection extends ConsumerWidget {
   const _TodaysQuoteSection();
 
-  static const List<(String, String)> _quotes = [
+  static const List<(String, String)> _fallbacks = [
     ('"It is not our abilities that show what we truly are. It is our choices."', 'Moby Dick'),
-    ('"I\'m unpredictable, I never know where I\'m going until I get there."', 'Pride and Prejudice'),
     ('"It does not do to dwell on dreams and forget to live."', 'The Great Gatsby'),
-    ('"The person who has not pleasure in a good novel must be intolerably stupid."', 'Pride and Prejudice'),
     ('"I must not fear. Fear is the mind-killer."', 'Dune'),
     ('"So we beat on, boats against the current, borne back ceaselessly into the past."', 'The Great Gatsby'),
     ('"War is peace. Freedom is slavery. Ignorance is strength."', '1984'),
-    ('"Call me Ishmael. Some years ago I thought I would sail about a little."', 'Moby Dick'),
     ('"It was a bright cold day in April, and the clocks were striking thirteen."', '1984'),
     ('"It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife."', 'Pride and Prejudice'),
   ];
 
   @override
-  Widget build(BuildContext context) {
-    final dayIndex = DateTime.now().difference(DateTime(2024)).inDays;
-    final quote = _quotes[dayIndex % _quotes.length];
+  Widget build(BuildContext context, WidgetRef ref) {
+    final qotdAsync = ref.watch(qotdProvider);
+
+    // Determine the text + source to display
+    String quoteText;
+    String quoteSource;
+    bool isPersonal = false;
+
+    final highlight = qotdAsync.valueOrNull;
+    if (highlight != null) {
+      quoteText  = '"${highlight['highlightedText'] as String}"';
+      quoteSource = 'Your highlight — ${highlight['bookTitle'] as String? ?? 'a book you read'}';
+      isPersonal = true;
+    } else {
+      final dayIndex = DateTime.now().difference(DateTime(2024)).inDays;
+      final q = _fallbacks[dayIndex % _fallbacks.length];
+      quoteText  = q.$1;
+      quoteSource = q.$2;
+    }
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            "Today's Quote",
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w900,
-              color: AppTheme.primary,
-              letterSpacing: -0.3,
+          Row(children: [
+            Text(
+              isPersonal ? 'Your Highlight ✨' : "Today's Quote",
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                color: AppTheme.primary,
+                letterSpacing: -0.3,
+              ),
             ),
-          ),
+          ]),
           const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: context.cardBg,
+              color: isPersonal ? context.primarySurface : context.cardBg,
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: context.borderPurpleMid, width: 2.5),
+              border: Border.all(
+                color: isPersonal ? AppTheme.primary : context.borderPurpleMid,
+                width: isPersonal ? 2 : 2.5,
+              ),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0x0A6B21A8),
-                  blurRadius: 8,
+                  color: AppTheme.primary.withValues(alpha: isPersonal ? 0.10 : 0.04),
+                  blurRadius: 10,
                   offset: const Offset(0, 3),
                 ),
               ],
@@ -807,7 +1022,7 @@ class _TodaysQuoteSection extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        quote.$1,
+                        quoteText,
                         style: TextStyle(
                           fontSize: 14,
                           color: context.textBody,
@@ -817,11 +1032,11 @@ class _TodaysQuoteSection extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        '— ${quote.$2}',
-                        style: const TextStyle(
+                        '— $quoteSource',
+                        style: TextStyle(
                           fontSize: 12,
-                          color: AppTheme.primary,
-                          fontWeight: FontWeight.w600,
+                          color: isPersonal ? AppTheme.primary : AppTheme.primary,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ],
@@ -829,14 +1044,19 @@ class _TodaysQuoteSection extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 Container(
-                  width: 64,
-                  height: 64,
+                  width: 60,
+                  height: 60,
                   decoration: BoxDecoration(
-                    color: context.primarySurface,
+                    color: isPersonal
+                        ? AppTheme.primary.withValues(alpha: 0.15)
+                        : context.primarySurface,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Center(
-                    child: Text('📖', style: TextStyle(fontSize: 32)),
+                  child: Center(
+                    child: Text(
+                      isPersonal ? '✨' : '📖',
+                      style: const TextStyle(fontSize: 28),
+                    ),
                   ),
                 ),
               ],

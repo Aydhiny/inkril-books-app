@@ -11,6 +11,9 @@ public interface INotificationDbService
     Task CreateNotificationAsync(Guid userId, string type, string title, string message, Guid? referenceId = null);
     Task CreateBulkNotificationAsync(string type, string title, string message, Guid? referenceId = null);
     Task<IEnumerable<Guid>> GetFriendIdsAsync(Guid userId);
+    /// <summary>Returns (userId, streakDays) for every user who has a streak but
+    /// has NOT logged any reading time today.</summary>
+    Task<IEnumerable<(Guid UserId, int StreakDays)>> GetUsersAtStreakRiskAsync();
 }
 
 /// <summary>
@@ -102,6 +105,36 @@ public class NotificationDbService(IConfiguration config, ILogger<NotificationDb
         }
 
         logger.LogInformation("Created bulk notifications for {Count} users: {Title}", userIds.Count, title);
+    }
+
+    public async Task<IEnumerable<(Guid UserId, int StreakDays)>> GetUsersAtStreakRiskAsync()
+    {
+        await using var conn = new Npgsql.NpgsqlConnection(ConnectionString);
+        await conn.OpenAsync();
+
+        // Today in UTC — cast using AT TIME ZONE to stay consistent with the app
+        // Users at risk: had a streak row yesterday (StreakDays > 0) but have NO row for today
+        await using var cmd = new Npgsql.NpgsqlCommand(
+            """
+            SELECT y."UserId", y."StreakDays"
+            FROM   "DailyReadingStats" y
+            WHERE  y."Date" = CURRENT_DATE - 1
+              AND  y."StreakDays" > 0
+              AND  y."IsDeleted" = false
+              AND  NOT EXISTS (
+                  SELECT 1 FROM "DailyReadingStats" t
+                  WHERE  t."UserId" = y."UserId"
+                    AND  t."Date"   = CURRENT_DATE
+                    AND  t."IsDeleted" = false
+              )
+            """, conn);
+
+        var results = new List<(Guid, int)>();
+        await using var reader = await cmd.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+            results.Add((reader.GetGuid(0), reader.GetInt32(1)));
+
+        return results;
     }
 
     public async Task<IEnumerable<Guid>> GetFriendIdsAsync(Guid userId)

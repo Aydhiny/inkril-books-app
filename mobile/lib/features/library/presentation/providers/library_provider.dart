@@ -57,3 +57,13 @@ final activityFeedProvider = FutureProvider<List<dynamic>>((ref) async {
   final res = await dio.get('/api/activity-feed');
   return res.data as List<dynamic>;
 });
+
+/// Returns the user's own random highlight (daily rotation) for Quote of the Day.
+/// Returns null when the user has no highlights yet (falls back to static quotes in the UI).
+final qotdProvider = FutureProvider<Map<String, dynamic>?>((ref) async {
+  final dio = ref.read(dioProvider);
+  final res = await dio.get('/api/bookmarks/random-highlight');
+  if (res.data == null) return null;
+  return res.data as Map<String, dynamic>;
+});
+

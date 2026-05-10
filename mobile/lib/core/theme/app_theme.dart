@@ -32,7 +32,7 @@ class AppTheme {
           elevation: 0,
           scrolledUnderElevation: 0,
           titleTextStyle: TextStyle(
-            color: Color(0xFF1A0A2E),
+            color: Color(0xFF3D1A78),
             fontSize: 20,
             fontWeight: FontWeight.w800,
           ),
@@ -112,10 +112,10 @@ class AppTheme {
           shadowColor: Color(0x1A6B21A8),
         ),
         textTheme: const TextTheme(
-          headlineLarge: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF1A0A2E)),
-          headlineMedium: TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF1A0A2E)),
-          titleLarge: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF1A0A2E)),
-          titleMedium: TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF1A0A2E)),
+          headlineLarge: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF3D1A78)),
+          headlineMedium: TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF3D1A78)),
+          titleLarge: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF3D1A78)),
+          titleMedium: TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF3D1A78)),
           bodyLarge: TextStyle(color: Color(0xFF374151)),
           bodyMedium: TextStyle(color: Color(0xFF4B5563)),
           bodySmall: TextStyle(color: Color(0xFF6B7280)),

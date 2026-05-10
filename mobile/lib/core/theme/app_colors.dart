@@ -25,8 +25,9 @@ extension AppColorsX on BuildContext {
   Color get inputBg => _dark ? const Color(0xFF1A1230) : const Color(0xFFF9FAFB);
 
   // ── Text ──────────────────────────────────────────────────────────────────
-  /// Headings / strong primary text (replaces Color(0xFF1A0A2E))
-  Color get textPrimary => _dark ? const Color(0xFFF0EAFF) : const Color(0xFF1A0A2E);
+  /// Headings / strong primary text — dark purple in light mode so it reads
+  /// as purple, not black. Deep indigo (#1A0A2E) was indistinguishable from black.
+  Color get textPrimary => _dark ? const Color(0xFFF0EAFF) : const Color(0xFF3D1A78);
 
   /// Body text (replaces Color(0xFF374151))
   Color get textBody => _dark ? const Color(0xFFD4CAED) : const Color(0xFF374151);
