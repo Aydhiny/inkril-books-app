@@ -44,6 +44,18 @@ public class UserBooksController(IMediator mediator, ICurrentUserService current
         var result = await mediator.Send(new UpdateReadingProgressCommand(userId, bookId, req.CurrentPage), ct);
         return result.Succeeded ? Ok() : BadRequest(new { errors = result.Errors });
     }
+
+    /// <summary>
+    /// Returns progress data for friends who have the same book in their library.
+    /// Powers the buddy-reading overlay in the mobile reader.
+    /// </summary>
+    [HttpGet("{bookId:guid}/friends-progress")]
+    public async Task<IActionResult> GetFriendsProgress(Guid bookId, CancellationToken ct)
+    {
+        var userId = currentUser.UserId ?? throw new UnauthorizedAccessException();
+        var result = await mediator.Send(new GetFriendsProgressQuery(userId, bookId), ct);
+        return result.Succeeded ? Ok(result.Value) : BadRequest(new { errors = result.Errors });
+    }
 }
 
 public record AddToLibraryRequest(Guid BookId);

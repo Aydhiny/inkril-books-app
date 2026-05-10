@@ -47,6 +47,8 @@ class ProfileScreen extends ConsumerWidget {
                   const SizedBox(height: 24),
                   _StatisticsSection(profile: profile),
                   const SizedBox(height: 24),
+                  _TrophyShelf(profile: profile),
+                  const SizedBox(height: 24),
                   _YearlyGoalSection(profile: profile),
                   const SizedBox(height: 24),
                   _WeeklyProgressSection(profile: profile),
@@ -961,6 +963,167 @@ class AnimatedCount extends StatelessWidget {
             : '${value.toStringAsFixed(1)}$suffix';
         return Text(display, style: style);
       },
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Trophy shelf — computed from profile data; locked badges tease what's next
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _TrophyShelf extends StatelessWidget {
+  final Map<String, dynamic> profile;
+  const _TrophyShelf({required this.profile});
+
+  List<_BadgeData> _badges() {
+    final booksRead     = (profile['booksRead']          as num?)?.toInt()    ?? 0;
+    final longestStreak = (profile['longestStreak']      as num?)?.toInt()    ?? 0;
+    final totalHours    = (profile['totalReadingHours']  as num?)?.toDouble() ?? 0.0;
+    final friendCount   = (profile['friendCount']        as num?)?.toInt()    ?? 0;
+
+    return [
+      _BadgeData(emoji: '📖', label: 'First Book',    hint: 'Read 1 book',        unlocked: booksRead >= 1),
+      _BadgeData(emoji: '📚', label: 'Bookworm',       hint: 'Read 5 books',        unlocked: booksRead >= 5),
+      _BadgeData(emoji: '🦁', label: 'Literary Lion',  hint: 'Read 10 books',       unlocked: booksRead >= 10),
+      _BadgeData(emoji: '🔥', label: 'Streak Starter', hint: '3-day streak',        unlocked: longestStreak >= 3),
+      _BadgeData(emoji: '🌋', label: 'On Fire',        hint: '7-day streak',        unlocked: longestStreak >= 7),
+      _BadgeData(emoji: '💎', label: 'Unbreakable',    hint: '30-day streak',       unlocked: longestStreak >= 30),
+      _BadgeData(emoji: '⏰', label: 'Dedicated',      hint: '10 hours read',       unlocked: totalHours >= 10),
+      _BadgeData(emoji: '🏆', label: 'Century Club',   hint: '100 hours read',      unlocked: totalHours >= 100),
+      _BadgeData(emoji: '👥', label: 'Social Reader',  hint: '5 friends',           unlocked: friendCount >= 5),
+      _BadgeData(emoji: '🦉', label: 'Night Owl',      hint: 'Read past midnight',  unlocked: false, comingSoon: true),
+      _BadgeData(emoji: '⚡', label: 'Speed Reader',   hint: '400+ WPM session',    unlocked: false, comingSoon: true),
+      _BadgeData(emoji: '🌍', label: 'Globe Trotter',  hint: '5 different genres',  unlocked: false, comingSoon: true),
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final badges = _badges();
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(
+        'Trophy Shelf',
+        style: TextStyle(
+          fontSize: 22,
+          fontWeight: FontWeight.w900,
+          color: context.textPrimary,
+          letterSpacing: -0.3,
+        ),
+      ),
+      const SizedBox(height: 14),
+      GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 4,
+          mainAxisSpacing: 10,
+          crossAxisSpacing: 10,
+          childAspectRatio: 0.82,
+        ),
+        itemCount: badges.length,
+        itemBuilder: (_, i) => _TrophyTile(badge: badges[i]),
+      ),
+    ]);
+  }
+}
+
+class _BadgeData {
+  final String emoji;
+  final String label;
+  final String hint;
+  final bool unlocked;
+  final bool comingSoon;
+  const _BadgeData({
+    required this.emoji,
+    required this.label,
+    required this.hint,
+    required this.unlocked,
+    this.comingSoon = false,
+  });
+}
+
+class _TrophyTile extends StatelessWidget {
+  final _BadgeData badge;
+  const _TrophyTile({required this.badge});
+
+  @override
+  Widget build(BuildContext context) {
+    final locked = !badge.unlocked;
+    return Tooltip(
+      message: badge.hint,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        decoration: BoxDecoration(
+          color: locked
+              ? context.cardBg
+              : AppTheme.primarySurface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: locked
+                ? context.borderPurple
+                : const Color(0xFFD8B4FE),
+            width: badge.unlocked ? 2 : 1,
+          ),
+          boxShadow: badge.unlocked
+              ? [
+                  BoxShadow(
+                    color: AppTheme.primary.withValues(alpha: 0.15),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : [],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ColorFiltered(
+              colorFilter: locked
+                  ? const ColorFilter.matrix([
+                      0.2126, 0.7152, 0.0722, 0, 0,
+                      0.2126, 0.7152, 0.0722, 0, 0,
+                      0.2126, 0.7152, 0.0722, 0, 0,
+                      0,      0,      0,      1, 0,
+                    ])
+                  : const ColorFilter.mode(
+                      Colors.transparent, BlendMode.dst),
+              child: Opacity(
+                opacity: locked ? 0.4 : 1.0,
+                child: Text(
+                  badge.emoji,
+                  style: const TextStyle(fontSize: 24),
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                badge.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                  color: locked
+                      ? context.textSecondary
+                      : AppTheme.primary,
+                ),
+              ),
+            ),
+            if (badge.comingSoon)
+              Text(
+                'soon',
+                style: TextStyle(
+                  fontSize: 8,
+                  color: context.textSecondary.withValues(alpha: 0.6),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

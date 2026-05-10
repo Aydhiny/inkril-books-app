@@ -18,6 +18,7 @@ public record UserProfileDto(
     string? ProfilePhotoUrl,
     string? Bio,
     int CurrentStreak,
+    int LongestStreak,
     double TotalReadingHours,
     int FriendCount,
     int BooksRead,
@@ -53,6 +54,10 @@ public class GetUserProfileQueryHandler(
             .Select(s => s.StreakDays)
             .FirstOrDefault();
 
+        var longestStreak = statsList.Count > 0
+            ? statsList.Max(s => s.StreakDays)
+            : 0;
+
         var weeklyStats = Enumerable.Range(0, 7)
             .Select(i => today.AddDays(-6 + i))
             .Select(date => new DailyStatDto(
@@ -82,6 +87,7 @@ public class GetUserProfileQueryHandler(
             user.ProfilePhotoUrl,
             user.Bio,
             currentStreak,
+            longestStreak,
             Math.Round(totalMinutes / 60.0, 1),
             friendCount,
             booksRead,

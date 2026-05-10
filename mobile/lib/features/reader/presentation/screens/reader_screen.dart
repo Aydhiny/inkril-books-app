@@ -11,12 +11,15 @@ import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../../core/config/app_config.dart';
+import '../../../../core/providers/connectivity_provider.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/offline_banner.dart';
 import '../../../library/presentation/providers/library_provider.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
 import '../../../reading/presentation/screens/reading_hub_screen.dart';
 import '../models/reader_settings.dart';
 import '../models/reader_theme.dart';
+import '../providers/buddy_reading_provider.dart';
 import '../providers/reader_settings_provider.dart';
 
 class ReaderScreen extends ConsumerStatefulWidget {
@@ -78,6 +81,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
   // ── Two-page spread (landscape) ───────────────────────────────────────────
   PDFViewController? _pdfController2;
+
+  // ── Focus mode — dims page outside a reading band ─────────────────────────
+  bool _focusMode = false;
 
   // ── Computed properties ───────────────────────────────────────────────────
 
@@ -472,6 +478,20 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               ),
             ),
 
+          // ── Focus mode — dims everything outside a ~3-line reading band ──
+          if (_focusMode)
+            _FocusModeOverlay(screenHeight: size.height),
+
+          // ── Buddy reading chips ───────────────────────────────────────
+          _BuddyChips(
+            bookId: widget.bookId,
+            currentPage: _currentPage,
+            totalPages: _totalPages,
+          ),
+
+          // ── Offline banner ───────────────────────────────────────────
+          const OfflineBanner(),
+
           // ── Streak nudge toast ────────────────────────────────────────
           _StreakNudgeToast(visible: _showStreakNudge),
 
@@ -726,6 +746,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
           } else {
             _stopAutoScroll();
           }
+        },
+        focusMode: _focusMode,
+        onFocusModeToggle: (v) {
+          setState(() => _focusMode = v);
         },
       ),
     );
@@ -1542,6 +1566,8 @@ class _ReadingSettingsSheet extends StatefulWidget {
   final void Function(int?) onSleepTimer;
   final bool autoScrollActive;
   final void Function(bool) onAutoScrollToggle;
+  final bool focusMode;
+  final void Function(bool) onFocusModeToggle;
 
   const _ReadingSettingsSheet({
     required this.settingsNotifier,
@@ -1550,6 +1576,8 @@ class _ReadingSettingsSheet extends StatefulWidget {
     required this.onSleepTimer,
     required this.autoScrollActive,
     required this.onAutoScrollToggle,
+    required this.focusMode,
+    required this.onFocusModeToggle,
   });
 
   @override
@@ -1727,6 +1755,20 @@ class _ReadingSettingsSheetState extends State<_ReadingSettingsSheet> {
             HapticFeedback.selectionClick();
             widget.settingsNotifier.setLockPortrait(!_s.lockPortrait);
             setState(() => _s = _s.copyWith(lockPortrait: !_s.lockPortrait));
+          },
+        ),
+
+        const SizedBox(height: 10),
+
+        // ── Focus mode ────────────────────────────────────────────────────
+        _DirectionTile(
+          icon: Icons.center_focus_strong_rounded,
+          label: 'Focus Mode',
+          subtitle: 'Dims page outside reading band',
+          selected: widget.focusMode,
+          onTap: () {
+            HapticFeedback.selectionClick();
+            widget.onFocusModeToggle(!widget.focusMode);
           },
         ),
 
@@ -2614,5 +2656,165 @@ class _SummaryChip extends StatelessWidget {
         ),
       ),
     ]);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Focus mode overlay — two dark rectangles above and below a reading band
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _FocusModeOverlay extends StatelessWidget {
+  final double screenHeight;
+  const _FocusModeOverlay({required this.screenHeight});
+
+  @override
+  Widget build(BuildContext context) {
+    // Band sits at ~42 % from top — slightly above centre (natural eye rest point).
+    const bandHeight = 100.0;
+    final bandTop = screenHeight * 0.42;
+
+    return IgnorePointer(
+      child: Stack(children: [
+        // Top dimmer
+        Positioned(
+          top: 0, left: 0, right: 0,
+          height: bandTop,
+          child: Container(
+              color: Colors.black.withValues(alpha: 0.55)),
+        ),
+        // Bottom dimmer
+        Positioned(
+          top: bandTop + bandHeight, left: 0, right: 0, bottom: 0,
+          child: Container(
+              color: Colors.black.withValues(alpha: 0.55)),
+        ),
+        // Subtle top edge of the band
+        Positioned(
+          top: bandTop, left: 0, right: 0,
+          child: Container(
+              height: 1,
+              color: Colors.white.withValues(alpha: 0.18)),
+        ),
+        // Subtle bottom edge of the band
+        Positioned(
+          top: bandTop + bandHeight - 1, left: 0, right: 0,
+          child: Container(
+              height: 1,
+              color: Colors.white.withValues(alpha: 0.18)),
+        ),
+      ]),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Buddy reading chips — shows the closest friend's progress on the same book
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _BuddyChips extends ConsumerWidget {
+  final String bookId;
+  final int currentPage;
+  final int totalPages;
+
+  const _BuddyChips({
+    required this.bookId,
+    required this.currentPage,
+    required this.totalPages,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isOnline = ref.watch(isOnlineProvider);
+    if (!isOnline) return const SizedBox.shrink();
+
+    final buddiesAsync = ref.watch(buddyProgressProvider(bookId));
+
+    return buddiesAsync.maybeWhen(
+      data: (friends) {
+        if (friends.isEmpty) return const SizedBox.shrink();
+
+        // Sort by proximity to the current page; show only the closest friend
+        final sorted = [...friends]..sort((a, b) {
+            final aPage = (a['currentPage'] as num?)?.toInt() ?? 0;
+            final bPage = (b['currentPage'] as num?)?.toInt() ?? 0;
+            return (aPage - currentPage).abs().compareTo((bPage - currentPage).abs());
+          });
+
+        final f = sorted.first;
+        final friendPage = (f['currentPage'] as num?)?.toInt() ?? 0;
+        final userName = f['userName'] as String? ?? 'Friend';
+        final isAhead = currentPage > friendPage;
+        final diff = (currentPage - friendPage).abs();
+
+        return Positioned(
+          // Sit just below the top bar when controls are visible
+          top: MediaQuery.of(context).padding.top + 64,
+          left: 12,
+          child: _BuddyChip(
+            userName: userName,
+            friendPage: friendPage,
+            totalPages: totalPages,
+            isAhead: isAhead,
+            pageDiff: diff,
+          ),
+        );
+      },
+      orElse: () => const SizedBox.shrink(),
+    );
+  }
+}
+
+class _BuddyChip extends StatelessWidget {
+  final String userName;
+  final int friendPage;
+  final int totalPages;
+  final bool isAhead;
+  final int pageDiff;
+
+  const _BuddyChip({
+    required this.userName,
+    required this.friendPage,
+    required this.totalPages,
+    required this.isAhead,
+    required this.pageDiff,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final label = isAhead
+        ? '$userName is $pageDiff pages behind'
+        : pageDiff == 0
+            ? 'Reading alongside $userName!'
+            : '$userName is $pageDiff pages ahead';
+
+    final trail = isAhead ? ' 🎉' : pageDiff == 0 ? ' 📖' : ' 💪';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A0A2E).withValues(alpha: 0.88),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFF7C3AED), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6B21A8).withValues(alpha: 0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        const Icon(Icons.people_rounded, size: 12, color: Color(0xFFA855F7)),
+        const SizedBox(width: 5),
+        Text(
+          '$label$trail',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ]),
+    );
   }
 }
