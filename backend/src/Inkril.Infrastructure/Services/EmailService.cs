@@ -19,14 +19,19 @@ public class EmailService(IConfiguration config, ILogger<EmailService> logger) :
         message.Subject = subject;
         message.Body = new TextPart("html") { Text = htmlBody };
 
+        var host     = config["Smtp:Host"]     ?? throw new InvalidOperationException("Smtp:Host not configured");
+        var port     = int.Parse(config["Smtp:Port"] ?? "587");
+        var useSsl   = bool.Parse(config["Smtp:UseSsl"] ?? "true");
+        var username = config["Smtp:Username"] ?? throw new InvalidOperationException("Smtp:Username not configured");
+        var password = config["Smtp:Password"] ?? throw new InvalidOperationException("Smtp:Password not configured");
+
         using var smtp = new SmtpClient();
         await smtp.ConnectAsync(
-            config["Smtp:Host"],
-            int.Parse(config["Smtp:Port"] ?? "587"),
-            bool.Parse(config["Smtp:UseSsl"] ?? "true") ? SecureSocketOptions.StartTls : SecureSocketOptions.None,
+            host, port,
+            useSsl ? SecureSocketOptions.StartTls : SecureSocketOptions.None,
             ct);
 
-        await smtp.AuthenticateAsync(config["Smtp:Username"], config["Smtp:Password"], ct);
+        await smtp.AuthenticateAsync(username, password, ct);
         await smtp.SendAsync(message, ct);
         await smtp.DisconnectAsync(true, ct);
 

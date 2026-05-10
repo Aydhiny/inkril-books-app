@@ -210,24 +210,33 @@ class _BookBody extends StatelessWidget {
             ),
           ),
 
-          // ── Stars ─────────────────────────────────────────────────
+          // ── Stars + rating count ──────────────────────────────────
           Center(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: List.generate(5, (i) {
-                if (i < avgRating.floor()) {
-                  return const Icon(Icons.star_rounded,
-                      color: AppTheme.primary, size: 32);
-                } else if (i < avgRating.ceil() &&
-                    avgRating - avgRating.floor() >= 0.5) {
-                  return const Icon(Icons.star_half_rounded,
-                      color: AppTheme.primary, size: 32);
-                } else {
-                  return const Icon(Icons.star_outline_rounded,
-                      color: AppTheme.primary, size: 32);
-                }
-              }),
-            ),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(5, (i) {
+                  if (i < avgRating.floor()) {
+                    return const Icon(Icons.star_rounded,
+                        color: AppTheme.primary, size: 32);
+                  } else if (i < avgRating.ceil() &&
+                      avgRating - avgRating.floor() >= 0.5) {
+                    return const Icon(Icons.star_half_rounded,
+                        color: AppTheme.primary, size: 32);
+                  } else {
+                    return const Icon(Icons.star_outline_rounded,
+                        color: AppTheme.primary, size: 32);
+                  }
+                }),
+              ),
+              if (ratingCount > 0) ...[
+                const SizedBox(height: 4),
+                Text(
+                  '${avgRating.toStringAsFixed(1)} · $ratingCount ${ratingCount == 1 ? 'review' : 'reviews'}',
+                  style: TextStyle(fontSize: 13, color: context.textSecondary),
+                ),
+              ],
+            ]),
           ),
           const SizedBox(height: 12),
 
@@ -262,7 +271,11 @@ class _BookBody extends StatelessWidget {
             ),
           const SizedBox(height: 4),
           Text(
-            'PDF, $fileSizeMb, Files: 1',
+            [
+              'PDF',
+              fileSizeMb,
+              if (totalPages > 0) '$totalPages pages',
+            ].join(' · '),
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,

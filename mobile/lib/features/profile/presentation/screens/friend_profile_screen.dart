@@ -311,11 +311,8 @@ class _StatisticsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final streak         = profile['currentStreak']     as int? ?? 0;
-    final totalHoursRaw  = (profile['totalReadingHours'] as num?)?.toDouble() ?? 0.0;
-    final totalHoursStr  = totalHoursRaw % 1 == 0
-        ? '${totalHoursRaw.toInt()}'
-        : totalHoursRaw.toStringAsFixed(1);
+    final streak        = profile['currentStreak']    as int? ?? 0;
+    final totalHoursRaw = (profile['totalReadingHours'] as num?)?.toDouble() ?? 0.0;
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       const Text(

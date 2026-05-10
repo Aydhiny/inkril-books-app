@@ -4,10 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/widgets/animated_empty_state.dart';
 import '../../../../core/widgets/app_error_widget.dart';
 import '../../../../core/widgets/shimmer_loading.dart';
 import '../providers/profile_provider.dart';
+import '../providers/reading_heatmap_provider.dart';
 import '../../../auth/presentation/providers/auth_notifier.dart';
 
 class ProfileScreen extends ConsumerWidget {
@@ -52,6 +52,8 @@ class ProfileScreen extends ConsumerWidget {
                   _YearlyGoalSection(profile: profile),
                   const SizedBox(height: 24),
                   _WeeklyProgressSection(profile: profile),
+                  const SizedBox(height: 24),
+                  _ReadingHeatmap(year: DateTime.now().year),
                   const SizedBox(height: 16),
                 ],
               ),
@@ -313,9 +315,6 @@ class _StatisticsSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final streak        = profile['currentStreak']     as int? ?? 0;
     final totalHoursRaw = (profile['totalReadingHours'] as num?)?.toDouble() ?? 0.0;
-    final totalHoursStr = totalHoursRaw % 1 == 0
-        ? '${totalHoursRaw.toInt()}'
-        : totalHoursRaw.toStringAsFixed(1);
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(
@@ -1126,4 +1125,288 @@ class _TrophyTile extends StatelessWidget {
       ),
     );
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Reading heatmap — GitHub-style calendar grid of daily reading minutes
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ReadingHeatmap extends ConsumerWidget {
+  final int year;
+  const _ReadingHeatmap({required this.year});
+
+  // Intensity buckets: 0 = nothing, 1-4 = light → max
+  static int _bucket(int minutes) {
+    if (minutes <= 0) return 0;
+    if (minutes < 15) return 1;
+    if (minutes < 30) return 2;
+    if (minutes < 60) return 3;
+    return 4;
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final heatmapAsync = ref.watch(readingHeatmapProvider(year));
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(
+        '$year Reading Activity',
+        style: TextStyle(
+          fontSize: 22,
+          fontWeight: FontWeight.w900,
+          color: context.textPrimary,
+          letterSpacing: -0.3,
+        ),
+      ),
+      const SizedBox(height: 14),
+      Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: context.cardBg,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: context.borderPurple, width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.primary.withValues(alpha: 0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: heatmapAsync.when(
+          loading: () => const SizedBox(
+            height: 120,
+            child: Center(
+              child: CircularProgressIndicator(
+                  strokeWidth: 2, color: AppTheme.primary),
+            ),
+          ),
+          error: (_, __) => const SizedBox(
+            height: 80,
+            child: Center(
+              child: Text(
+                'Could not load activity',
+                style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
+              ),
+            ),
+          ),
+          data: (days) => _HeatmapGrid(year: year, days: days),
+        ),
+      ),
+    ]);
+  }
+}
+
+class _HeatmapGrid extends StatelessWidget {
+  final int year;
+  final List<HeatmapDay> days;
+
+  const _HeatmapGrid({required this.year, required this.days});
+
+  static const _cellSize = 11.0;
+  static const _cellGap  = 2.0;
+  static const _stride   = _cellSize + _cellGap;
+  // Show label for Mon, Wed, Fri only to avoid crowding
+  static const _dayLabels = ['', 'M', '', 'W', '', 'F', ''];
+
+  // 5 intensity colours — index 0 = inactive day, 1-4 = active
+  static const _colors = [
+    Color(0xFFEDE9FE), // 0 — empty (very light purple-grey)
+    Color(0xFFC4B5FD), // 1 — <15 min
+    Color(0xFF8B5CF6), // 2 — 15–29 min
+    Color(0xFF7C3AED), // 3 — 30–59 min
+    Color(0xFF4C1D95), // 4 — 60+ min
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final labelColor = isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280);
+
+    // Fast lookup: "yyyy-MM-dd" → minutes
+    final minuteMap = <String, int>{
+      for (final d in days) _key(d.date): d.minutesRead,
+    };
+
+    // Align grid to Monday. weekday: 1=Mon … 7=Sun.
+    final jan1 = DateTime(year, 1, 1);
+    final startOffset = (jan1.weekday - 1) % 7;
+    final gridStart = jan1.subtract(Duration(days: startOffset));
+
+    final dec31     = DateTime(year, 12, 31);
+    final totalDays = dec31.difference(gridStart).inDays + 1;
+    final totalWeeks = (totalDays / 7).ceil();
+
+    final activeDays   = days.length;
+    final totalMinutes = days.fold(0, (s, d) => s + d.minutesRead);
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      // ── Month labels ──────────────────────────────────────────────────
+      Row(children: [
+        const SizedBox(width: 16),
+        SizedBox(
+          height: 14,
+          width: totalWeeks * _stride,
+          child: CustomPaint(
+            painter: _MonthLabelPainter(
+              year: year,
+              gridStart: gridStart,
+              totalWeeks: totalWeeks,
+              stride: _stride,
+              color: labelColor,
+            ),
+          ),
+        ),
+      ]),
+      const SizedBox(height: 4),
+
+      // ── Scrollable grid ───────────────────────────────────────────────
+      SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // Day-of-week column
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: _dayLabels.map((label) => SizedBox(
+              width: 14,
+              height: _stride,
+              child: Text(
+                label,
+                style: TextStyle(fontSize: 8, color: labelColor),
+                textAlign: TextAlign.right,
+              ),
+            )).toList(),
+          ),
+          const SizedBox(width: 2),
+
+          // Week columns
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: List.generate(totalWeeks, (w) {
+              return Column(
+                children: List.generate(7, (d) {
+                  final date = gridStart.add(Duration(days: w * 7 + d));
+                  final inYear = date.year == year;
+                  final mins   = minuteMap[_key(date)] ?? 0;
+                  final bucket = inYear ? _ReadingHeatmap._bucket(mins) : -1;
+
+                  return Tooltip(
+                    message: inYear && mins > 0
+                        ? '${_fmtDate(date)}: $mins min'
+                        : inYear
+                            ? _fmtDate(date)
+                            : '',
+                    preferBelow: false,
+                    child: Container(
+                      width: _cellSize,
+                      height: _cellSize,
+                      margin: const EdgeInsets.all(_cellGap / 2),
+                      decoration: BoxDecoration(
+                        color: bucket < 0
+                            ? Colors.transparent
+                            : _colors[bucket],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  );
+                }),
+              );
+            }),
+          ),
+        ]),
+      ),
+
+      const SizedBox(height: 10),
+
+      // ── Legend + summary line ─────────────────────────────────────────
+      Row(children: [
+        Expanded(
+          child: Text(
+            activeDays == 0
+                ? 'No reading sessions yet this year.'
+                : '$activeDays day${activeDays == 1 ? '' : 's'} · '
+                    '${(totalMinutes / 60).toStringAsFixed(1)} h total',
+            style: TextStyle(fontSize: 11, color: labelColor),
+          ),
+        ),
+        Text('Less', style: TextStyle(fontSize: 9, color: labelColor)),
+        const SizedBox(width: 4),
+        ..._colors.map((c) => Container(
+              width: 9,
+              height: 9,
+              margin: const EdgeInsets.only(left: 2),
+              decoration: BoxDecoration(
+                color: c,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            )),
+        const SizedBox(width: 4),
+        Text('More', style: TextStyle(fontSize: 9, color: labelColor)),
+      ]),
+    ]);
+  }
+
+  static String _key(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-'
+      '${d.day.toString().padLeft(2, '0')}';
+
+  static String _fmtDate(DateTime d) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${months[d.month - 1]} ${d.day}';
+  }
+}
+
+/// Paints month abbreviations above the correct week column.
+class _MonthLabelPainter extends CustomPainter {
+  final int year;
+  final DateTime gridStart;
+  final int totalWeeks;
+  final double stride;
+  final Color color;
+
+  const _MonthLabelPainter({
+    required this.year,
+    required this.gridStart,
+    required this.totalWeeks,
+    required this.stride,
+    required this.color,
+  });
+
+  static const _abbrevs = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final tp = TextPainter(textDirection: TextDirection.ltr);
+    int? lastMonth;
+
+    for (int w = 0; w < totalWeeks; w++) {
+      final monday = gridStart.add(Duration(days: w * 7));
+      if (monday.year != year) continue; // skip lead-in weeks before Jan 1
+
+      final m = monday.month;
+      if (m == lastMonth) continue;
+      lastMonth = m;
+
+      tp.text = TextSpan(
+        text: _abbrevs[m - 1],
+        style: TextStyle(
+          fontSize: 9,
+          color: color,
+          fontWeight: FontWeight.w600,
+        ),
+      );
+      tp.layout();
+      tp.paint(canvas, Offset(w * stride, 0));
+    }
+  }
+
+  @override
+  bool shouldRepaint(_MonthLabelPainter old) =>
+      old.year != year || old.gridStart != gridStart || old.color != color;
 }

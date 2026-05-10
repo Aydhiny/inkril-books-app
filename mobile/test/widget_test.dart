@@ -1,30 +1,57 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:inkril_mobile/main.dart';
+import 'package:inkril_mobile/core/providers/auth_provider.dart';
+import 'package:inkril_mobile/core/router/app_router.dart';
+import 'package:inkril_mobile/features/reader/presentation/providers/reader_settings_provider.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  group('InkrilApp smoke tests', () {
+    setUp(() => SharedPreferences.setMockInitialValues({}));
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    testWidgets('renders without crashing — unauthenticated welcome flow',
+        (WidgetTester tester) async {
+      final prefs = await SharedPreferences.getInstance();
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            isAuthenticatedProvider.overrideWith((ref) => false),
+            hasSeenWelcomeProvider.overrideWith((ref) async => false),
+            sharedPreferencesProvider.overrideWithValue(prefs),
+          ],
+          child: const InkrilApp(initialLocation: '/welcome'),
+        ),
+      );
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+      await tester.pumpAndSettle();
+      expect(find.byType(MaterialApp), findsOneWidget);
+    });
+
+    testWidgets('renders without crashing — authenticated library view',
+        (WidgetTester tester) async {
+      final prefs = await SharedPreferences.getInstance();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            isAuthenticatedProvider.overrideWith((ref) => true),
+            hasSeenWelcomeProvider.overrideWith((ref) async => true),
+            sharedPreferencesProvider.overrideWithValue(prefs),
+          ],
+          child: const InkrilApp(initialLocation: '/library'),
+        ),
+      );
+
+      // Pump a bounded number of frames — the library screen fires live API
+      // requests that never resolve in tests, so pumpAndSettle would hang.
+      // We only assert that the widget tree initialises without crashing.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byType(MaterialApp), findsOneWidget);
+    });
   });
 }

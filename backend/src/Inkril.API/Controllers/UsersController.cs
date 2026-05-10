@@ -69,4 +69,18 @@ public class UsersController(IMediator mediator, ICurrentUserService currentUser
     [HttpGet("search")]
     public async Task<IActionResult> Search([FromQuery] string q, CancellationToken ct)
         => Ok(await mediator.Send(new SearchUsersQuery(q), ct));
+
+    /// <summary>
+    /// Returns daily reading minutes for every active day in <paramref name="year"/>.
+    /// Zero-minute days are omitted — the client fills them with an empty colour.
+    /// </summary>
+    [HttpGet("me/reading-stats/heatmap")]
+    public async Task<IActionResult> GetReadingHeatmap(
+        [FromQuery] int? year, CancellationToken ct)
+    {
+        var userId = currentUser.UserId ?? throw new UnauthorizedAccessException();
+        var y = year ?? DateTime.UtcNow.Year;
+        var result = await mediator.Send(new GetReadingHeatmapQuery(userId, y), ct);
+        return result.Succeeded ? Ok(result.Value) : BadRequest(new { errors = result.Errors });
+    }
 }

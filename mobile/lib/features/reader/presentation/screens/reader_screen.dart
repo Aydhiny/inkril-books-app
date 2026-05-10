@@ -12,6 +12,7 @@ import 'package:path_provider/path_provider.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../../core/config/app_config.dart';
 import '../../../../core/providers/connectivity_provider.dart';
+import '../../../../core/services/dictionary_service.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/offline_banner.dart';
 import '../../../library/presentation/providers/library_provider.dart';
@@ -85,6 +86,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   // ── Focus mode — dims page outside a reading band ─────────────────────────
   bool _focusMode = false;
 
+  // ── Dictionary ────────────────────────────────────────────────────────────
+  // Long-press on the PDF area opens the lookup sheet.
+  // _lastLongPressWord is pre-populated when the user copied a word before
+  // long-pressing; otherwise the sheet shows an empty search field.
+  final TextEditingController _dictController = TextEditingController();
+
   // ── Computed properties ───────────────────────────────────────────────────
 
   /// Estimated reading time remaining, shown in the bottom bar.
@@ -156,6 +163,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     _autoScrollTimer?.cancel();
     _nudgeHideTimer?.cancel();
     _searchController.dispose();
+    _dictController.dispose();
     _confetti.dispose();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     // Always restore free rotation when leaving the reader
@@ -466,6 +474,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               _showControls = !_showControls;
               if (_showControls) _showBookmarksPanel = false;
             }),
+            onLongPress: _openDictionary,
             child: pdfArea(),
           ),
 
@@ -720,6 +729,23 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         );
       }
     }
+  }
+
+  // ── Dictionary ─────────────────────────────────────────────────────────
+
+  void _openDictionary() {
+    HapticFeedback.mediumImpact();
+    // Try to pre-populate from clipboard — common flow: select word in PDF,
+    // copy, long-press to look it up. Clear after the sheet closes.
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => _DictionarySheet(
+        controller: _dictController,
+        service: ref.read(dictionaryServiceProvider),
+      ),
+    ).whenComplete(() => _dictController.clear());
   }
 
   // ── Reading settings sheet ──────────────────────────────────────────────
@@ -2816,5 +2842,403 @@ class _BuddyChip extends StatelessWidget {
         ),
       ]),
     );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Dictionary sheet — long-press the page to look up any word via Wiktionary
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// The PDF renderer does not expose text layer events to Flutter gestures,
+/// so we can't intercept "which word was tapped" automatically.
+/// Instead, long-press opens this sheet with a search field so the user can
+/// type (or paste from clipboard after selecting text in native PDF selection
+/// mode) the word they want to look up.
+class _DictionarySheet extends StatefulWidget {
+  final TextEditingController controller;
+  final DictionaryService service;
+
+  const _DictionarySheet({
+    required this.controller,
+    required this.service,
+  });
+
+  @override
+  State<_DictionarySheet> createState() => _DictionarySheetState();
+}
+
+class _DictionarySheetState extends State<_DictionarySheet> {
+  List<WordEntry>? _entries;
+  bool _loading = false;
+  String? _errorMsg;
+  String _lookedUpWord = '';
+
+  Future<void> _lookup() async {
+    final word = widget.controller.text.trim();
+    if (word.isEmpty) return;
+
+    setState(() {
+      _loading  = true;
+      _errorMsg = null;
+      _entries  = null;
+    });
+
+    try {
+      final results = await widget.service.lookup(word);
+      if (mounted) {
+        setState(() {
+          _lookedUpWord = word;
+          _entries  = results;
+          _loading  = false;
+        });
+      }
+    } on Exception catch (e) {
+      if (mounted) {
+        setState(() {
+          _loading  = false;
+          _errorMsg = e.toString().replaceFirst('Exception: ', '');
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.55,
+      minChildSize: 0.35,
+      maxChildSize: 0.92,
+      expand: false,
+      builder: (_, scrollCtrl) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            boxShadow: [
+              BoxShadow(
+                color: Color(0x1A6B21A8),
+                blurRadius: 32,
+                offset: Offset(0, -4),
+              ),
+            ],
+          ),
+          child: Column(children: [
+            // ── Handle ────────────────────────────────────────────────
+            Center(
+              child: Container(
+                width: 40, height: 4,
+                margin: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE5E7EB),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+
+            // ── Header ────────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+              child: Row(children: [
+                Container(
+                  width: 36, height: 36,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primarySurface,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.auto_stories_rounded,
+                      color: AppTheme.primary, size: 20),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Dictionary',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF1F2937),
+                    ),
+                  ),
+                ),
+              ]),
+            ),
+
+            const SizedBox(height: 16),
+
+            // ── Search field ──────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(children: [
+                Expanded(
+                  child: TextField(
+                    controller: widget.controller,
+                    textInputAction: TextInputAction.search,
+                    onSubmitted: (_) => _lookup(),
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      hintText: 'Enter a word…',
+                      hintStyle: const TextStyle(
+                          color: Color(0xFF9CA3AF), fontSize: 15),
+                      prefixIcon: const Icon(
+                          Icons.search_rounded, color: AppTheme.primary),
+                      filled: true,
+                      fillColor: const Color(0xFFF9FAFB),
+                      contentPadding: const EdgeInsets.symmetric(
+                          vertical: 14, horizontal: 16),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(
+                            color: Color(0xFFE5E7EB)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(
+                            color: Color(0xFFE5E7EB)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(
+                            color: AppTheme.primary, width: 2),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                SizedBox(
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: _loading ? null : _lookup,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                      padding: const EdgeInsets.symmetric(horizontal: 18),
+                    ),
+                    child: const Text(
+                      'Look up',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+              ]),
+            ),
+
+            const SizedBox(height: 12),
+            const Divider(height: 1, color: Color(0xFFF3F4F6)),
+
+            // ── Results ───────────────────────────────────────────────
+            Expanded(
+              child: _buildResults(scrollCtrl),
+            ),
+          ]),
+        );
+      },
+    );
+  }
+
+  Widget _buildResults(ScrollController ctrl) {
+    if (_loading) {
+      return const Center(
+        child: CircularProgressIndicator(
+            strokeWidth: 2, color: AppTheme.primary),
+      );
+    }
+
+    if (_errorMsg != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Icons.wifi_off_rounded,
+                size: 40, color: Color(0xFF9CA3AF)),
+            const SizedBox(height: 12),
+            const Text(
+              'Could not reach dictionary',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF374151),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _errorMsg!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                  fontSize: 12, color: Color(0xFF9CA3AF)),
+            ),
+          ]),
+        ),
+      );
+    }
+
+    if (_entries == null) {
+      // Initial state — nothing searched yet
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(32),
+          child: Text(
+            'Type a word above to look it up.\n\n'
+            'Tip: select text in the PDF, copy it,\n'
+            'then paste it here.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              color: Color(0xFF9CA3AF),
+              height: 1.6,
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (_entries!.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text('📖', style: TextStyle(fontSize: 40)),
+            const SizedBox(height: 12),
+            Text(
+              '"$_lookedUpWord" not found',
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF374151),
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Try a different spelling or a base form.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
+            ),
+          ]),
+        ),
+      );
+    }
+
+    return ListView(
+      controller: ctrl,
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+      children: [
+        // Word heading
+        Text(
+          _lookedUpWord,
+          style: const TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.w900,
+            color: Color(0xFF1F2937),
+            letterSpacing: -0.5,
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Entries grouped by part of speech
+        for (final entry in _entries!) ...[
+          // POS chip
+          Container(
+            padding: const EdgeInsets.symmetric(
+                horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppTheme.primarySurface,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              entry.partOfSpeech,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.primary,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // Senses
+          for (int i = 0; i < entry.senses.length; i++) ...[
+            _SenseRow(
+              number: i + 1,
+              sense: entry.senses[i],
+            ),
+            if (i < entry.senses.length - 1)
+              const Divider(
+                  height: 16, indent: 28, color: Color(0xFFF3F4F6)),
+          ],
+
+          const SizedBox(height: 20),
+        ],
+      ],
+    );
+  }
+}
+
+class _SenseRow extends StatelessWidget {
+  final int number;
+  final WordSense sense;
+
+  const _SenseRow({required this.number, required this.sense});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      // Number badge
+      Container(
+        width: 22,
+        height: 22,
+        margin: const EdgeInsets.only(top: 1, right: 10),
+        decoration: BoxDecoration(
+          color: AppTheme.primarySurface,
+          shape: BoxShape.circle,
+        ),
+        child: Center(
+          child: Text(
+            '$number',
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              color: AppTheme.primary,
+            ),
+          ),
+        ),
+      ),
+
+      // Definition + examples
+      Expanded(
+        child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+          Text(
+            sense.definition,
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFF1F2937),
+              height: 1.5,
+            ),
+          ),
+          for (final ex in sense.examples) ...[
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF3C7),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '"$ex"',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontStyle: FontStyle.italic,
+                  color: Color(0xFF92400E),
+                  height: 1.4,
+                ),
+              ),
+            ),
+          ],
+        ]),
+      ),
+    ]);
   }
 }
