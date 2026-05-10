@@ -14,6 +14,9 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../library/presentation/providers/library_provider.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
 import '../../../reading/presentation/screens/reading_hub_screen.dart';
+import '../models/reader_settings.dart';
+import '../models/reader_theme.dart';
+import '../providers/reader_settings_provider.dart';
 
 class ReaderScreen extends ConsumerStatefulWidget {
   final String bookId;
@@ -51,9 +54,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   // Completer lets the user tap to skip the 2.5s countdown and pop immediately
   // (the session-end API call still has to finish first).
   Completer<void>? _summaryCompleter;
-
-  // ── HUD font size (affects top/bottom bar text, not the PDF) ──────────────
-  double _hudFontScale = 1.0; // 0.85 | 1.0 | 1.2
 
   String get _elapsedFormatted {
     final m = _elapsedSeconds ~/ 60;
@@ -235,44 +235,61 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
           body: Center(child: CircularProgressIndicator(color: AppTheme.primary)));
     }
 
+    final settings = ref.watch(readerSettingsProvider);
+    final theme = settings.theme;
+
     // PopScope: intercept the Android system back gesture so it always goes
     // through _closeReader() — which ends the session, invalidates providers,
     // and shows the summary. Without this, dispose() fires without a proper await
     // and ref.invalidate() fails silently, leaving the library showing stale progress.
     return PopScope(
       canPop: false,
-      onPopInvoked: (didPop) {
+      onPopInvokedWithResult: (didPop, _) {
         if (!didPop && !_showSummary) _closeReader();
       },
       child: Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: theme.scaffoldColor,
       body: Stack(
         children: [
-          // ── PDF viewer ───────────────────────────────────────────────
+          // ── PDF viewer (with active theme colour-filter) ─────────────
           GestureDetector(
             onTap: () => setState(() {
               _showControls = !_showControls;
               if (_showControls) _showBookmarksPanel = false;
             }),
-            child: PDFView(
-              filePath: _localPdfPath!,
-              enableSwipe: true,
-              swipeHorizontal: true,
-              autoSpacing: false,
-              pageFling: true,
-              defaultPage: _currentPage,
-              backgroundColor: Colors.white,
-              onRender: (pages) => setState(() => _totalPages = pages ?? 0),
-              onViewCreated: (ctrl) => _pdfController = ctrl,
-              onPageChanged: (page, _) => _onPageChanged(page ?? _currentPage),
-              onError: (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('PDF error: $e')));
-                }
-              },
+            child: ColorFiltered(
+              colorFilter: theme.colorFilter,
+              child: PDFView(
+                filePath: _localPdfPath!,
+                enableSwipe: true,
+                swipeHorizontal: settings.horizontalScroll,
+                autoSpacing: false,
+                pageFling: true,
+                defaultPage: _currentPage,
+                backgroundColor: Colors.white,
+                onRender: (pages) => setState(() => _totalPages = pages ?? 0),
+                onViewCreated: (ctrl) => _pdfController = ctrl,
+                onPageChanged: (page, _) => _onPageChanged(page ?? _currentPage),
+                onError: (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('PDF error: $e')));
+                  }
+                },
+              ),
             ),
           ),
+
+          // ── Brightness overlay ────────────────────────────────────────
+          // A translucent black layer so the user can dim the screen
+          // independently of the OS brightness.
+          if (settings.brightness < 1.0)
+            IgnorePointer(
+              child: Container(
+                color: Colors.black
+                    .withValues(alpha: (1 - settings.brightness) * 0.65),
+              ),
+            ),
 
           // ── Top bar ──────────────────────────────────────────────────
           AnimatedSlide(
@@ -283,12 +300,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               bookTitle: _bookTitle,
               bookmarksActive: _showBookmarksPanel,
               elapsedFormatted: _elapsedFormatted,
-              fontScale: _hudFontScale,
+              fontScale: settings.hudFontScale,
+              isDarkTheme: theme.isDark,
               onBack: _closeReader,
               onBookmark: _addBookmark,
               onToggleBookmarks: () =>
                   setState(() => _showBookmarksPanel = !_showBookmarksPanel),
-              onFontSize: _showFontSizePicker,
+              onReadingSettings: _showReadingSettings,
             ),
           ),
 
@@ -304,7 +322,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               child: _BottomBar(
                 currentPage: _currentPage,
                 totalPages: _totalPages,
-                fontScale: _hudFontScale,
+                fontScale: settings.hudFontScale,
+                isDarkTheme: theme.isDark,
                 onPrev: _currentPage > 0
                     ? () => _pdfController?.setPage(_currentPage - 1)
                     : null,
@@ -426,99 +445,17 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     }
   }
 
-  // ── Font size picker ────────────────────────────────────────────────────
+  // ── Reading settings sheet ──────────────────────────────────────────────
 
-  void _showFontSizePicker() {
+  void _showReadingSettings() {
+    HapticFeedback.mediumImpact();
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(
-            width: 36,
-            height: 4,
-            decoration: BoxDecoration(
-              color: const Color(0xFFE5E7EB),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'HUD Text Size',
-            style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF1F2937)),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Adjusts the size of controls text (title, timer, page counter)',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
-          ),
-          const SizedBox(height: 20),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-            for (final (label, scale) in [
-              ('Small', 0.85),
-              ('Normal', 1.0),
-              ('Large', 1.2),
-            ])
-              GestureDetector(
-                onTap: () {
-                  HapticFeedback.selectionClick();
-                  setState(() => _hudFontScale = scale);
-                  Navigator.pop(context);
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  width: 90,
-                  height: 70,
-                  decoration: BoxDecoration(
-                    color: _hudFontScale == scale
-                        ? AppTheme.primarySurface
-                        : const Color(0xFFF9FAFB),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: _hudFontScale == scale
-                          ? AppTheme.primary
-                          : const Color(0xFFE5E7EB),
-                      width: _hudFontScale == scale ? 2 : 1,
-                    ),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Aa',
-                        style: TextStyle(
-                          fontSize: 18 * scale,
-                          fontWeight: FontWeight.w700,
-                          color: _hudFontScale == scale
-                              ? AppTheme.primary
-                              : const Color(0xFF6B7280),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        label,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: _hudFontScale == scale
-                              ? AppTheme.primary
-                              : const Color(0xFF9CA3AF),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-          ]),
-        ]),
+      isScrollControlled: true,
+      builder: (_) => _ReadingSettingsSheet(
+        settingsNotifier: ref.read(readerSettingsProvider.notifier),
+        initialSettings: ref.read(readerSettingsProvider),
       ),
     );
   }
@@ -538,6 +475,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         highlightCtrl: highlightCtrl,
         noteCtrl: noteCtrl,
         onSave: () async {
+          // Capture messenger before the async gap to satisfy
+          // use_build_context_synchronously — context may be stale after await.
+          final messenger = ScaffoldMessenger.of(context);
           try {
             final dio = ref.read(dioProvider);
             await dio.post('/api/bookmarks', data: {
@@ -555,7 +495,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
             ref.invalidate(bookBookmarksProvider(widget.bookId));
             if (sheetCtx.mounted) {
               Navigator.pop(sheetCtx);
-              ScaffoldMessenger.of(context).showSnackBar(
+              messenger.showSnackBar(
                 SnackBar(
                   content: const Text('Bookmark saved!'),
                   backgroundColor: AppTheme.progressGreen,
@@ -656,30 +596,40 @@ class _TopBar extends StatelessWidget {
   final bool bookmarksActive;
   final String elapsedFormatted;
   final double fontScale;
+  final bool isDarkTheme;
   final VoidCallback onBack;
   final VoidCallback onBookmark;
   final VoidCallback onToggleBookmarks;
-  final VoidCallback onFontSize;
+  final VoidCallback onReadingSettings;
 
   const _TopBar({
     required this.bookTitle,
     required this.bookmarksActive,
     required this.elapsedFormatted,
     required this.fontScale,
+    required this.isDarkTheme,
     required this.onBack,
     required this.onBookmark,
     required this.onToggleBookmarks,
-    required this.onFontSize,
+    required this.onReadingSettings,
   });
 
   @override
   Widget build(BuildContext context) {
+    final bg = isDarkTheme ? const Color(0xFF1E1E1E) : Colors.white;
+    final fg = isDarkTheme ? const Color(0xFFE8E8E8) : const Color(0xFF1F2937);
+    final iconMuted = isDarkTheme ? const Color(0xFF6B7280) : const Color(0xFF9CA3AF);
+
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: bg,
         boxShadow: [
           BoxShadow(
-              color: Color(0x14000000), blurRadius: 8, offset: Offset(0, 2))
+              color: isDarkTheme
+                  ? Colors.black.withValues(alpha: 0.4)
+                  : const Color(0x14000000),
+              blurRadius: 8,
+              offset: const Offset(0, 2))
         ],
       ),
       child: SafeArea(
@@ -700,7 +650,7 @@ class _TopBar extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 15 * fontScale,
                   fontWeight: FontWeight.w700,
-                  color: const Color(0xFF1F2937),
+                  color: fg,
                 ),
               ),
             ),
@@ -734,12 +684,12 @@ class _TopBar extends StatelessWidget {
               tooltip: 'Add Bookmark',
               onPressed: onBookmark,
             ),
-            // Font size
+            // Reading settings (theme, brightness, font, scroll direction)
             IconButton(
-              icon: const Icon(Icons.text_fields_rounded, size: 20),
-              color: const Color(0xFF9CA3AF),
-              tooltip: 'Text Size',
-              onPressed: onFontSize,
+              icon: const Icon(Icons.tune_rounded, size: 22),
+              color: iconMuted,
+              tooltip: 'Reading Settings',
+              onPressed: onReadingSettings,
             ),
             // Toggle bookmark list
             IconButton(
@@ -749,9 +699,7 @@ class _TopBar extends StatelessWidget {
                     : Icons.bookmarks_outlined,
                 size: 22,
               ),
-              color: bookmarksActive
-                  ? AppTheme.primary
-                  : const Color(0xFF9CA3AF),
+              color: bookmarksActive ? AppTheme.primary : iconMuted,
               tooltip: 'Bookmarks',
               onPressed: onToggleBookmarks,
             ),
@@ -770,6 +718,7 @@ class _BottomBar extends StatelessWidget {
   final int currentPage;
   final int totalPages;
   final double fontScale;
+  final bool isDarkTheme;
   final VoidCallback? onPrev;
   final VoidCallback? onNext;
   final VoidCallback onBack;
@@ -778,6 +727,7 @@ class _BottomBar extends StatelessWidget {
     required this.currentPage,
     required this.totalPages,
     required this.fontScale,
+    required this.isDarkTheme,
     required this.onPrev,
     required this.onNext,
     required this.onBack,
@@ -785,14 +735,19 @@ class _BottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bg = isDarkTheme ? const Color(0xFF1E1E1E) : Colors.white;
+    final textMuted = isDarkTheme ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280);
+
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: bg,
         boxShadow: [
           BoxShadow(
-              color: Color(0x14000000),
+              color: isDarkTheme
+                  ? Colors.black.withValues(alpha: 0.5)
+                  : const Color(0x14000000),
               blurRadius: 8,
-              offset: Offset(0, -2))
+              offset: const Offset(0, -2))
         ],
       ),
       child: SafeArea(
@@ -801,7 +756,7 @@ class _BottomBar extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Row(children: [
-              _PageButton(icon: Icons.chevron_left_rounded, onTap: onPrev),
+              _PageButton(icon: Icons.chevron_left_rounded, onTap: onPrev, isDark: isDarkTheme),
               Expanded(
                 child: Center(
                   child: Text(
@@ -811,12 +766,12 @@ class _BottomBar extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 14 * fontScale,
                       fontWeight: FontWeight.w600,
-                      color: const Color(0xFF6B7280),
+                      color: textMuted,
                     ),
                   ),
                 ),
               ),
-              _PageButton(icon: Icons.chevron_right_rounded, onTap: onNext),
+              _PageButton(icon: Icons.chevron_right_rounded, onTap: onNext, isDark: isDarkTheme),
             ]),
             const SizedBox(height: 10),
             SizedBox(
@@ -847,7 +802,8 @@ class _BottomBar extends StatelessWidget {
 class _PageButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback? onTap;
-  const _PageButton({required this.icon, required this.onTap});
+  final bool isDark;
+  const _PageButton({required this.icon, required this.onTap, this.isDark = false});
 
   @override
   Widget build(BuildContext context) {
@@ -858,14 +814,16 @@ class _PageButton extends StatelessWidget {
         height: 36,
         decoration: BoxDecoration(
           color: onTap != null
-              ? AppTheme.primarySurface
-              : const Color(0xFFF3F4F6),
+              ? (isDark ? const Color(0xFF2D2D2D) : AppTheme.primarySurface)
+              : (isDark ? const Color(0xFF252525) : const Color(0xFFF3F4F6)),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Icon(
           icon,
           size: 22,
-          color: onTap != null ? AppTheme.primary : const Color(0xFFD1D5DB),
+          color: onTap != null
+              ? AppTheme.primary
+              : (isDark ? const Color(0xFF4B5563) : const Color(0xFFD1D5DB)),
         ),
       ),
     );
@@ -1258,6 +1216,386 @@ class _BookmarkSheet extends StatelessWidget {
             ]),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Reading Settings sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ReadingSettingsSheet extends StatefulWidget {
+  final ReaderSettingsNotifier settingsNotifier;
+  final ReaderSettings initialSettings;
+
+  const _ReadingSettingsSheet({
+    required this.settingsNotifier,
+    required this.initialSettings,
+  });
+
+  @override
+  State<_ReadingSettingsSheet> createState() => _ReadingSettingsSheetState();
+}
+
+class _ReadingSettingsSheetState extends State<_ReadingSettingsSheet> {
+  late ReaderSettings _s;
+
+  @override
+  void initState() {
+    super.initState();
+    _s = widget.initialSettings;
+  }
+
+  void _setTheme(ReaderTheme t) {
+    HapticFeedback.selectionClick();
+    widget.settingsNotifier.setTheme(t);
+    setState(() => _s = _s.copyWith(theme: t));
+  }
+
+  void _setBrightness(double v) {
+    widget.settingsNotifier.setBrightness(v);
+    setState(() => _s = _s.copyWith(brightness: v));
+  }
+
+  void _setFontScale(double v) {
+    HapticFeedback.selectionClick();
+    widget.settingsNotifier.setHudFontScale(v);
+    setState(() => _s = _s.copyWith(hudFontScale: v));
+  }
+
+  void _setHorizontal(bool v) {
+    HapticFeedback.selectionClick();
+    widget.settingsNotifier.setHorizontalScroll(v);
+    setState(() => _s = _s.copyWith(horizontalScroll: v));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        boxShadow: [
+          BoxShadow(
+              color: Color(0x1A6B21A8), blurRadius: 32, offset: Offset(0, -4))
+        ],
+      ),
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        // Handle
+        Center(
+          child: Container(
+            width: 40,
+            height: 4,
+            margin: const EdgeInsets.symmetric(vertical: 14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE5E7EB),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+        ),
+
+        // Title
+        Row(children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: AppTheme.primarySurface,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.tune_rounded,
+                color: AppTheme.primary, size: 20),
+          ),
+          const SizedBox(width: 12),
+          const Text(
+            'Reading Settings',
+            style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF1F2937)),
+          ),
+        ]),
+
+        const SizedBox(height: 24),
+
+        // ── Themes ────────────────────────────────────────────────────────
+        const _SectionLabel(label: 'Theme'),
+        const SizedBox(height: 12),
+        GridView.count(
+          crossAxisCount: 3,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 10,
+          crossAxisSpacing: 10,
+          childAspectRatio: 1.6,
+          children: ReaderTheme.values
+              .map((t) => _ThemeTile(
+                    theme: t,
+                    selected: _s.theme == t,
+                    onTap: () => _setTheme(t),
+                  ))
+              .toList(),
+        ),
+
+        const SizedBox(height: 24),
+
+        // ── Brightness ────────────────────────────────────────────────────
+        const _SectionLabel(label: 'Brightness'),
+        const SizedBox(height: 10),
+        Row(children: [
+          const Icon(Icons.brightness_3_rounded,
+              size: 18, color: Color(0xFF9CA3AF)),
+          Expanded(
+            child: SliderTheme(
+              data: SliderTheme.of(context).copyWith(
+                activeTrackColor: AppTheme.primary,
+                inactiveTrackColor: const Color(0xFFE9D5FF),
+                thumbColor: AppTheme.primary,
+                overlayColor: const Color(0x1A6B21A8),
+                trackHeight: 4,
+                thumbShape:
+                    const RoundSliderThumbShape(enabledThumbRadius: 9),
+              ),
+              child: Slider(
+                value: _s.brightness,
+                min: 0.1,
+                max: 1.0,
+                onChanged: _setBrightness,
+              ),
+            ),
+          ),
+          const Icon(Icons.brightness_high_rounded,
+              size: 20, color: AppTheme.primary),
+        ]),
+
+        const SizedBox(height: 20),
+
+        // ── HUD Text Size ────────────────────────────────────────────────
+        const _SectionLabel(label: 'HUD Text Size'),
+        const SizedBox(height: 12),
+        Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+          for (final (label, scale) in [
+            ('Small', 0.85),
+            ('Normal', 1.0),
+            ('Large', 1.2),
+          ])
+            GestureDetector(
+              onTap: () => _setFontScale(scale),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                width: 90,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: _s.hudFontScale == scale
+                      ? AppTheme.primarySurface
+                      : const Color(0xFFF9FAFB),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: _s.hudFontScale == scale
+                        ? AppTheme.primary
+                        : const Color(0xFFE5E7EB),
+                    width: _s.hudFontScale == scale ? 2 : 1,
+                  ),
+                ),
+                child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text('Aa',
+                          style: TextStyle(
+                            fontSize: 17 * scale,
+                            fontWeight: FontWeight.w700,
+                            color: _s.hudFontScale == scale
+                                ? AppTheme.primary
+                                : const Color(0xFF6B7280),
+                          )),
+                      const SizedBox(height: 2),
+                      Text(label,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: _s.hudFontScale == scale
+                                ? AppTheme.primary
+                                : const Color(0xFF9CA3AF),
+                          )),
+                    ]),
+              ),
+            ),
+        ]),
+
+        const SizedBox(height: 20),
+
+        // ── Scroll direction ──────────────────────────────────────────────
+        const _SectionLabel(label: 'Page Direction'),
+        const SizedBox(height: 12),
+        Row(children: [
+          Expanded(
+            child: _DirectionTile(
+              icon: Icons.swap_horiz_rounded,
+              label: 'Horizontal',
+              subtitle: 'Book-style swipe',
+              selected: _s.horizontalScroll,
+              onTap: () => _setHorizontal(true),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: _DirectionTile(
+              icon: Icons.swap_vert_rounded,
+              label: 'Vertical',
+              subtitle: 'Scroll down',
+              selected: !_s.horizontalScroll,
+              onTap: () => _setHorizontal(false),
+            ),
+          ),
+        ]),
+      ]),
+    );
+  }
+}
+
+// ── Supporting widgets for the settings sheet ──────────────────────────────
+
+class _SectionLabel extends StatelessWidget {
+  final String label;
+  const _SectionLabel({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Text(
+        label.toUpperCase(),
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1.1,
+          color: Color(0xFF9CA3AF),
+        ),
+      ),
+    );
+  }
+}
+
+class _ThemeTile extends StatelessWidget {
+  final ReaderTheme theme;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _ThemeTile({
+    required this.theme,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        decoration: BoxDecoration(
+          color: theme.previewBg,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected ? theme.accentColor : const Color(0xFFE5E7EB),
+            width: selected ? 2.5 : 1,
+          ),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: theme.accentColor.withValues(alpha: 0.35),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  )
+                ]
+              : [],
+        ),
+        child: Stack(children: [
+          Center(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Text(theme.emoji, style: const TextStyle(fontSize: 16)),
+              const SizedBox(height: 2),
+              Text(
+                theme.label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: theme.previewText,
+                ),
+              ),
+            ]),
+          ),
+          if (selected)
+            Positioned(
+              top: 5,
+              right: 5,
+              child: Container(
+                width: 16,
+                height: 16,
+                decoration: BoxDecoration(
+                  color: theme.accentColor,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.check_rounded,
+                    size: 11, color: Colors.white),
+              ),
+            ),
+        ]),
+      ),
+    );
+  }
+}
+
+class _DirectionTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _DirectionTile({
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+        decoration: BoxDecoration(
+          color: selected ? AppTheme.primarySurface : const Color(0xFFF9FAFB),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected ? AppTheme.primary : const Color(0xFFE5E7EB),
+            width: selected ? 2 : 1,
+          ),
+        ),
+        child: Row(children: [
+          Icon(icon,
+              size: 22,
+              color: selected ? AppTheme.primary : const Color(0xFF9CA3AF)),
+          const SizedBox(width: 8),
+          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: selected
+                      ? AppTheme.primary
+                      : const Color(0xFF374151),
+                )),
+            Text(subtitle,
+                style: const TextStyle(
+                    fontSize: 10, color: Color(0xFF9CA3AF))),
+          ]),
+        ]),
       ),
     );
   }
