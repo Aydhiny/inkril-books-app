@@ -5,10 +5,6 @@ import '../models/reader_settings.dart';
 import '../models/reader_theme.dart';
 
 // ── SharedPreferences injection ─────────────────────────────────────────────
-//
-// Initialized in main.dart before runApp and injected via ProviderScope override.
-// This pattern lets StateNotifiers read prefs synchronously — no FutureProvider
-// gymnastics needed.
 final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
   throw UnimplementedError('SharedPreferences not provided');
 });
@@ -27,10 +23,10 @@ class ReaderSettingsNotifier extends StateNotifier<ReaderSettings> {
   static const _kBrightness = 'reader_brightness';
   static const _kFontScale = 'reader_hud_font_scale';
   static const _kHorizontal = 'reader_horizontal_scroll';
+  static const _kNightMode = 'reader_night_mode';
+  static const _kAutoScrollWpm = 'reader_auto_scroll_wpm';
 
   ReaderSettingsNotifier(this._prefs) : super(_load(_prefs));
-
-  // ── Persistence helpers ─────────────────────────────────────────────────
 
   static ReaderSettings _load(SharedPreferences p) => ReaderSettings(
         theme: ReaderTheme.values.firstWhere(
@@ -40,9 +36,9 @@ class ReaderSettingsNotifier extends StateNotifier<ReaderSettings> {
         brightness: p.getDouble(_kBrightness) ?? 1.0,
         hudFontScale: p.getDouble(_kFontScale) ?? 1.0,
         horizontalScroll: p.getBool(_kHorizontal) ?? true,
+        isNightMode: p.getBool(_kNightMode) ?? false,
+        preferredAutoScrollWpm: p.getInt(_kAutoScrollWpm) ?? 250,
       );
-
-  // ── Mutators ────────────────────────────────────────────────────────────
 
   void setTheme(ReaderTheme theme) {
     state = state.copyWith(theme: theme);
@@ -62,5 +58,15 @@ class ReaderSettingsNotifier extends StateNotifier<ReaderSettings> {
   void setHorizontalScroll(bool value) {
     state = state.copyWith(horizontalScroll: value);
     _prefs.setBool(_kHorizontal, value);
+  }
+
+  void setNightMode(bool value) {
+    state = state.copyWith(isNightMode: value);
+    _prefs.setBool(_kNightMode, value);
+  }
+
+  void setAutoScrollWpm(int wpm) {
+    state = state.copyWith(preferredAutoScrollWpm: wpm.clamp(50, 600));
+    _prefs.setInt(_kAutoScrollWpm, state.preferredAutoScrollWpm);
   }
 }

@@ -5,7 +5,6 @@ class ReaderSettings {
   final ReaderTheme theme;
 
   /// 0.0 = darkest overlay, 1.0 = no overlay (full screen brightness).
-  /// Implemented as a black overlay whose opacity = (1 - brightness) * 0.65.
   final double brightness;
 
   /// Scale factor for HUD text (timer, page counter, title).
@@ -14,11 +13,21 @@ class ReaderSettings {
   /// true = horizontal page swipe (book-style), false = vertical scroll.
   final bool horizontalScroll;
 
+  /// When true: Twilight theme + 60 % brightness regardless of [theme]/[brightness].
+  final bool isNightMode;
+
+  /// Preferred auto-scroll speed in words-per-minute.
+  /// Used to calculate seconds-per-page = (250 / wpm) * 60.
+  /// Default 250 WPM ≈ 1 page/min for a standard trade paperback.
+  final int preferredAutoScrollWpm;
+
   const ReaderSettings({
     this.theme = ReaderTheme.white,
     this.brightness = 1.0,
     this.hudFontScale = 1.0,
     this.horizontalScroll = true,
+    this.isNightMode = false,
+    this.preferredAutoScrollWpm = 250,
   });
 
   ReaderSettings copyWith({
@@ -26,11 +35,16 @@ class ReaderSettings {
     double? brightness,
     double? hudFontScale,
     bool? horizontalScroll,
+    bool? isNightMode,
+    int? preferredAutoScrollWpm,
   }) =>
       ReaderSettings(
         theme: theme ?? this.theme,
         brightness: brightness ?? this.brightness,
         hudFontScale: hudFontScale ?? this.hudFontScale,
         horizontalScroll: horizontalScroll ?? this.horizontalScroll,
+        isNightMode: isNightMode ?? this.isNightMode,
+        preferredAutoScrollWpm:
+            preferredAutoScrollWpm ?? this.preferredAutoScrollWpm,
       );
 }

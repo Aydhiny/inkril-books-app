@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' show pi;
 
 import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
@@ -51,9 +52,49 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
   // ── Session summary overlay ────────────────────────────────────────────────
   bool _showSummary = false;
-  // Completer lets the user tap to skip the 2.5s countdown and pop immediately
-  // (the session-end API call still has to finish first).
   Completer<void>? _summaryCompleter;
+
+  // ── Sleep timer ────────────────────────────────────────────────────────────
+  // Per-session only — not persisted. null = off.
+  int? _sleepTimerMinutes;
+  int _sleepRemainingSeconds = 0;
+
+  // ── Auto-scroll (auto page-turn) ───────────────────────────────────────────
+  bool _autoScrollActive = false;
+  Timer? _autoScrollTimer;
+
+  // ── ETA tracking ──────────────────────────────────────────────────────────
+  // Counts forward page turns to compute an average seconds-per-page.
+  int _pagesReadThisSession = 0;
+
+  // ── Streak nudge ──────────────────────────────────────────────────────────
+  bool _showStreakNudge = false;
+  bool _streakNudgeSent = false;
+  Timer? _nudgeHideTimer;
+
+  // ── Go-to-page search bar ─────────────────────────────────────────────────
+  bool _showSearch = false;
+  final TextEditingController _searchController = TextEditingController();
+
+  // ── Two-page spread (landscape) ───────────────────────────────────────────
+  PDFViewController? _pdfController2;
+
+  // ── Computed properties ───────────────────────────────────────────────────
+
+  /// Estimated reading time remaining, shown in the bottom bar.
+  /// Only computed once ≥ 3 pages and ≥ 60 s have elapsed.
+  String? get _etaText {
+    if (_pagesReadThisSession < 3 || _elapsedSeconds < 60 || _totalPages <= 0) {
+      return null;
+    }
+    final avgSecsPerPage = _elapsedSeconds / _pagesReadThisSession;
+    final pagesLeft = _totalPages - _currentPage - 1;
+    if (pagesLeft <= 0) return null;
+    final etaMins = (pagesLeft * avgSecsPerPage / 60).round();
+    if (etaMins < 1) return '< 1 min left';
+    if (etaMins < 60) return '~$etaMins min left';
+    return '~${etaMins ~/ 60}h ${etaMins % 60}m left';
+  }
 
   String get _elapsedFormatted {
     final m = _elapsedSeconds ~/ 60;
@@ -68,7 +109,29 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
   void _startTimer() {
     _readingTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() => _elapsedSeconds++);
+      if (!mounted) return;
+      setState(() {
+        _elapsedSeconds++;
+
+        // Sleep timer countdown
+        if (_sleepTimerMinutes != null) {
+          _sleepRemainingSeconds =
+              (_sleepTimerMinutes! * 60) - _elapsedSeconds;
+          if (_sleepRemainingSeconds <= 0 && !_showSummary) {
+            _sleepTimerMinutes = null;
+            _closeReader();
+          }
+        }
+
+        // Streak nudge at exactly 25 minutes
+        if (!_streakNudgeSent && _elapsedSeconds == 25 * 60) {
+          _streakNudgeSent = true;
+          _showStreakNudge = true;
+          _nudgeHideTimer = Timer(const Duration(seconds: 5), () {
+            if (mounted) setState(() => _showStreakNudge = false);
+          });
+        }
+      });
     });
   }
 
@@ -84,17 +147,26 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   void dispose() {
     _readingTimer?.cancel();
     _progressDebounce?.cancel();
+    _autoScrollTimer?.cancel();
+    _nudgeHideTimer?.cancel();
+    _searchController.dispose();
     _confetti.dispose();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _endSession();
     super.dispose();
   }
 
-  /// Debounced — called every time the user turns a page.
-  /// Waits 5 s of inactivity before syncing to avoid hammering the API
-  /// on fast page-flips. Also triggers confetti when the last page is reached.
+  /// Debounced — called every time the user turns a page (primary controller only).
   void _onPageChanged(int page) {
-    setState(() => _currentPage = page);
+    final wasForward = page > _currentPage;
+    setState(() {
+      _currentPage = page;
+      if (wasForward) _pagesReadThisSession++;
+    });
+
+    // Keep the right-panel in sync during two-page spread
+    _pdfController2?.setPage(page + 1);
+
     _progressDebounce?.cancel();
     _progressDebounce = Timer(const Duration(seconds: 5), () => _syncProgress(page));
 
@@ -104,6 +176,42 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       _confetti.play();
       HapticFeedback.heavyImpact();
     }
+  }
+
+  // ── Sleep timer ────────────────────────────────────────────────────────────
+
+  void _setSleepTimer(int? minutes) {
+    setState(() {
+      _sleepTimerMinutes = minutes;
+      _sleepRemainingSeconds = (minutes ?? 0) * 60;
+    });
+  }
+
+  // ── Auto-scroll ────────────────────────────────────────────────────────────
+
+  void _startAutoScroll(int wpm) {
+    _autoScrollTimer?.cancel();
+    // seconds per page — clamp between 3 s (600 WPM) and 600 s (very slow)
+    final secsPerPage =
+        ((250.0 / wpm.clamp(50, 600)) * 60).round().clamp(3, 600);
+    _autoScrollTimer =
+        Timer.periodic(Duration(seconds: secsPerPage), (_) {
+      if (!mounted || _showSummary) return;
+      final step = _pdfController2 != null ? 2 : 1; // two-page advances by 2
+      final next = _currentPage + step;
+      if (next < _totalPages) {
+        _pdfController?.setPage(next);
+      } else {
+        _stopAutoScroll();
+      }
+    });
+    setState(() => _autoScrollActive = true);
+  }
+
+  void _stopAutoScroll() {
+    _autoScrollTimer?.cancel();
+    _autoScrollTimer = null;
+    if (mounted) setState(() => _autoScrollActive = false);
   }
 
   /// Called when the user deliberately exits via "Back to App".
@@ -236,60 +344,137 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     }
 
     final settings = ref.watch(readerSettingsProvider);
-    final theme = settings.theme;
 
-    // PopScope: intercept the Android system back gesture so it always goes
-    // through _closeReader() — which ends the session, invalidates providers,
-    // and shows the summary. Without this, dispose() fires without a proper await
-    // and ref.invalidate() fails silently, leaving the library showing stale progress.
+    // Night mode overrides the selected theme and brightness
+    final effectiveTheme =
+        settings.isNightMode ? ReaderTheme.twilight : settings.theme;
+    final effectiveBrightness =
+        settings.isNightMode ? 0.6 : settings.brightness;
+
+    // Two-page spread: detect landscape
+    final size = MediaQuery.of(context).size;
+    final isLandscape = size.width > size.height;
+    // Clear stale right-panel controller when rotating back to portrait
+    if (!isLandscape && _pdfController2 != null) {
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) {
+        if (mounted) setState(() => _pdfController2 = null);
+      });
+    }
+
+    // Prev/Next respect two-page stride
+    final pageStride = isLandscape ? 2 : 1;
+
+    Widget pdfArea() {
+      final pdfView = PDFView(
+        filePath: _localPdfPath!,
+        enableSwipe: !isLandscape,
+        swipeHorizontal: settings.horizontalScroll,
+        autoSpacing: false,
+        pageFling: true,
+        defaultPage: _currentPage,
+        backgroundColor: Colors.white,
+        onRender: (pages) => setState(() => _totalPages = pages ?? 0),
+        onViewCreated: (ctrl) => _pdfController = ctrl,
+        onPageChanged: (page, _) => _onPageChanged(page ?? _currentPage),
+        onError: (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text('PDF error: $e')));
+          }
+        },
+      );
+
+      if (!isLandscape || _totalPages <= 1) {
+        return ColorFiltered(
+          colorFilter: effectiveTheme.colorFilter,
+          child: pdfView,
+        );
+      }
+
+      // Two-page spread — primary left, secondary right
+      final rightPage = _currentPage + 1;
+      return Row(children: [
+        Expanded(
+          child: ColorFiltered(
+            colorFilter: effectiveTheme.colorFilter,
+            child: pdfView,
+          ),
+        ),
+        Container(
+          width: 1,
+          color: effectiveTheme.isDark
+              ? Colors.white.withValues(alpha: 0.1)
+              : Colors.black.withValues(alpha: 0.08),
+        ),
+        Expanded(
+          child: ColorFiltered(
+            colorFilter: effectiveTheme.colorFilter,
+            child: PDFView(
+              filePath: _localPdfPath!,
+              enableSwipe: false,
+              defaultPage: rightPage < _totalPages ? rightPage : _currentPage,
+              backgroundColor: Colors.white,
+              onViewCreated: (ctrl) => _pdfController2 = ctrl,
+              onError: (_) {},
+            ),
+          ),
+        ),
+      ]);
+    }
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop && !_showSummary) _closeReader();
       },
       child: Scaffold(
-      backgroundColor: theme.scaffoldColor,
+      backgroundColor: effectiveTheme.scaffoldColor,
       body: Stack(
         children: [
-          // ── PDF viewer (with active theme colour-filter) ─────────────
+          // ── PDF viewer ───────────────────────────────────────────────
           GestureDetector(
             onTap: () => setState(() {
               _showControls = !_showControls;
               if (_showControls) _showBookmarksPanel = false;
             }),
-            child: ColorFiltered(
-              colorFilter: theme.colorFilter,
-              child: PDFView(
-                filePath: _localPdfPath!,
-                enableSwipe: true,
-                swipeHorizontal: settings.horizontalScroll,
-                autoSpacing: false,
-                pageFling: true,
-                defaultPage: _currentPage,
-                backgroundColor: Colors.white,
-                onRender: (pages) => setState(() => _totalPages = pages ?? 0),
-                onViewCreated: (ctrl) => _pdfController = ctrl,
-                onPageChanged: (page, _) => _onPageChanged(page ?? _currentPage),
-                onError: (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('PDF error: $e')));
-                  }
-                },
-              ),
-            ),
+            child: pdfArea(),
           ),
 
           // ── Brightness overlay ────────────────────────────────────────
-          // A translucent black layer so the user can dim the screen
-          // independently of the OS brightness.
-          if (settings.brightness < 1.0)
+          if (effectiveBrightness < 1.0)
             IgnorePointer(
               child: Container(
                 color: Colors.black
-                    .withValues(alpha: (1 - settings.brightness) * 0.65),
+                    .withValues(alpha: (1 - effectiveBrightness) * 0.65),
               ),
             ),
+
+          // ── Streak nudge toast ────────────────────────────────────────
+          _StreakNudgeToast(visible: _showStreakNudge),
+
+          // ── Go-to-page search bar ─────────────────────────────────────
+          AnimatedSlide(
+            offset: _showSearch ? Offset.zero : const Offset(0, -1),
+            duration: const Duration(milliseconds: 240),
+            curve: Curves.easeOutCubic,
+            child: _SearchBar(
+              controller: _searchController,
+              isDark: effectiveTheme.isDark,
+              onGo: () {
+                final page = int.tryParse(_searchController.text.trim());
+                if (page != null && page >= 1 && page <= _totalPages) {
+                  _pdfController?.setPage(page - 1);
+                }
+                setState(() => _showSearch = false);
+                _searchController.clear();
+              },
+              onClose: () {
+                setState(() => _showSearch = false);
+                _searchController.clear();
+              },
+            ),
+          ),
 
           // ── Top bar ──────────────────────────────────────────────────
           AnimatedSlide(
@@ -301,12 +486,18 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               bookmarksActive: _showBookmarksPanel,
               elapsedFormatted: _elapsedFormatted,
               fontScale: settings.hudFontScale,
-              isDarkTheme: theme.isDark,
+              isDarkTheme: effectiveTheme.isDark,
+              isNightMode: settings.isNightMode,
               onBack: _closeReader,
               onBookmark: _addBookmark,
               onToggleBookmarks: () =>
                   setState(() => _showBookmarksPanel = !_showBookmarksPanel),
               onReadingSettings: _showReadingSettings,
+              onToggleSearch: () =>
+                  setState(() => _showSearch = !_showSearch),
+              onToggleNightMode: () =>
+                  ref.read(readerSettingsProvider.notifier)
+                      .setNightMode(!settings.isNightMode),
             ),
           ),
 
@@ -323,15 +514,59 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 currentPage: _currentPage,
                 totalPages: _totalPages,
                 fontScale: settings.hudFontScale,
-                isDarkTheme: theme.isDark,
+                isDarkTheme: effectiveTheme.isDark,
+                etaText: _etaText,
                 onPrev: _currentPage > 0
-                    ? () => _pdfController?.setPage(_currentPage - 1)
+                    ? () => _pdfController
+                        ?.setPage(_currentPage - pageStride)
                     : null,
-                onNext: _currentPage < _totalPages - 1
-                    ? () => _pdfController?.setPage(_currentPage + 1)
+                onNext: _currentPage + pageStride < _totalPages
+                    ? () => _pdfController
+                        ?.setPage(_currentPage + pageStride)
                     : null,
                 onBack: _closeReader,
               ),
+            ),
+          ),
+
+          // ── Progress ring — always visible, bottom-right ──────────────
+          if (_totalPages > 0)
+            Positioned(
+              right: 12,
+              bottom: _showControls ? 140 : 16,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                child: _ProgressRing(
+                  progress: (_currentPage + 1) / _totalPages,
+                  isDark: effectiveTheme.isDark,
+                ),
+              ),
+            ),
+
+          // ── Sleep timer badge — top-right below status bar ────────────
+          if (_sleepTimerMinutes != null)
+            Positioned(
+              right: 12,
+              top: MediaQuery.of(context).padding.top + 64,
+              child: _SleepTimerBadge(
+                remainingSeconds: _sleepRemainingSeconds.clamp(0, 99999),
+              ),
+            ),
+
+          // ── Auto-scroll indicator — bottom-left ───────────────────────
+          AnimatedOpacity(
+            opacity: _autoScrollActive ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 300),
+            child: Positioned(
+              left: 12,
+              bottom: _showControls ? 140 : 16,
+              child: _autoScrollActive
+                  ? GestureDetector(
+                      onTap: _stopAutoScroll,
+                      child: _AutoScrollBadge(
+                          wpm: settings.preferredAutoScrollWpm),
+                    )
+                  : const SizedBox.shrink(),
             ),
           ),
 
@@ -456,6 +691,20 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       builder: (_) => _ReadingSettingsSheet(
         settingsNotifier: ref.read(readerSettingsProvider.notifier),
         initialSettings: ref.read(readerSettingsProvider),
+        sleepTimerMinutes: _sleepTimerMinutes,
+        onSleepTimer: (mins) {
+          Navigator.pop(context);
+          _setSleepTimer(mins);
+        },
+        autoScrollActive: _autoScrollActive,
+        onAutoScrollToggle: (active) {
+          Navigator.pop(context);
+          if (active) {
+            _startAutoScroll(ref.read(readerSettingsProvider).preferredAutoScrollWpm);
+          } else {
+            _stopAutoScroll();
+          }
+        },
       ),
     );
   }
@@ -597,10 +846,13 @@ class _TopBar extends StatelessWidget {
   final String elapsedFormatted;
   final double fontScale;
   final bool isDarkTheme;
+  final bool isNightMode;
   final VoidCallback onBack;
   final VoidCallback onBookmark;
   final VoidCallback onToggleBookmarks;
   final VoidCallback onReadingSettings;
+  final VoidCallback onToggleSearch;
+  final VoidCallback onToggleNightMode;
 
   const _TopBar({
     required this.bookTitle,
@@ -608,10 +860,13 @@ class _TopBar extends StatelessWidget {
     required this.elapsedFormatted,
     required this.fontScale,
     required this.isDarkTheme,
+    required this.isNightMode,
     required this.onBack,
     required this.onBookmark,
     required this.onToggleBookmarks,
     required this.onReadingSettings,
+    required this.onToggleSearch,
+    required this.onToggleNightMode,
   });
 
   @override
@@ -684,7 +939,26 @@ class _TopBar extends StatelessWidget {
               tooltip: 'Add Bookmark',
               onPressed: onBookmark,
             ),
-            // Reading settings (theme, brightness, font, scroll direction)
+            // Go-to-page search
+            IconButton(
+              icon: const Icon(Icons.search_rounded, size: 22),
+              color: iconMuted,
+              tooltip: 'Go to page',
+              onPressed: onToggleSearch,
+            ),
+            // Night mode quick toggle
+            IconButton(
+              icon: Icon(
+                isNightMode
+                    ? Icons.bedtime_rounded
+                    : Icons.bedtime_outlined,
+                size: 20,
+              ),
+              color: isNightMode ? const Color(0xFFF59E0B) : iconMuted,
+              tooltip: isNightMode ? 'Night mode on' : 'Night mode',
+              onPressed: onToggleNightMode,
+            ),
+            // Reading settings
             IconButton(
               icon: const Icon(Icons.tune_rounded, size: 22),
               color: iconMuted,
@@ -719,6 +993,7 @@ class _BottomBar extends StatelessWidget {
   final int totalPages;
   final double fontScale;
   final bool isDarkTheme;
+  final String? etaText;
   final VoidCallback? onPrev;
   final VoidCallback? onNext;
   final VoidCallback onBack;
@@ -731,6 +1006,7 @@ class _BottomBar extends StatelessWidget {
     required this.onPrev,
     required this.onNext,
     required this.onBack,
+    this.etaText,
   });
 
   @override
@@ -759,16 +1035,28 @@ class _BottomBar extends StatelessWidget {
               _PageButton(icon: Icons.chevron_left_rounded, onTap: onPrev, isDark: isDarkTheme),
               Expanded(
                 child: Center(
-                  child: Text(
-                    totalPages > 0
-                        ? 'Page ${currentPage + 1} of $totalPages'
-                        : 'Loading…',
-                    style: TextStyle(
-                      fontSize: 14 * fontScale,
-                      fontWeight: FontWeight.w600,
-                      color: textMuted,
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Text(
+                      totalPages > 0
+                          ? 'Page ${currentPage + 1} of $totalPages'
+                          : 'Loading…',
+                      style: TextStyle(
+                        fontSize: 14 * fontScale,
+                        fontWeight: FontWeight.w600,
+                        color: textMuted,
+                      ),
                     ),
-                  ),
+                    if (etaText != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        etaText!,
+                        style: TextStyle(
+                          fontSize: 10 * fontScale,
+                          color: textMuted.withValues(alpha: 0.7),
+                        ),
+                      ),
+                    ],
+                  ]),
                 ),
               ),
               _PageButton(icon: Icons.chevron_right_rounded, onTap: onNext, isDark: isDarkTheme),
@@ -1228,10 +1516,18 @@ class _BookmarkSheet extends StatelessWidget {
 class _ReadingSettingsSheet extends StatefulWidget {
   final ReaderSettingsNotifier settingsNotifier;
   final ReaderSettings initialSettings;
+  final int? sleepTimerMinutes;
+  final void Function(int?) onSleepTimer;
+  final bool autoScrollActive;
+  final void Function(bool) onAutoScrollToggle;
 
   const _ReadingSettingsSheet({
     required this.settingsNotifier,
     required this.initialSettings,
+    required this.sleepTimerMinutes,
+    required this.onSleepTimer,
+    required this.autoScrollActive,
+    required this.onAutoScrollToggle,
   });
 
   @override
@@ -1268,6 +1564,18 @@ class _ReadingSettingsSheetState extends State<_ReadingSettingsSheet> {
     HapticFeedback.selectionClick();
     widget.settingsNotifier.setHorizontalScroll(v);
     setState(() => _s = _s.copyWith(horizontalScroll: v));
+  }
+
+  void _setNightMode(bool v) {
+    HapticFeedback.selectionClick();
+    widget.settingsNotifier.setNightMode(v);
+    setState(() => _s = _s.copyWith(isNightMode: v));
+  }
+
+  void _setWpm(double v) {
+    final wpm = v.round();
+    widget.settingsNotifier.setAutoScrollWpm(wpm);
+    setState(() => _s = _s.copyWith(preferredAutoScrollWpm: wpm));
   }
 
   @override
@@ -1317,6 +1625,190 @@ class _ReadingSettingsSheetState extends State<_ReadingSettingsSheet> {
                 color: Color(0xFF1F2937)),
           ),
         ]),
+
+        const SizedBox(height: 20),
+
+        // ── Night mode ────────────────────────────────────────────────────
+        GestureDetector(
+          onTap: () => _setNightMode(!_s.isNightMode),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              gradient: _s.isNightMode
+                  ? const LinearGradient(
+                      colors: [Color(0xFF1A0A2E), Color(0xFF3B0764)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    )
+                  : null,
+              color: _s.isNightMode ? null : const Color(0xFFF9FAFB),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: _s.isNightMode
+                    ? const Color(0xFF7C3AED)
+                    : const Color(0xFFE5E7EB),
+                width: _s.isNightMode ? 1.5 : 1,
+              ),
+            ),
+            child: Row(children: [
+              Text(
+                '🌙',
+                style: TextStyle(
+                    fontSize: _s.isNightMode ? 24 : 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Night Mode',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: _s.isNightMode
+                              ? Colors.white
+                              : const Color(0xFF1F2937),
+                        ),
+                      ),
+                      Text(
+                        'Twilight theme + 60 % brightness',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: _s.isNightMode
+                              ? Colors.white.withValues(alpha: 0.55)
+                              : const Color(0xFF9CA3AF),
+                        ),
+                      ),
+                    ]),
+              ),
+              Switch.adaptive(
+                value: _s.isNightMode,
+                onChanged: _setNightMode,
+                activeThumbColor: const Color(0xFF7C3AED),
+                activeTrackColor: const Color(0xFF7C3AED),
+              ),
+            ]),
+          ),
+        ),
+
+        const SizedBox(height: 20),
+
+        // ── Sleep timer ───────────────────────────────────────────────────
+        const _SectionLabel(label: 'Sleep Timer'),
+        const SizedBox(height: 10),
+        Row(children: [
+          for (final (label, mins) in [
+            ('Off', null),
+            ('15 m', 15),
+            ('30 m', 30),
+            ('60 m', 60),
+          ])
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: GestureDetector(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    widget.onSleepTimer(mins);
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: widget.sleepTimerMinutes == mins
+                          ? AppTheme.primarySurface
+                          : const Color(0xFFF9FAFB),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: widget.sleepTimerMinutes == mins
+                            ? AppTheme.primary
+                            : const Color(0xFFE5E7EB),
+                        width: widget.sleepTimerMinutes == mins ? 2 : 1,
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: widget.sleepTimerMinutes == mins
+                              ? AppTheme.primary
+                              : const Color(0xFF6B7280),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ]),
+
+        const SizedBox(height: 20),
+
+        // ── Auto-scroll ───────────────────────────────────────────────────
+        const _SectionLabel(label: 'Auto-Scroll'),
+        const SizedBox(height: 10),
+        Row(children: [
+          Expanded(
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Auto page-turn at ${_s.preferredAutoScrollWpm} WPM',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF374151),
+                    ),
+                  ),
+                  Text(
+                    '≈ ${(250.0 / _s.preferredAutoScrollWpm * 60).round()} sec/page',
+                    style: const TextStyle(
+                        fontSize: 11, color: Color(0xFF9CA3AF)),
+                  ),
+                ]),
+          ),
+          Switch.adaptive(
+            value: widget.autoScrollActive,
+            onChanged: widget.onAutoScrollToggle,
+            activeThumbColor: AppTheme.primary,
+            activeTrackColor: AppTheme.primary,
+          ),
+        ]),
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            activeTrackColor: AppTheme.primary,
+            inactiveTrackColor: const Color(0xFFE9D5FF),
+            thumbColor: AppTheme.primary,
+            overlayColor: const Color(0x1A6B21A8),
+            trackHeight: 3,
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+          ),
+          child: Slider(
+            value: _s.preferredAutoScrollWpm.toDouble(),
+            min: 100,
+            max: 500,
+            divisions: 16,
+            onChanged: _setWpm,
+          ),
+        ),
+        const Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('100 WPM\n(slow)',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 10, color: Color(0xFF9CA3AF))),
+            Text('250 WPM\n(average)',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 10, color: Color(0xFF9CA3AF))),
+            Text('500 WPM\n(speed)',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 10, color: Color(0xFF9CA3AF))),
+          ],
+        ),
 
         const SizedBox(height: 24),
 
@@ -1595,6 +2087,318 @@ class _DirectionTile extends StatelessWidget {
                 style: const TextStyle(
                     fontSize: 10, color: Color(0xFF9CA3AF))),
           ]),
+        ]),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Progress ring — always-on circular arc showing % through the book
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ProgressRing extends StatelessWidget {
+  final double progress; // 0.0–1.0
+  final bool isDark;
+  const _ProgressRing({required this.progress, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    final pct = (progress * 100).clamp(0, 100).toInt();
+    return SizedBox(
+      width: 48,
+      height: 48,
+      child: CustomPaint(
+        painter: _RingPainter(progress: progress.clamp(0.0, 1.0),
+            isDark: isDark),
+        child: Center(
+          child: Text(
+            '$pct%',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.85)
+                  : AppTheme.primary,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RingPainter extends CustomPainter {
+  final double progress;
+  final bool isDark;
+  const _RingPainter({required this.progress, required this.isDark});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (size.width - 6) / 2;
+    final rect = Rect.fromCircle(center: center, radius: radius);
+
+    // Background track
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..color = (isDark ? Colors.white : AppTheme.primary)
+            .withValues(alpha: 0.12)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4,
+    );
+
+    if (progress > 0) {
+      canvas.drawArc(
+        rect,
+        -pi / 2,
+        progress * 2 * pi,
+        false,
+        Paint()
+          ..color = isDark ? Colors.white.withValues(alpha: 0.85) : AppTheme.primary
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 4
+          ..strokeCap = StrokeCap.round,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_RingPainter old) => old.progress != progress;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sleep timer badge — countdown pill shown when timer is active
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _SleepTimerBadge extends StatelessWidget {
+  final int remainingSeconds;
+  const _SleepTimerBadge({required this.remainingSeconds});
+
+  @override
+  Widget build(BuildContext context) {
+    final mins = remainingSeconds ~/ 60;
+    final secs = remainingSeconds % 60;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A0A2E),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppTheme.primary, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+              color: AppTheme.primary.withValues(alpha: 0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        const Icon(Icons.bedtime_rounded,
+            size: 12, color: AppTheme.primary),
+        const SizedBox(width: 5),
+        Text(
+          '$mins:${secs.toString().padLeft(2, '0')}',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            fontFeatures: [FontFeature.tabularFigures()],
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Auto-scroll indicator badge — tap to stop
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _AutoScrollBadge extends StatelessWidget {
+  final int wpm;
+  const _AutoScrollBadge({required this.wpm});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppTheme.primary,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+              color: AppTheme.primary.withValues(alpha: 0.4),
+              blurRadius: 8,
+              offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        const Icon(Icons.slow_motion_video_rounded,
+            size: 13, color: Colors.white),
+        const SizedBox(width: 5),
+        Text(
+          '$wpm WPM  ✕',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Streak nudge toast — animated card that slides in from top at 25 min
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _StreakNudgeToast extends StatelessWidget {
+  final bool visible;
+  const _StreakNudgeToast({required this.visible});
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      child: IgnorePointer(
+        child: AnimatedSlide(
+          offset: visible ? Offset.zero : const Offset(0, -1.5),
+          duration: const Duration(milliseconds: 420),
+          curve: Curves.easeOutBack,
+          child: AnimatedOpacity(
+            opacity: visible ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 300),
+            child: SafeArea(
+              child: Container(
+                margin:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF6B21A8), Color(0xFF7C3AED)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF6B21A8).withValues(alpha: 0.45),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: const Row(children: [
+                  Text('🔥', style: TextStyle(fontSize: 26)),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "You've been reading 25 min!",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 14,
+                            ),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Streak is safe today 🎉',
+                            style: TextStyle(
+                              color: Color(0xFFE9D5FF),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ]),
+                  ),
+                ]),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Go-to-page search bar — slides down from below the top bar
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _SearchBar extends StatelessWidget {
+  final TextEditingController controller;
+  final bool isDark;
+  final VoidCallback onGo;
+  final VoidCallback onClose;
+
+  const _SearchBar({
+    required this.controller,
+    required this.isDark,
+    required this.onGo,
+    required this.onClose,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final fg = isDark ? const Color(0xFFE8E8E8) : const Color(0xFF1F2937);
+    return SafeArea(
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(12, 72, 12, 0),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: const [
+            BoxShadow(
+                color: Color(0x22000000), blurRadius: 16, offset: Offset(0, 4))
+          ],
+        ),
+        child: Row(children: [
+          const Icon(Icons.menu_book_rounded,
+              size: 18, color: AppTheme.primary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              textInputAction: TextInputAction.go,
+              onSubmitted: (_) => onGo(),
+              autofocus: true,
+              style: TextStyle(fontSize: 14, color: fg), // dynamic — can't be const
+              decoration: const InputDecoration(
+                hintText: 'Go to page…',
+                hintStyle: TextStyle(
+                    color: Color(0xFF9CA3AF), fontSize: 14),
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: onGo,
+            style: TextButton.styleFrom(
+              foregroundColor: AppTheme.primary,
+              minimumSize: const Size(40, 36),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+            ),
+            child: const Text('Go',
+                style: TextStyle(fontWeight: FontWeight.w800)),
+          ),
+          GestureDetector(
+            onTap: onClose,
+            child: const Icon(Icons.close_rounded,
+                size: 18, color: Color(0xFF9CA3AF)),
+          ),
         ]),
       ),
     );
