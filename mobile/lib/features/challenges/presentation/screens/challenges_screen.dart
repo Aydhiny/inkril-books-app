@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../library/presentation/providers/library_provider.dart';
@@ -27,6 +28,24 @@ class ChallengesScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(children: [
+                        GestureDetector(
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            if (context.canPop()) context.pop();
+                          },
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: context.primarySurface,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: context.borderPurpleMid, width: 1.5),
+                            ),
+                            child: const Icon(Icons.chevron_left_rounded,
+                                size: 26, color: AppTheme.primary),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
                         const Text('🎯', style: TextStyle(fontSize: 32)),
                         const SizedBox(width: 12),
                         Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
