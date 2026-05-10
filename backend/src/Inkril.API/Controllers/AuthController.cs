@@ -34,4 +34,30 @@ public class AuthController(IMediator mediator) : ControllerBase
             ? Ok(result.Value)
             : Unauthorized(new { errors = result.Errors });
     }
+
+    /// <summary>
+    /// Sends a 6-digit OTP to the given email (if registered).
+    /// Always returns 200 to prevent email enumeration.
+    /// </summary>
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordCommand cmd, CancellationToken ct)
+    {
+        var result = await mediator.Send(cmd, ct);
+        // Always 200 — the message itself is deliberately vague.
+        return result.Succeeded
+            ? Ok(new { message = result.Value })
+            : BadRequest(new { errors = result.Errors });
+    }
+
+    /// <summary>
+    /// Validates the OTP and sets a new password.
+    /// </summary>
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordCommand cmd, CancellationToken ct)
+    {
+        var result = await mediator.Send(cmd, ct);
+        return result.Succeeded
+            ? Ok(new { message = result.Value })
+            : BadRequest(new { errors = result.Errors });
+    }
 }

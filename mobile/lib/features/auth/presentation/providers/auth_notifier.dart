@@ -45,6 +45,22 @@ class AuthNotifier extends StateNotifier<AsyncValue<void>> {
     }
   }
 
+  Future<void> forgotPassword(String email) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() => _repo.forgotPassword(email));
+  }
+
+  Future<void> resetPassword({
+    required String email,
+    required String otp,
+    required String newPassword,
+  }) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(
+      () => _repo.resetPassword(email: email, otp: otp, newPassword: newPassword),
+    );
+  }
+
   Future<void> logout() async {
     await _repo.logout();
     _ref.read(isAuthenticatedProvider.notifier).state = false;

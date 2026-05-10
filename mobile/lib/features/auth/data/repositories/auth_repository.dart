@@ -47,6 +47,22 @@ class AuthRepository {
     return auth;
   }
 
+  Future<void> forgotPassword(String email) async {
+    await _dio.post('/api/auth/forgot-password', data: {'email': email});
+  }
+
+  Future<void> resetPassword({
+    required String email,
+    required String otp,
+    required String newPassword,
+  }) async {
+    await _dio.post('/api/auth/reset-password', data: {
+      'email': email,
+      'otp': otp,
+      'newPassword': newPassword,
+    });
+  }
+
   Future<void> logout() async {
     await _storage.deleteAll();
   }
