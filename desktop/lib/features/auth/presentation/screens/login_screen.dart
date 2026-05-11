@@ -1,7 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/config/app_config.dart';
 import '../../../../core/providers/auth_provider.dart';
@@ -42,6 +41,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final storage = ref.read(secureStorageProvider);
       await storage.write(key: 'access_token', value: data['accessToken'] as String);
       await storage.write(key: 'user_id', value: data['userId'] as String);
+      await storage.write(key: 'username', value: _usernameCtrl.text.trim());
 
       if (mounted) context.go('/dashboard');
     } on DioException catch (e) {
