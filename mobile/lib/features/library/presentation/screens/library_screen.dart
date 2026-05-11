@@ -10,6 +10,7 @@ import '../../../../core/widgets/animated_empty_state.dart';
 import '../../../../core/widgets/shimmer_loading.dart';
 import '../providers/library_provider.dart';
 import '../providers/recommendations_provider.dart';
+import '../../../notifications/presentation/providers/notifications_provider.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
 
 class LibraryScreen extends ConsumerWidget {
@@ -149,21 +150,7 @@ class _StatsTopBar extends ConsumerWidget {
               color: const Color(0xFFEF4444),
             ),
           const SizedBox(width: 10),
-          GestureDetector(
-            onTap: () => context.push('/notifications'),
-            child: Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: const Color(0xFFFEF9C3),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFFDE68A), width: 1.5),
-              ),
-              child: const Center(
-                child: Text('🔔', style: TextStyle(fontSize: 20)),
-              ),
-            ),
-          ),
+          _NotificationBell(),
         ],
       ),
     );
@@ -1140,6 +1127,70 @@ class _TodaysQuoteSection extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Notification bell with unread badge
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _NotificationBell extends ConsumerWidget {
+  const _NotificationBell();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unread = ref.watch(unreadNotificationsCountProvider);
+    final hasUnread = unread > 0;
+
+    return GestureDetector(
+      onTap: () => context.push('/notifications'),
+      child: SizedBox(
+        width: 44,
+        height: 44,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF9C3),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFFDE68A), width: 1.5),
+              ),
+              child: const Center(
+                child: Text('🔔', style: TextStyle(fontSize: 20)),
+              ),
+            ),
+            if (hasUnread)
+              Positioned(
+                top: -4,
+                right: -4,
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: unread > 9 ? 5 : 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4444),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.white, width: 1.5),
+                  ),
+                  child: Text(
+                    unread > 99 ? '99+' : '$unread',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                      height: 1.1,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
