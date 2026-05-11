@@ -28,6 +28,10 @@ dependencies:
   # ── File picker (upload books) ─────────────────────────
   file_picker: ^8.0.3
 
+  # ── PDF generation & printing (§2.2 — minimum 2 PDF reports) ─
+  pdf: ^3.11.0
+  printing: ^5.13.1
+
   # ── Utilities ──────────────────────────────────────────
   intl: ^0.19.0
 

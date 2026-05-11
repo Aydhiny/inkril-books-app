@@ -66,6 +66,10 @@ public class BooksController(IMediator mediator, ICurrentUserService currentUser
         if (ext is not (".jpg" or ".jpeg" or ".png" or ".webp"))
             return BadRequest(new { errors = new[] { "Only JPG, PNG and WebP are accepted for cover images." } });
 
+        // Magic byte validation — checks the actual file content, not just the extension (§5)
+        if (!await IsValidImageAsync(file))
+            return BadRequest(new { errors = new[] { "File content does not match a recognised image format (JPEG/PNG/WebP)." } });
+
         var book = await uow.Books.GetByIdAsync(id, ct);
         if (book is null) return NotFound();
 
@@ -96,6 +100,10 @@ public class BooksController(IMediator mediator, ICurrentUserService currentUser
         var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
         if (ext != ".pdf")
             return BadRequest(new { errors = new[] { "Only PDF files are accepted." } });
+
+        // Magic byte validation — %PDF header (25 50 44 46) (§5)
+        if (!await IsValidPdfAsync(file))
+            return BadRequest(new { errors = new[] { "File content does not match PDF format." } });
 
         var book = await uow.Books.GetByIdAsync(id, ct);
         if (book is null) return NotFound();
@@ -134,5 +142,48 @@ public class BooksController(IMediator mediator, ICurrentUserService currentUser
             // failing the upload. The admin can re-upload if TotalPages is wrong.
             return 0;
         }
+    }
+
+    /// <summary>
+    /// Validates that the uploaded file begins with the PDF magic bytes (%PDF = 25 50 44 46).
+    /// Checking only the extension is insufficient — a renamed non-PDF would pass extension checks.
+    /// </summary>
+    private static async Task<bool> IsValidPdfAsync(IFormFile file)
+    {
+        var buffer = new byte[4];
+        await using var stream = file.OpenReadStream();
+        var read = await stream.ReadAsync(buffer.AsMemory(0, 4));
+        return read == 4
+            && buffer[0] == 0x25  // %
+            && buffer[1] == 0x50  // P
+            && buffer[2] == 0x44  // D
+            && buffer[3] == 0x46; // F
+    }
+
+    /// <summary>
+    /// Validates image magic bytes for JPEG (FF D8 FF), PNG (89 50 4E 47), and WebP (RIFF....WEBP).
+    /// </summary>
+    private static async Task<bool> IsValidImageAsync(IFormFile file)
+    {
+        var buffer = new byte[12];
+        await using var stream = file.OpenReadStream();
+        var read = await stream.ReadAsync(buffer.AsMemory(0, 12));
+        if (read < 4) return false;
+
+        // JPEG: FF D8 FF
+        if (buffer[0] == 0xFF && buffer[1] == 0xD8 && buffer[2] == 0xFF)
+            return true;
+
+        // PNG: 89 50 4E 47
+        if (buffer[0] == 0x89 && buffer[1] == 0x50 && buffer[2] == 0x4E && buffer[3] == 0x47)
+            return true;
+
+        // WebP: RIFF (52 49 46 46) at [0] and WEBP (57 45 42 50) at [8]
+        if (read >= 12
+            && buffer[0] == 0x52 && buffer[1] == 0x49 && buffer[2] == 0x46 && buffer[3] == 0x46
+            && buffer[8] == 0x57 && buffer[9] == 0x45 && buffer[10] == 0x42 && buffer[11] == 0x50)
+            return true;
+
+        return false;
     }
 }

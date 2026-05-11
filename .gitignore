@@ -47,6 +47,10 @@ lib/generated_plugin_registrant.dart
 *.g.dart
 *.freezed.dart
 
+# ── Local dev notes (not for repo) ───────────────────────
+COMPLETION_CHECKLIST.md
+CLAUDE.md
+
 # ── Environment & Secrets ──────────────────────────────────
 .env
 .env.*

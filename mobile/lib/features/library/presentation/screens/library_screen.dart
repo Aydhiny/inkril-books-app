@@ -1236,14 +1236,48 @@ class _RecommendationsSection extends ConsumerWidget {
           ]),
         ),
         SizedBox(
-          height: 300,
+          height: 330,
           child: ListView.separated(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             scrollDirection: Axis.horizontal,
             itemCount: books.length,
             separatorBuilder: (_, __) => const SizedBox(width: 12),
-            itemBuilder: (context, i) =>
-                _LibraryBookCard(book: books[i], showProgress: false),
+            itemBuilder: (context, i) {
+              final book = books[i];
+              final reason = book['reason'] as String?;
+              return SizedBox(
+                width: 165,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _LibraryBookCard(book: book, showProgress: false),
+                    if (reason != null) ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('✨', style: TextStyle(fontSize: 10)),
+                          const SizedBox(width: 3),
+                          Expanded(
+                            child: Text(
+                              reason,
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontStyle: FontStyle.italic,
+                                color: context.textSecondary,
+                                height: 1.3,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            },
           ),
         ),
         const SizedBox(height: 4),

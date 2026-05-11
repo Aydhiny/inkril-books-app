@@ -58,4 +58,11 @@ public class TokenService(
         }
         return null;
     }
+
+    public async Task RevokeRefreshTokenAsync(ApplicationUser user)
+    {
+        // Removing the stored token means any subsequent refresh attempt will fail —
+        // effectively invalidating the session server-side (§5 requirement).
+        await userManager.RemoveAuthenticationTokenAsync(user, "Inkril", "RefreshToken");
+    }
 }

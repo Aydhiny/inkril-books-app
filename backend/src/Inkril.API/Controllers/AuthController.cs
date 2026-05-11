@@ -1,5 +1,6 @@
 using Inkril.Application.Features.Auth.Commands;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Inkril.API.Controllers;
@@ -59,5 +60,17 @@ public class AuthController(IMediator mediator) : ControllerBase
         return result.Succeeded
             ? Ok(new { message = result.Value })
             : BadRequest(new { errors = result.Errors });
+    }
+
+    /// <summary>
+    /// Revokes the refresh token on the server so it cannot be used to issue new access tokens.
+    /// The client must also clear its local token storage (§5 — server-side logout required).
+    /// </summary>
+    [HttpPost("logout")]
+    [Authorize]
+    public async Task<IActionResult> Logout([FromBody] LogoutCommand cmd, CancellationToken ct)
+    {
+        var result = await mediator.Send(cmd, ct);
+        return result.Succeeded ? NoContent() : BadRequest(new { errors = result.Errors });
     }
 }

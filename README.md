@@ -161,10 +161,10 @@ flutter run -d windows --dart-define=API_BASE_URL=http://localhost:8080
 
 ## Test Credentials
 
-| Role | Username | Password |
-|------|---------|---------|
-| Admin (Desktop) | `desktop` | `test` |
-| User (Mobile) | `mobile` | `test` |
+| Kontekst | Korisničko ime | Lozinka |
+|----------|---------------|---------|
+| Desktop verzija | `desktop` | `test` |
+| Mobilna verzija | `mobile` | `test` |
 
 ---
 

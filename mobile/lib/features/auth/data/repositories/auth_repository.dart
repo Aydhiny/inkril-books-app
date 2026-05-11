@@ -64,6 +64,18 @@ class AuthRepository {
   }
 
   Future<void> logout() async {
+    // Revoke the refresh token on the server before clearing local storage.
+    // This is the §5 requirement: logout must invalidate the token server-side,
+    // not just delete it locally. We swallow errors so a network failure never
+    // gets the user stuck on the logged-in screen.
+    try {
+      final refreshToken = await _storage.read(key: 'refresh_token');
+      if (refreshToken != null) {
+        await _dio.post('/api/auth/logout', data: {'refreshToken': refreshToken});
+      }
+    } catch (_) {
+      // Silent — local clear-out proceeds regardless
+    }
     await _storage.deleteAll();
   }
 
