@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/books_provider.dart';
@@ -341,9 +342,80 @@ class _BookFormDialogState extends ConsumerState<_BookFormDialog> {
   final _isbnCtrl = TextEditingController();
   bool _isPublic = true;
   bool _loading = false;
+  bool _isbnLooking = false;
+  String? _isbnError;
   List<String> _selectedGenreIds = [];
 
   bool get _isEditing => widget.book != null;
+
+  /// Calls the free Open Library Books API to auto-fill title, author, and
+  /// description from a 10- or 13-digit ISBN.
+  ///
+  /// Endpoint: https://openlibrary.org/api/books?bibkeys=ISBN:{isbn}&format=json&jscmd=data
+  /// No API key, no rate limits at human speed.
+  Future<void> _lookupIsbn(String isbn) async {
+    final cleaned = isbn.replaceAll(RegExp(r'[\s\-]'), '');
+    if (cleaned.length != 10 && cleaned.length != 13) return;
+    // Don't overwrite fields that the user already filled in edit mode
+    if (_isEditing && _titleCtrl.text.isNotEmpty) return;
+
+    setState(() {
+      _isbnLooking = true;
+      _isbnError = null;
+    });
+
+    try {
+      final dio = Dio(BaseOptions(
+        connectTimeout: const Duration(seconds: 6),
+        receiveTimeout: const Duration(seconds: 8),
+        validateStatus: (s) => s != null && s < 500,
+      ));
+      final response = await dio.get(
+        'https://openlibrary.org/api/books',
+        queryParameters: {
+          'bibkeys': 'ISBN:$cleaned',
+          'format': 'json',
+          'jscmd': 'data',
+        },
+      );
+
+      final data = response.data as Map<String, dynamic>?;
+      final book = data?['ISBN:$cleaned'] as Map<String, dynamic>?;
+
+      if (book == null) {
+        setState(() => _isbnError = 'No book found for this ISBN.');
+        return;
+      }
+
+      final title = book['title'] as String? ?? '';
+      final authors = (book['authors'] as List?)
+              ?.map((a) => (a as Map)['name'] as String? ?? '')
+              .where((s) => s.isNotEmpty)
+              .join(', ') ??
+          '';
+      final desc = (book['excerpts'] as List?)
+              ?.map((e) => (e as Map)['text'] as String? ?? '')
+              .where((s) => s.isNotEmpty)
+              .firstOrNull ??
+          '';
+
+      setState(() {
+        if (title.isNotEmpty && _titleCtrl.text.isEmpty) {
+          _titleCtrl.text = title;
+        }
+        if (authors.isNotEmpty && _authorCtrl.text.isEmpty) {
+          _authorCtrl.text = authors;
+        }
+        if (desc.isNotEmpty && _descCtrl.text.isEmpty) {
+          _descCtrl.text = desc;
+        }
+      });
+    } catch (_) {
+      setState(() => _isbnError = 'Could not reach Open Library. Check connection.');
+    } finally {
+      if (mounted) setState(() => _isbnLooking = false);
+    }
+  }
 
   @override
   void initState() {
@@ -440,7 +512,26 @@ class _BookFormDialogState extends ConsumerState<_BookFormDialog> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _isbnCtrl,
-                decoration: const InputDecoration(labelText: 'ISBN'),
+                decoration: InputDecoration(
+                  labelText: 'ISBN',
+                  helperText: 'Enter ISBN-10 or ISBN-13 to auto-fill details',
+                  errorText: _isbnError,
+                  suffixIcon: _isbnLooking
+                      ? const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      : IconButton(
+                          icon: const Icon(Icons.search),
+                          tooltip: 'Look up on Open Library',
+                          onPressed: () => _lookupIsbn(_isbnCtrl.text),
+                        ),
+                ),
+                onEditingComplete: () => _lookupIsbn(_isbnCtrl.text),
               ),
               const SizedBox(height: 12),
               SwitchListTile(

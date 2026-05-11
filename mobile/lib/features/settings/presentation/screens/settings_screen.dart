@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../../core/providers/theme_provider.dart';
+import '../../../../core/providers/user_settings_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 
@@ -83,6 +84,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await _storage.write(
           key: 'reminder_time',
           value: '${_reminderTime.hour}:${_reminderTime.minute}');
+      // Keep the shared provider in sync so the library goal ring updates
+      // immediately without requiring a full app restart.
+      ref.invalidate(userSettingsProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
