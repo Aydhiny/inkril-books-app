@@ -380,7 +380,6 @@ class _BookFormDialogState extends ConsumerState<_BookFormDialog> {
           isbn: _isbnCtrl.text.trim().isEmpty ? null : _isbnCtrl.text.trim(),
           isPublic: _isPublic,
           genreIds: _selectedGenreIds,
-          ref: ref,
         );
       } else {
         await createBook(
@@ -392,7 +391,6 @@ class _BookFormDialogState extends ConsumerState<_BookFormDialog> {
           isbn: _isbnCtrl.text.trim().isEmpty ? null : _isbnCtrl.text.trim(),
           isPublic: _isPublic,
           genreIds: _selectedGenreIds,
-          ref: ref,
         );
       }
       widget.onSaved();

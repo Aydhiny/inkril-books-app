@@ -50,7 +50,6 @@ Future<void> createBook({
   required String? isbn,
   required bool isPublic,
   required List<String> genreIds,
-  required Ref ref,
 }) async {
   const storage = FlutterSecureStorage();
   final token = await storage.read(key: 'access_token');
@@ -76,7 +75,6 @@ Future<void> updateBook({
   required String? isbn,
   required bool isPublic,
   required List<String> genreIds,
-  required Ref ref,
 }) async {
   const storage = FlutterSecureStorage();
   final token = await storage.read(key: 'access_token');

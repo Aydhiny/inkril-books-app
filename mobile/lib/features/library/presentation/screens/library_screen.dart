@@ -3,11 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/api/api_client.dart';
+import '../../../../core/providers/user_settings_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/animated_empty_state.dart';
 import '../../../../core/widgets/shimmer_loading.dart';
 import '../providers/library_provider.dart';
+import '../providers/recommendations_provider.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
 
 class LibraryScreen extends ConsumerWidget {
@@ -65,6 +67,9 @@ class LibraryScreen extends ConsumerWidget {
                 child: _CurrentlyReadingSection(userLibraryAsync: userLibraryAsync),
               ),
               SliverToBoxAdapter(
+                child: _RecommendationsSection(),
+              ),
+              SliverToBoxAdapter(
                 child: _SectionTitle(title: 'My book library'),
               ),
               SliverToBoxAdapter(
@@ -90,21 +95,24 @@ class LibraryScreen extends ConsumerWidget {
 // Stats top bar
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _StatsTopBar extends StatelessWidget {
+class _StatsTopBar extends ConsumerWidget {
   final AsyncValue profileAsync;
   const _StatsTopBar({required this.profileAsync});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final profile = profileAsync.valueOrNull as Map<String, dynamic>?;
     final streak = (profile?['currentStreak'] as num?)?.toInt() ?? 0;
     final weeklyStats = profile?['weeklyStats'] as List? ?? [];
     final todayMinutes = weeklyStats.isNotEmpty
         ? ((weeklyStats.last as Map)['minutesRead'] as num?)?.toInt() ?? 0
         : 0;
-    final timeDisplay =
-        todayMinutes >= 60 ? '${(todayMinutes / 60).round()}h' : '${todayMinutes}m';
     final initials = _initials(profile);
+
+    // Settings for daily goal ring — default to plain time badge on error/loading.
+    final settingsAsync = ref.watch(userSettingsProvider);
+    final goalMinutes =
+        (settingsAsync.valueOrNull?['dailyReadingGoalMinutes'] as num?)?.toInt() ?? 0;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
@@ -128,7 +136,18 @@ class _StatsTopBar extends StatelessWidget {
           const Spacer(),
           _TopBadge(emoji: '🔥', value: '$streak', color: AppTheme.streakOrange),
           const SizedBox(width: 10),
-          _TopBadge(emoji: '⏱', value: timeDisplay, color: const Color(0xFFEF4444)),
+          // Show a goal progress ring when a daily goal is configured,
+          // otherwise fall back to the plain time badge.
+          if (goalMinutes > 0)
+            _DailyGoalRing(todayMinutes: todayMinutes, goalMinutes: goalMinutes)
+          else
+            _TopBadge(
+              emoji: '⏱',
+              value: todayMinutes >= 60
+                  ? '${(todayMinutes / 60).round()}h'
+                  : '${todayMinutes}m',
+              color: const Color(0xFFEF4444),
+            ),
           const SizedBox(width: 10),
           GestureDetector(
             onTap: () => context.push('/notifications'),
@@ -159,6 +178,64 @@ class _StatsTopBar extends StatelessWidget {
     }
     final user = profile['userName'] as String? ?? '';
     return user.isNotEmpty ? user[0].toUpperCase() : '?';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Daily goal progress ring
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _DailyGoalRing extends StatelessWidget {
+  final int todayMinutes;
+  final int goalMinutes;
+  const _DailyGoalRing({required this.todayMinutes, required this.goalMinutes});
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = (todayMinutes / goalMinutes).clamp(0.0, 1.0);
+    final isComplete = progress >= 1.0;
+    final activeColor = isComplete ? AppTheme.progressGreen : AppTheme.primary;
+    final displayText = todayMinutes >= 60
+        ? '${(todayMinutes / 60).round()}h'
+        : '${todayMinutes}m';
+
+    return Container(
+      width: 52,
+      height: 44,
+      decoration: BoxDecoration(
+        color: activeColor.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: activeColor.withValues(alpha: 0.25),
+          width: 1.5,
+        ),
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          SizedBox(
+            width: 30,
+            height: 30,
+            child: CircularProgressIndicator(
+              value: progress,
+              strokeWidth: 3,
+              backgroundColor: context.borderPurple,
+              color: activeColor,
+              strokeCap: StrokeCap.round,
+            ),
+          ),
+          Text(
+            displayText,
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w900,
+              color: activeColor,
+              height: 1,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -1064,6 +1141,62 @@ class _TodaysQuoteSection extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Recommendations section
+// Surfaces the hybrid recommendation engine results from /api/recommendations.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _RecommendationsSection extends ConsumerWidget {
+  const _RecommendationsSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final recAsync = ref.watch(recommendationsProvider);
+
+    // Don't render the section at all while loading or on error —
+    // the library content below is more important than a failed suggestions row.
+    if (recAsync.isLoading) return const SizedBox.shrink();
+    if (recAsync.hasError) return const SizedBox.shrink();
+
+    final books = recAsync.valueOrNull ?? [];
+    if (books.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
+          child: Row(children: [
+            const Text('✨', style: TextStyle(fontSize: 20)),
+            const SizedBox(width: 8),
+            Text(
+              'Recommended for You',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                color: context.textPrimary,
+                letterSpacing: -0.3,
+              ),
+            ),
+          ]),
+        ),
+        SizedBox(
+          height: 300,
+          child: ListView.separated(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            scrollDirection: Axis.horizontal,
+            itemCount: books.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (context, i) =>
+                _LibraryBookCard(book: books[i], showProgress: false),
+          ),
+        ),
+        const SizedBox(height: 4),
+      ],
     );
   }
 }

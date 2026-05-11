@@ -17,6 +17,7 @@ class BookDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final bookAsync = ref.watch(bookDetailProvider(bookId));
     final reviewsAsync = ref.watch(bookReviewsProvider(bookId));
+    final bookmarksAsync = ref.watch(bookBookmarksProvider(bookId));
 
     return Scaffold(
       backgroundColor: context.scaffoldBg,
@@ -63,6 +64,7 @@ class BookDetailScreen extends ConsumerWidget {
                   book: book,
                   bookId: bookId,
                   reviewsAsync: reviewsAsync,
+                  bookmarksAsync: bookmarksAsync,
                   ref: ref,
                 ),
               ),
@@ -78,12 +80,14 @@ class _BookBody extends StatelessWidget {
   final Map<String, dynamic> book;
   final String bookId;
   final AsyncValue reviewsAsync;
+  final AsyncValue bookmarksAsync;
   final WidgetRef ref;
 
   const _BookBody({
     required this.book,
     required this.bookId,
     required this.reviewsAsync,
+    required this.bookmarksAsync,
     required this.ref,
   });
 
@@ -360,6 +364,13 @@ class _BookBody extends StatelessWidget {
             ),
             const SizedBox(height: 20),
           ],
+
+          // ── Bookmarks ─────────────────────────────────────────────
+          _BookmarksSection(
+            bookId: bookId,
+            bookmarksAsync: bookmarksAsync,
+            ref: ref,
+          ),
 
           // ── Reviews header ────────────────────────────────────────
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
@@ -707,6 +718,254 @@ class _ReviewSheetState extends State<_ReviewSheet> {
             ),
           ]),
         ]),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Bookmarks section — shows the user's bookmarks for this book inline on
+// the detail page, matching spec section 5.2 mockup. Tapping navigates
+// to the reader at the bookmarked page.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _BookmarksSection extends StatelessWidget {
+  final String bookId;
+  final AsyncValue bookmarksAsync;
+  final WidgetRef ref;
+
+  const _BookmarksSection({
+    required this.bookId,
+    required this.bookmarksAsync,
+    required this.ref,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bookmarks = bookmarksAsync.valueOrNull as List?;
+
+    // Don't show the section header if data hasn't resolved yet
+    if (bookmarksAsync.isLoading) return const SizedBox.shrink();
+    if (bookmarksAsync.hasError) return const SizedBox.shrink();
+    if (bookmarks == null) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(children: [
+              Text(
+                'Your Bookmarks',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                  color: context.textPrimary,
+                  letterSpacing: -0.2,
+                ),
+              ),
+              if (bookmarks.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '${bookmarks.length}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ]),
+          ],
+        ),
+        const SizedBox(height: 10),
+        if (bookmarks.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: context.subtleBg,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: context.borderPurpleMid, width: 1.5),
+            ),
+            child: Row(children: [
+              Text('🔖', style: const TextStyle(fontSize: 24)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Open the reader to bookmark pages and highlight passages.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: context.textSecondary,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            ]),
+          )
+        else
+          Column(
+            children: [
+              for (final bm in bookmarks)
+                _BookmarkTile(
+                  bookmark: bm as Map,
+                  onTap: () => GoRouter.of(context)
+                      .push('/reader/$bookId?page=${bm['pageNumber']}'),
+                  onDelete: () => _deleteBookmark(context, bm['id'] as String),
+                ),
+            ],
+          ),
+        const SizedBox(height: 20),
+      ],
+    );
+  }
+
+  Future<void> _deleteBookmark(BuildContext context, String bookmarkId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete bookmark'),
+        content: const Text('Remove this bookmark?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    try {
+      final dio = ref.read(dioProvider);
+      await dio.delete('/api/bookmarks/$bookmarkId');
+      ref.invalidate(bookBookmarksProvider(bookId));
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
+  }
+}
+
+class _BookmarkTile extends StatelessWidget {
+  final Map bookmark;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
+  const _BookmarkTile({
+    required this.bookmark,
+    required this.onTap,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final page = bookmark['pageNumber'] as int? ?? 0;
+    final highlight = bookmark['highlightedText'] as String?;
+    final note = bookmark['note'] as String?;
+    final color = bookmark['color'] as String?;
+
+    // Map server color name to a Flutter color
+    final accentColor = switch (color) {
+      'yellow' => const Color(0xFFFBBF24),
+      'green'  => const Color(0xFF34D399),
+      'blue'   => const Color(0xFF60A5FA),
+      'pink'   => const Color(0xFFF472B6),
+      _        => AppTheme.primary,
+    };
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: context.cardBg,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: context.borderPurpleMid, width: 2),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Page badge
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: accentColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                    color: accentColor.withValues(alpha: 0.3), width: 1.5),
+              ),
+              child: Text(
+                'p.$page',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: accentColor,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (highlight != null && highlight.isNotEmpty)
+                    Text(
+                      '"$highlight"',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: context.textBody,
+                        fontStyle: FontStyle.italic,
+                        height: 1.4,
+                      ),
+                    ),
+                  if (note != null && note.isNotEmpty) ...[
+                    if (highlight != null && highlight.isNotEmpty)
+                      const SizedBox(height: 4),
+                    Text(
+                      note,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: context.textSecondary,
+                      ),
+                    ),
+                  ],
+                  if ((highlight == null || highlight.isEmpty) &&
+                      (note == null || note.isEmpty))
+                    Text(
+                      'Bookmark',
+                      style: TextStyle(
+                          fontSize: 13, color: context.textSecondary),
+                    ),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: Icon(Icons.delete_outline_rounded,
+                  size: 18, color: context.textHint),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              onPressed: onDelete,
+            ),
+          ],
+        ),
       ),
     );
   }

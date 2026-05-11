@@ -6,15 +6,6 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../library/presentation/providers/library_provider.dart';
 
-// ── Providers ──────────────────────────────────────────────────────────────
-
-final bookBookmarksProvider =
-    FutureProvider.family<List<dynamic>, String>((ref, bookId) async {
-  final dio = ref.read(dioProvider);
-  final res = await dio.get('/api/bookmarks', queryParameters: {'bookId': bookId});
-  return res.data as List<dynamic>;
-});
-
 // ── Screen ─────────────────────────────────────────────────────────────────
 
 class ReadingHubScreen extends ConsumerWidget {

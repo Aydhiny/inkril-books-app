@@ -152,12 +152,14 @@ public class NotificationConsumer(
         using var scope = services.CreateScope();
         var dbService = scope.ServiceProvider.GetRequiredService<Services.INotificationDbService>();
 
+        var friendRequestId = Guid.Parse(payload["FriendRequestId"]!.ToString());
+
         await dbService.CreateNotificationAsync(
             userId: receiverId,
             type: "FriendRequest",
             title: "New friend request",
-            message: "You have a new friend request.",
-            referenceId: senderId);
+            message: "Someone wants to be your reading buddy.",
+            referenceId: friendRequestId);
     }
 
     private async Task HandleReadingMilestoneAsync(JObject payload)

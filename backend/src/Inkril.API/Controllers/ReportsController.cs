@@ -12,6 +12,6 @@ public class ReportsController(IMediator mediator) : ControllerBase
 {
     /// <summary>Dashboard stats for the admin desktop app.</summary>
     [HttpGet("dashboard")]
-    public async Task<IActionResult> Dashboard(CancellationToken ct)
-        => Ok(await mediator.Send(new GetDashboardStatsQuery(), ct));
+    public async Task<IActionResult> Dashboard([FromQuery] int days = 14, CancellationToken ct = default)
+        => Ok(await mediator.Send(new GetDashboardStatsQuery(days), ct));
 }
