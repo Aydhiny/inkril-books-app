@@ -729,7 +729,7 @@ class _ReviewSheetState extends State<_ReviewSheet> {
 // to the reader at the bookmarked page.
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _BookmarksSection extends StatelessWidget {
+class _BookmarksSection extends StatefulWidget {
   final String bookId;
   final AsyncValue bookmarksAsync;
   final WidgetRef ref;
@@ -741,13 +741,50 @@ class _BookmarksSection extends StatelessWidget {
   });
 
   @override
+  State<_BookmarksSection> createState() => _BookmarksSectionState();
+}
+
+class _BookmarksSectionState extends State<_BookmarksSection> {
+  bool _emailSending = false;
+
+  Future<void> _emailHighlights() async {
+    setState(() => _emailSending = true);
+    try {
+      final dio = widget.ref.read(dioProvider);
+      await dio.post('/api/bookmarks/export', data: {'bookId': widget.bookId});
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('Highlights emailed to you! 📧'),
+          backgroundColor: AppTheme.progressGreen,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Failed to send email. Try again.'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _emailSending = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final bookmarks = bookmarksAsync.valueOrNull as List?;
+    final bookmarks = widget.bookmarksAsync.valueOrNull as List?;
 
     // Don't show the section header if data hasn't resolved yet
-    if (bookmarksAsync.isLoading) return const SizedBox.shrink();
-    if (bookmarksAsync.hasError) return const SizedBox.shrink();
+    if (widget.bookmarksAsync.isLoading) return const SizedBox.shrink();
+    if (widget.bookmarksAsync.hasError) return const SizedBox.shrink();
     if (bookmarks == null) return const SizedBox.shrink();
+
+    final hasHighlights = bookmarks
+        .whereType<Map>()
+        .any((bm) => (bm['highlightedText'] as String? ?? '').isNotEmpty);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -784,6 +821,33 @@ class _BookmarksSection extends StatelessWidget {
                 ),
               ],
             ]),
+            if (hasHighlights)
+              _emailSending
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: AppTheme.primary),
+                    )
+                  : TextButton.icon(
+                      onPressed: _emailHighlights,
+                      icon: const Icon(Icons.mail_outline_rounded,
+                          size: 16, color: AppTheme.primary),
+                      label: const Text(
+                        'Email Highlights',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.primary,
+                        ),
+                      ),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
           ],
         ),
         const SizedBox(height: 10),
@@ -818,7 +882,7 @@ class _BookmarksSection extends StatelessWidget {
                 _BookmarkTile(
                   bookmark: bm as Map,
                   onTap: () => GoRouter.of(context)
-                      .push('/reader/$bookId?page=${bm['pageNumber']}'),
+                      .push('/reader/${widget.bookId}?page=${bm['pageNumber']}'),
                   onDelete: () => _deleteBookmark(context, bm['id'] as String),
                 ),
             ],
@@ -848,9 +912,9 @@ class _BookmarksSection extends StatelessWidget {
     );
     if (confirm != true) return;
     try {
-      final dio = ref.read(dioProvider);
+      final dio = widget.ref.read(dioProvider);
       await dio.delete('/api/bookmarks/$bookmarkId');
-      ref.invalidate(bookBookmarksProvider(bookId));
+      widget.ref.invalidate(bookBookmarksProvider(widget.bookId));
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context)
