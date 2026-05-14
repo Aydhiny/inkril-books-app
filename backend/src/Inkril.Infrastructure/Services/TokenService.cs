@@ -4,7 +4,9 @@ using System.Security.Cryptography;
 using System.Text;
 using Inkril.Application.Features.Auth.Commands;
 using Inkril.Domain.Entities;
+using Inkril.Infrastructure.Data;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 
@@ -12,7 +14,8 @@ namespace Inkril.Infrastructure.Services;
 
 public class TokenService(
     IConfiguration config,
-    UserManager<ApplicationUser> userManager) : ITokenService
+    UserManager<ApplicationUser> userManager,
+    InkrilDbContext db) : ITokenService
 {
     public async Task<(string AccessToken, string RefreshToken)> GenerateTokensAsync(ApplicationUser user)
     {
@@ -48,15 +51,19 @@ public class TokenService(
 
     public async Task<ApplicationUser?> ValidateRefreshTokenAsync(string refreshToken)
     {
-        // Find user by stored refresh token
-        var users = userManager.Users.ToList();
-        foreach (var user in users)
-        {
-            var stored = await userManager.GetAuthenticationTokenAsync(user, "Inkril", "RefreshToken");
-            if (stored == refreshToken)
-                return user;
-        }
-        return null;
+        // Query AspNetUserTokens directly — one indexed lookup instead of loading
+        // all users into memory and iterating (previous approach was an O(n) full
+        // table scan that would block the thread pool under load).
+        var tokenRow = await db.UserTokens
+            .Where(t => t.LoginProvider == "Inkril"
+                     && t.Name == "RefreshToken"
+                     && t.Value == refreshToken)
+            .Select(t => t.UserId)
+            .FirstOrDefaultAsync();
+
+        if (tokenRow == default) return null;
+
+        return await userManager.FindByIdAsync(tokenRow.ToString());
     }
 
     public async Task RevokeRefreshTokenAsync(ApplicationUser user)

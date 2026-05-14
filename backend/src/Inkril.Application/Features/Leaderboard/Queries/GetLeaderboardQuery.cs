@@ -17,6 +17,10 @@ public record LeaderboardResult(
 public class GetLeaderboardQueryHandler(IUnitOfWork uow)
     : IRequestHandler<GetLeaderboardQuery, LeaderboardResult>
 {
+    // Cap client-supplied Top so a single request cannot force the server to
+    // serialize an arbitrarily large list. 100 entries is more than any UI needs.
+    private const int MaxTop = 100;
+
     public async Task<LeaderboardResult> Handle(GetLeaderboardQuery q, CancellationToken ct)
     {
         // Global leaderboard — show all users so it's populated even for new accounts.
@@ -41,7 +45,7 @@ public class GetLeaderboardQueryHandler(IUnitOfWork uow)
             s.TotalMinutes, s.CurrentStreak, s.BooksCompleted)).ToList();
 
         var currentUserEntry = entries.FirstOrDefault(e => e.UserId == q.RequestingUserId);
-        var top = entries.Take(q.Top).ToList();
+        var top = entries.Take(Math.Min(q.Top, MaxTop)).ToList();
 
         return new LeaderboardResult(top, currentUserEntry);
     }

@@ -105,14 +105,20 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 // ── Static files: serve uploaded PDFs and covers ──────────────────────────
+// BookFilesAuthorizationMiddleware must run after UseAuthentication (so the JWT
+// is already resolved into HttpContext.User) and before UseStaticFiles (so the
+// file is never served to unauthenticated requests).  Covers are public; only
+// the /uploads/books/ subtree is protected.
 var uploadsPath = Path.Combine(app.Environment.ContentRootPath, "uploads");
 Directory.CreateDirectory(uploadsPath);
 PlaceholderPdfGenerator.Generate(uploadsPath);   // idempotent: skips existing files
+app.UseMiddleware<BookFilesAuthorizationMiddleware>();
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uploadsPath),
     RequestPath = "/uploads",
-    ServeUnknownFileTypes = true,  // allow .pdf
+    // ServeUnknownFileTypes removed — only .pdf and image types are uploaded,
+    // all of which are recognised MIME types in ASP.NET's default provider.
 });
 
 app.MapControllers();

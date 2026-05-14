@@ -27,11 +27,16 @@ public class LoginCommandHandler(
         var user = await userManager.FindByEmailAsync(cmd.UserNameOrEmail)
                    ?? await userManager.FindByNameAsync(cmd.UserNameOrEmail);
 
+        // All failure paths return the same message. Differentiated messages
+        // ("account inactive" vs "wrong password") are a user-enumeration oracle —
+        // an attacker learns whether an account exists without valid credentials.
+        const string InvalidMsg = "Invalid credentials.";
+
         if (user is null || user.IsDeleted || user.IsBlocked)
-            return Result<AuthResponse>.Failure("Invalid credentials or account is inactive.");
+            return Result<AuthResponse>.Failure(InvalidMsg);
 
         if (!await userManager.CheckPasswordAsync(user, cmd.Password))
-            return Result<AuthResponse>.Failure("Invalid credentials.");
+            return Result<AuthResponse>.Failure(InvalidMsg);
 
         var (access, refresh) = await tokenService.GenerateTokensAsync(user);
         return Result<AuthResponse>.Success(new AuthResponse(access, refresh, user.Id, user.UserName!, user.Email!));
