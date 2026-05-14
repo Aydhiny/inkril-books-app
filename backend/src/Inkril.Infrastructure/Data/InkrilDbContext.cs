@@ -91,6 +91,29 @@ public class InkrilDbContext(DbContextOptions<InkrilDbContext> options)
         builder.Entity<Notification>().HasQueryFilter(n => !n.IsDeleted);
         builder.Entity<DailyReadingStat>().HasQueryFilter(d => !d.IsDeleted);
 
+        // ── Additional indexes on hot query paths ─────────────────────
+        // These fill gaps that EF does not create automatically via FK conventions.
+
+        // Notification bell badge: WHERE UserId = ? AND IsRead = false AND !IsDeleted
+        builder.Entity<Notification>()
+            .HasIndex(n => new { n.UserId, n.IsRead });
+
+        // GetBookReviews + rating recalc: WHERE BookId = ? AND !IsDeleted
+        builder.Entity<Review>()
+            .HasIndex(r => r.BookId);
+
+        // Dashboard stats / reading hub: WHERE UserId = ? AND StartedAt range AND !IsDeleted
+        builder.Entity<ReadingSession>()
+            .HasIndex(rs => new { rs.UserId, rs.StartedAt });
+
+        // Bookmark panel: WHERE UserId = ? AND BookId = ? AND !IsDeleted
+        builder.Entity<Bookmark>()
+            .HasIndex(bm => new { bm.UserId, bm.BookId });
+
+        // User library list: WHERE UserId = ? AND !IsDeleted (FK index not guaranteed by EF)
+        builder.Entity<UserBook>()
+            .HasIndex(ub => ub.UserId);
+
         // ── Required fields NOT NULL ───────────────────────────────────
         builder.Entity<Book>().Property(b => b.Title).IsRequired().HasMaxLength(300);
         builder.Entity<Book>().Property(b => b.Author).IsRequired().HasMaxLength(200);
