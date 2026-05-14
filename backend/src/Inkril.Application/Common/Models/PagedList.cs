@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+
 namespace Inkril.Application.Common.Models;
 
 public class PagedList<T>
@@ -18,11 +20,16 @@ public class PagedList<T>
         PageSize = pageSize;
     }
 
+    /// <summary>
+    /// Async factory — Count and data fetch both go to the DB in separate async calls.
+    /// The previous synchronous .Count()/.ToList() would block a thread-pool thread
+    /// despite the method being declared async.
+    /// </summary>
     public static async Task<PagedList<T>> CreateAsync(
         IQueryable<T> source, int pageNumber, int pageSize, CancellationToken ct = default)
     {
-        var count = source.Count();
-        var items = source.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToList();
+        var count = await source.CountAsync(ct);
+        var items = await source.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToListAsync(ct);
         return new PagedList<T>(items, count, pageNumber, pageSize);
     }
 }

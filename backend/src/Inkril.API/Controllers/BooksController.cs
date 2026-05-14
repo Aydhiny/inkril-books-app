@@ -15,7 +15,6 @@ namespace Inkril.API.Controllers;
 public class BooksController(IMediator mediator, ICurrentUserService currentUser, IUnitOfWork uow, IWebHostEnvironment env) : ControllerBase
 {
     [HttpGet]
-    [AllowAnonymous]
     public async Task<IActionResult> GetAll([FromQuery] GetBooksQuery query, CancellationToken ct)
         => Ok(await mediator.Send(query, ct));
 

@@ -21,8 +21,11 @@ public record GetUserLibraryQuery(Guid UserId, int PageNumber = 1, int PageSize 
 public class GetUserLibraryQueryHandler(IUnitOfWork uow)
     : IRequestHandler<GetUserLibraryQuery, PagedList<UserLibraryBookDto>>
 {
+    private const int MaxPageSize = 100;
+
     public async Task<PagedList<UserLibraryBookDto>> Handle(GetUserLibraryQuery q, CancellationToken ct)
     {
+        var pageSize = Math.Min(q.PageSize, MaxPageSize);
         var query = uow.UserBooks.Query()
             .Include(ub => ub.Book)
             .Where(ub => ub.UserId == q.UserId && !ub.Book.IsDeleted)
@@ -37,6 +40,6 @@ public class GetUserLibraryQueryHandler(IUnitOfWork uow)
                 ub.LastReadAt,
                 ub.IsCompleted));
 
-        return await PagedList<UserLibraryBookDto>.CreateAsync(query, q.PageNumber, q.PageSize, ct);
+        return await PagedList<UserLibraryBookDto>.CreateAsync(query, q.PageNumber, pageSize, ct);
     }
 }

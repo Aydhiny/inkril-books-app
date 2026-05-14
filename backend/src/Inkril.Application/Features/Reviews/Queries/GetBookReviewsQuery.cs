@@ -20,8 +20,11 @@ public record GetBookReviewsQuery(Guid BookId, int PageNumber = 1, int PageSize 
 public class GetBookReviewsQueryHandler(IUnitOfWork uow)
     : IRequestHandler<GetBookReviewsQuery, PagedList<ReviewDto>>
 {
+    private const int MaxPageSize = 50;
+
     public async Task<PagedList<ReviewDto>> Handle(GetBookReviewsQuery q, CancellationToken ct)
     {
+        var pageSize = Math.Min(q.PageSize, MaxPageSize);
         var query = uow.Reviews.Query()
             .Include(r => r.User)
             .Where(r => r.BookId == q.BookId)
@@ -30,6 +33,6 @@ public class GetBookReviewsQueryHandler(IUnitOfWork uow)
                 r.Id, r.UserId, r.User.UserName!, r.Rating,
                 r.Comment, r.CreatedAt, r.IsEdited));
 
-        return await PagedList<ReviewDto>.CreateAsync(query, q.PageNumber, q.PageSize, ct);
+        return await PagedList<ReviewDto>.CreateAsync(query, q.PageNumber, pageSize, ct);
     }
 }

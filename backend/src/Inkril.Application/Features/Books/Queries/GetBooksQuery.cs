@@ -22,8 +22,11 @@ public record GetBooksQuery(
 
 public class GetBooksQueryHandler(IUnitOfWork uow) : IRequestHandler<GetBooksQuery, PagedList<BookDto>>
 {
+    private const int MaxPageSize = 100;
+
     public async Task<PagedList<BookDto>> Handle(GetBooksQuery q, CancellationToken ct)
     {
+        var pageSize = Math.Min(q.PageSize, MaxPageSize);
         var query = uow.Books.Query()
             .Include(b => b.BookGenres).ThenInclude(bg => bg.Genre)
             .Where(b => !b.IsDeleted && b.IsActive && b.IsPublic);
@@ -46,6 +49,6 @@ public class GetBooksQueryHandler(IUnitOfWork uow) : IRequestHandler<GetBooksQue
             b.AverageRating, b.RatingCount,
             b.BookGenres.Select(bg => bg.Genre.Name)));
 
-        return await PagedList<BookDto>.CreateAsync(projected, q.PageNumber, q.PageSize, ct);
+        return await PagedList<BookDto>.CreateAsync(projected, q.PageNumber, pageSize, ct);
     }
 }

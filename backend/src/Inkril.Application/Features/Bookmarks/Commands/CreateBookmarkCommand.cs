@@ -35,6 +35,12 @@ public class CreateBookmarkCommandHandler(IUnitOfWork uow)
         var book = await uow.Books.GetByIdAsync(cmd.BookId, ct);
         if (book is null) return Result<Guid>.Failure("Book not found.");
 
+        // Ownership check — only users who own the book may create bookmarks for it.
+        var ownsBook = await uow.UserBooks.AnyAsync(
+            ub => ub.UserId == cmd.UserId && ub.BookId == cmd.BookId, ct);
+        if (!ownsBook)
+            return Result<Guid>.Failure("You can only bookmark books that are in your library.");
+
         var bookmark = new Bookmark
         {
             UserId = cmd.UserId,
