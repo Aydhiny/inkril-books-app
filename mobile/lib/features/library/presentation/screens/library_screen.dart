@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -533,7 +534,10 @@ class _CurrentlyReadingSection extends StatelessWidget {
         ]),
       ),
       SizedBox(
-        height: 174,
+        // Clamp between 140 and 180 dp so the card is comfortable in landscape
+        // (where screen height can be as low as 360 dp) and doesn't over-inflate
+        // on large tablets.
+        height: (MediaQuery.sizeOf(context).height * 0.22).clamp(140.0, 180.0),
         child: ListView.separated(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           scrollDirection: Axis.horizontal,
@@ -583,8 +587,15 @@ class _CurrentlyReadingCard extends StatelessWidget {
               width: 64,
               height: 90,
               child: coverUrl != null
-                  ? Image.network(coverUrl, fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _MiniCoverPlaceholder())
+                  ? CachedNetworkImage(
+                      imageUrl: coverUrl,
+                      fit: BoxFit.cover,
+                      // 128 px = 2× the 64 px logical display size — avoids
+                      // decoding the full source image into GPU memory.
+                      memCacheWidth: 128,
+                      placeholder: (_, __) => _MiniCoverPlaceholder(),
+                      errorWidget: (_, __, ___) => _MiniCoverPlaceholder(),
+                    )
                   : _MiniCoverPlaceholder(),
             ),
           ),
@@ -684,8 +695,13 @@ class _MyLibraryScroll extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Proportional to screen height so the shelf feels right in both portrait
+    // (tall) and landscape (shallow). Clamped so it never shrinks below 200 dp
+    // or expands past 320 dp regardless of device size.
+    final listHeight =
+        (MediaQuery.sizeOf(context).height * 0.36).clamp(200.0, 320.0);
     return SizedBox(
-      height: 300,
+      height: listHeight,
       child: userLibraryAsync.when(
         loading: () => const ShimmerBookScroll(),
         error: (_, __) => Center(
@@ -723,8 +739,10 @@ class _PublicLibraryScroll extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final listHeight =
+        (MediaQuery.sizeOf(context).height * 0.36).clamp(200.0, 320.0);
     return SizedBox(
-      height: 300,
+      height: listHeight,
       child: publicBooksAsync.when(
         loading: () => const ShimmerBookScroll(),
         error: (e, _) => Center(
@@ -781,10 +799,14 @@ class _LibraryBookCard extends StatelessWidget {
               child: SizedBox(
                 width: double.infinity,
                 child: coverUrl != null
-                    ? Image.network(
-                        coverUrl,
+                    ? CachedNetworkImage(
+                        imageUrl: coverUrl,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _CoverPlaceholder(),
+                        // 330 px = 2× the 165 px card width — saves GPU memory
+                        // without sacrificing visible quality.
+                        memCacheWidth: 330,
+                        placeholder: (_, __) => _CoverPlaceholder(),
+                        errorWidget: (_, __, ___) => _CoverPlaceholder(),
                       )
                     : _CoverPlaceholder(),
               ),
@@ -1236,7 +1258,7 @@ class _RecommendationsSection extends ConsumerWidget {
           ]),
         ),
         SizedBox(
-          height: 330,
+          height: (MediaQuery.sizeOf(context).height * 0.40).clamp(220.0, 345.0),
           child: ListView.separated(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             scrollDirection: Axis.horizontal,
@@ -1382,8 +1404,25 @@ class _SearchResults extends ConsumerWidget {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: cover != null && cover.isNotEmpty
-                        ? Image.network(cover,
-                            width: 52, height: 72, fit: BoxFit.cover)
+                        ? CachedNetworkImage(
+                            imageUrl: cover,
+                            width: 52,
+                            height: 72,
+                            fit: BoxFit.cover,
+                            memCacheWidth: 104,
+                            placeholder: (_, __) => Container(
+                              width: 52, height: 72,
+                              color: context.primarySurface,
+                              child: const Center(child: Icon(
+                                  Icons.book_rounded, color: AppTheme.primary, size: 24)),
+                            ),
+                            errorWidget: (_, __, ___) => Container(
+                              width: 52, height: 72,
+                              color: context.primarySurface,
+                              child: const Center(child: Icon(
+                                  Icons.book_rounded, color: AppTheme.primary, size: 24)),
+                            ),
+                          )
                         : Container(
                             width: 52,
                             height: 72,

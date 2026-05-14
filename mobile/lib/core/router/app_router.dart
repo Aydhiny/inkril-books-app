@@ -176,19 +176,41 @@ class _AppShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final idx = _selectedIndex(context);
+    // MediaQuery.orientationOf subscribes only to orientation changes —
+    // cheaper than MediaQuery.of(context) which rebuilds on any media change.
+    final isLandscape =
+        MediaQuery.orientationOf(context) == Orientation.landscape;
+
+    final bgContent = Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [context.shellGradientTop, context.shellGradientBottom],
+          stops: const [0.0, 1.0],
+        ),
+      ),
+      child: child,
+    );
+
+    // In landscape: side rail replaces the bottom nav bar so the full screen
+    // height is available for content. This matters most on phones in landscape
+    // (e.g. while reading) where an 80 px bottom bar is a significant loss.
+    if (isLandscape) {
+      return Scaffold(
+        backgroundColor: context.scaffoldBg,
+        body: Row(
+          children: [
+            _SideNav(selectedIndex: idx),
+            Expanded(child: bgContent),
+          ],
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: context.scaffoldBg,
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [context.shellGradientTop, context.shellGradientBottom],
-            stops: const [0.0, 1.0],
-          ),
-        ),
-        child: child,
-      ),
+      body: bgContent,
       bottomNavigationBar: _BottomNav(selectedIndex: idx),
     );
   }
@@ -199,6 +221,62 @@ class _AppShell extends StatelessWidget {
     if (loc.startsWith('/leaderboard')) return 2;
     if (loc.startsWith('/settings'))   return 3;
     return 0;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Side navigation rail — shown in landscape instead of the bottom bar.
+// Reuses _NavItem so colour/animation logic lives in exactly one place.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _SideNav extends StatelessWidget {
+  final int selectedIndex;
+  const _SideNav({required this.selectedIndex});
+
+  // Each entry: (icon, activeColor, activeBg, route)
+  static const _items = [
+    (Icons.home_rounded,          AppTheme.primary,           AppTheme.primarySurface,   '/library'),
+    (Icons.menu_book_rounded,     Color(0xFFEC4899),           Color(0xFFFCE7F3),         '/reading'),
+    (Icons.emoji_events_rounded,  Color(0xFFF59E0B),           Color(0xFFFEF3C7),         '/leaderboard'),
+    (Icons.settings_rounded,      Color(0xFF3B82F6),           Color(0xFFDBEAFE),         '/settings'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 72,
+      decoration: BoxDecoration(
+        color: context.navBg,
+        border: Border(
+          right: BorderSide(color: context.navBorder, width: 2.5),
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x1A6B21A8),
+            blurRadius: 12,
+            offset: Offset(4, 0),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(_items.length, (i) {
+            final (icon, color, bgColor, route) = _items[i];
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: _NavItem(
+                icon: icon,
+                color: color,
+                bgColor: bgColor,
+                isSelected: selectedIndex == i,
+                onTap: () => context.go(route),
+              ),
+            );
+          }),
+        ),
+      ),
+    );
   }
 }
 
