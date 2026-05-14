@@ -149,13 +149,54 @@ flutter run --dart-define=API_BASE_URL=https://api.inkril.app
 
 ### Desktop App (Admin)
 
+#### Prerequisites (Windows)
+
+The desktop app requires the **Windows build tools** included with Visual Studio:
+
+1. Install [Visual Studio 2022](https://visualstudio.microsoft.com/) (Community edition is free)
+2. In the installer select: **Desktop development with C++**
+3. Verify Flutter can see it:
+   ```bash
+   flutter doctor
+   # "Visual Studio - develop Windows apps" should show a green checkmark
+   ```
+
+#### Run in development
+
 ```bash
 cd desktop
 flutter pub get
-
 flutter run -d windows --dart-define=API_BASE_URL=http://localhost:8080
-# or: -d linux / -d macos
 ```
+
+> Replace `http://localhost:8080` with the actual API address if running on a
+> remote machine or device on the same network.
+
+#### Build a release executable
+
+```bash
+cd desktop
+flutter build windows --release --dart-define=API_BASE_URL=http://localhost:8080
+```
+
+The output is at:
+```
+desktop/build/windows/x64/runner/Release/inkril_desktop.exe
+```
+
+Copy the entire `Release/` folder — the `.exe` requires the DLLs and `data/`
+directory next to it. You can ZIP the whole folder and share it.
+
+#### Login credentials
+
+| Kontekst | Korisničko ime | Lozinka |
+|----------|---------------|---------|
+| Desktop verzija | `desktop` | `test` |
+
+The `desktop` account has the **desktop** role which unlocks the admin panel
+(books, genres, users, reports). Logging in with a `mobile` account will
+succeed but show an empty dashboard because all admin endpoints require the
+`desktop` role.
 
 ---
 
