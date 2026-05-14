@@ -280,8 +280,15 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     try {
       final bookDetail =
           await ref.read(bookDetailProvider(widget.bookId).future);
-      final filePath = bookDetail['filePath'] as String?;
       _bookTitle = bookDetail['title'] as String? ?? '';
+
+      // FilePath is no longer returned by the public GET /api/books/{id} endpoint —
+      // it must be fetched through the ownership-gated GET /api/books/{id}/read-url.
+      // This ensures users can only download PDFs for books they actually own.
+      final dio = ref.read(dioProvider);
+      final readUrlResponse =
+          await dio.get('/api/books/${widget.bookId}/read-url');
+      final filePath = (readUrlResponse.data as Map<String, dynamic>?)?['filePath'] as String?;
 
       if (filePath == null) {
         setState(() {
@@ -295,7 +302,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       final localFile = File('${dir.path}/book_${widget.bookId}.pdf');
 
       if (!await localFile.exists()) {
-        final dio = ref.read(dioProvider);
         await dio.download(
           '${AppConfig.apiBaseUrl}$filePath',
           localFile.path,
