@@ -29,6 +29,14 @@ public class CreateReviewCommandHandler(IUnitOfWork uow)
         var book = await uow.Books.GetByIdAsync(cmd.BookId, ct);
         if (book is null) return Result<Guid>.Failure("Book not found.");
 
+        // Ownership check — only users who have the book in their library may review it.
+        // Without this, any authenticated user could inflate or deflate ratings and
+        // corrupt the recommendation signals (§12 in the professor's code review notes).
+        var ownsBook = await uow.UserBooks.AnyAsync(
+            ub => ub.UserId == cmd.UserId && ub.BookId == cmd.BookId, ct);
+        if (!ownsBook)
+            return Result<Guid>.Failure("You can only review books that are in your library.");
+
         var alreadyReviewed = await uow.Reviews.AnyAsync(
             r => r.UserId == cmd.UserId && r.BookId == cmd.BookId, ct);
         if (alreadyReviewed)
@@ -45,10 +53,18 @@ public class CreateReviewCommandHandler(IUnitOfWork uow)
 
         await uow.Reviews.AddAsync(review, ct);
 
-        var allReviews = await uow.Reviews.FindAsync(r => r.BookId == cmd.BookId, ct);
-        var ratings = allReviews.Select(r => r.Rating).Append(cmd.Rating).ToList();
-        book.AverageRating = Math.Round(ratings.Average(), 2);
-        book.RatingCount = ratings.Count;
+        // Recalculate average rating via DB aggregation — avoids loading the entire
+        // review list into memory (§16: keep filtering/aggregation in the database).
+        var existingCount = await uow.Reviews.CountAsync(r => r.BookId == cmd.BookId, ct);
+        var existingSum = await uow.Reviews.Query()
+            .Where(r => r.BookId == cmd.BookId)
+            .SumAsync(r => r.Rating, ct);
+
+        var newCount = existingCount + 1;
+        var newAvg = Math.Round((existingSum + cmd.Rating) / (double)newCount, 2);
+
+        book.AverageRating = newAvg;
+        book.RatingCount = newCount;
         book.UpdatedAt = DateTime.UtcNow;
         uow.Books.Update(book);
 

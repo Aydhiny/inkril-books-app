@@ -1,7 +1,9 @@
 using FluentValidation;
 using Inkril.Application.Common.Interfaces;
 using Inkril.Application.Common.Models;
+using Inkril.Domain.Entities;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 namespace Inkril.Application.Features.Books.Commands;
 
@@ -35,9 +37,25 @@ public class UpdateBookCommandHandler(IUnitOfWork uow, ICurrentUserService curre
 {
     public async Task<Result> Handle(UpdateBookCommand cmd, CancellationToken ct)
     {
-        var book = await uow.Books.GetByIdAsync(cmd.Id, ct);
-        if (book is null || book.IsDeleted)
+        // Load with BookGenres included so EF change-tracker knows the current genre set
+        // and can diff it against the new set on SaveChanges.
+        var book = await uow.Books.Query()
+            .Include(b => b.BookGenres)
+            .FirstOrDefaultAsync(b => b.Id == cmd.Id && !b.IsDeleted, ct);
+
+        if (book is null)
             return Result.Failure("Book not found.");
+
+        // Validate that every submitted GenreId actually exists — silently saving with
+        // missing genres would confuse the admin (§22 in the professor's code review notes).
+        var requestedIds = cmd.GenreIds.Distinct().ToList();
+        if (requestedIds.Count > 0)
+        {
+            var foundCount = await uow.Genres.CountAsync(
+                g => requestedIds.Contains(g.Id) && !g.IsDeleted, ct);
+            if (foundCount != requestedIds.Count)
+                return Result.Failure("One or more of the submitted genre IDs do not exist.");
+        }
 
         book.Title = cmd.Title;
         book.Author = cmd.Author;
@@ -50,6 +68,12 @@ public class UpdateBookCommandHandler(IUnitOfWork uow, ICurrentUserService curre
         book.IsPublic = cmd.IsPublic;
         book.UpdatedAt = DateTime.UtcNow;
         book.UpdatedBy = currentUser.UserName;
+
+        // Replace genre assignments — EF change-tracker handles DELETE + INSERT diffing.
+        // Previously this block was missing, so genre changes were silently discarded.
+        book.BookGenres.Clear();
+        foreach (var gid in requestedIds)
+            book.BookGenres.Add(new BookGenre { BookId = book.Id, GenreId = gid });
 
         uow.Books.Update(book);
         await uow.SaveChangesAsync(ct);

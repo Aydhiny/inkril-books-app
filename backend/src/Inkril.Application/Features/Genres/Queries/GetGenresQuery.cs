@@ -1,5 +1,6 @@
 using Inkril.Application.Common.Interfaces;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 namespace Inkril.Application.Features.Genres.Queries;
 
@@ -11,10 +12,12 @@ public class GetGenresQueryHandler(IUnitOfWork uow) : IRequestHandler<GetGenresQ
 {
     public async Task<IEnumerable<GenreDto>> Handle(GetGenresQuery q, CancellationToken ct)
     {
-        var genres = await uow.Genres.GetAllAsync(ct);
-        return genres
+        // Push the soft-delete filter to the database — avoids materialising the full
+        // genres table into memory before filtering (§16: filtering must happen in DB).
+        return await uow.Genres.Query()
             .Where(g => !g.IsDeleted)
             .OrderBy(g => g.Name)
-            .Select(g => new GenreDto(g.Id, g.Name, g.Description));
+            .Select(g => new GenreDto(g.Id, g.Name, g.Description))
+            .ToListAsync(ct);
     }
 }

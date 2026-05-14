@@ -1,6 +1,7 @@
 using Inkril.Application.Common.Interfaces;
 using Inkril.Application.Features.Books.Commands;
 using Inkril.Application.Features.Books.Queries;
+using Microsoft.EntityFrameworkCore;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -23,6 +24,21 @@ public class BooksController(IMediator mediator, ICurrentUserService currentUser
     {
         var result = await mediator.Send(new GetBookByIdQuery(id, currentUser.UserId), ct);
         return result.Succeeded ? Ok(result.Value) : NotFound(new { message = result.Errors[0] });
+    }
+
+    /// <summary>
+    /// Returns the PDF storage path only after verifying the user owns the book.
+    /// Admins (desktop role) bypass the ownership check.
+    /// This is the controlled gate — FilePath is NOT included in the public BookDetailDto.
+    /// </summary>
+    [HttpGet("{id:guid}/read-url")]
+    public async Task<IActionResult> GetReadUrl(Guid id, CancellationToken ct)
+    {
+        var result = await mediator.Send(
+            new GetBookReadUrlQuery(id, currentUser.UserId, currentUser.IsInRole("desktop")), ct);
+        return result.Succeeded
+            ? Ok(new { filePath = result.Value })
+            : Forbid();
     }
 
     [HttpPost]

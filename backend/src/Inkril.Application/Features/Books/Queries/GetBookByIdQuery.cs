@@ -5,9 +5,14 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Inkril.Application.Features.Books.Queries;
 
+/// <summary>
+/// Public book detail DTO — FilePath is intentionally excluded.
+/// The storage path is only returned through GET /api/books/{id}/read-url
+/// after the server verifies the requesting user owns the book (UserBooks).
+/// </summary>
 public record BookDetailDto(
     Guid Id, string Title, string Author, string? Description,
-    string? CoverImageUrl, string FilePath, long FileSizeBytes,
+    string? CoverImageUrl, long FileSizeBytes,
     int TotalPages, DateTime PublishedDate, string? ISBN,
     string? Publisher, string? Language, double AverageRating,
     int RatingCount, IEnumerable<string> Genres);
@@ -28,7 +33,7 @@ public class GetBookByIdQueryHandler(IUnitOfWork uow)
 
         return Result<BookDetailDto>.Success(new BookDetailDto(
             book.Id, book.Title, book.Author, book.Description,
-            book.CoverImageUrl, book.FilePath, book.FileSizeBytes,
+            book.CoverImageUrl, book.FileSizeBytes,
             book.TotalPages, book.PublishedDate, book.ISBN,
             book.Publisher, book.Language, book.AverageRating,
             book.RatingCount,
