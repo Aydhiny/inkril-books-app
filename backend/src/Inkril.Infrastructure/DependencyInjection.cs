@@ -57,6 +57,12 @@ public static class DependencyInjection
         if (!string.IsNullOrEmpty(redisConn))
             services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(redisConn));
 
+        // ── In-process response cache (leaderboard, recommendations) ─────────
+        // IMemoryCache is process-local — fine for a single container. If the
+        // app scales horizontally, swap GetOrCreateAsync calls to use the Redis
+        // IConnectionMultiplexer already registered above.
+        services.AddMemoryCache();
+
         // ── Seed data ─────────────────────────────────────────────────────
         services.AddScoped<DataSeeder>();
 
