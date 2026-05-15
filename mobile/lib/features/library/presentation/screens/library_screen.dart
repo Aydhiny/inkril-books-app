@@ -561,6 +561,7 @@ class _CurrentlyReadingCard extends StatelessWidget {
     final title    = book['title'] as String? ?? 'Untitled';
     final progress = (book['readingProgressPercent'] as num? ?? 0).toDouble();
     final coverUrl = book['coverImageUrl'] as String?;
+    final etaMins  = book['estimatedMinutesRemaining'] as int?;
 
     return GestureDetector(
       onTap: () => context.push('/reader/$bookId'),
@@ -642,6 +643,25 @@ class _CurrentlyReadingCard extends StatelessWidget {
                   ),
                 ),
               ),
+              // ETA chip — shown once the backend has enough session history
+              // to compute a personalised reading speed (avgPagesPerMinute > 0).
+              if (etaMins != null) ...[
+                const SizedBox(height: 5),
+                Row(children: [
+                  const Text('⏱', style: TextStyle(fontSize: 10)),
+                  const SizedBox(width: 3),
+                  Text(
+                    etaMins < 60
+                        ? '~$etaMins min to finish'
+                        : '~${etaMins ~/ 60}h ${etaMins % 60}m to finish',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: context.textHint,
+                    ),
+                  ),
+                ]),
+              ],
             ]),
           ),
         ]),

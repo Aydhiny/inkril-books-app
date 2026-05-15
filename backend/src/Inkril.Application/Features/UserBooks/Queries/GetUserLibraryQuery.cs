@@ -13,7 +13,12 @@ public record UserLibraryBookDto(
     string? CoverImageUrl,
     double ReadingProgressPercent,
     DateTime? LastReadAt,
-    bool IsCompleted);
+    bool IsCompleted,
+    int TotalPages,
+    /// <summary>Average pages the user reads per minute, computed from all completed sessions.</summary>
+    double AvgPagesPerMinute,
+    /// <summary>Estimated minutes to finish the book at the user's average pace. Null when there is no session history.</summary>
+    int? EstimatedMinutesRemaining);
 
 public record GetUserLibraryQuery(Guid UserId, int PageNumber = 1, int PageSize = 20)
     : IRequest<PagedList<UserLibraryBookDto>>;
@@ -26,11 +31,19 @@ public class GetUserLibraryQueryHandler(IUnitOfWork uow)
     public async Task<PagedList<UserLibraryBookDto>> Handle(GetUserLibraryQuery q, CancellationToken ct)
     {
         var pageSize = Math.Min(q.PageSize, MaxPageSize);
-        var query = uow.UserBooks.Query()
+
+        // ── Step 1: paginate the raw UserBook + Book rows ──────────────────
+        var rawQuery = uow.UserBooks.Query()
             .Include(ub => ub.Book)
             .Where(ub => ub.UserId == q.UserId && !ub.Book.IsDeleted)
-            .OrderByDescending(ub => ub.LastReadAt ?? ub.AddedAt)
-            .Select(ub => new UserLibraryBookDto(
+            .OrderByDescending(ub => ub.LastReadAt ?? ub.AddedAt);
+
+        var totalCount = await rawQuery.CountAsync(ct);
+        var items = await rawQuery
+            .Skip((q.PageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .Select(ub => new
+            {
                 ub.Id,
                 ub.BookId,
                 ub.Book.Title,
@@ -38,8 +51,49 @@ public class GetUserLibraryQueryHandler(IUnitOfWork uow)
                 ub.Book.CoverImageUrl,
                 ub.ReadingProgressPercent,
                 ub.LastReadAt,
-                ub.IsCompleted));
+                ub.IsCompleted,
+                ub.Book.TotalPages
+            })
+            .ToListAsync(ct);
 
-        return await PagedList<UserLibraryBookDto>.CreateAsync(query, q.PageNumber, pageSize, ct);
+        // ── Step 2: aggregate reading speed per book from past sessions ────
+        // Hits the (UserId, StartedAt) index added in AddHotPathIndexes migration.
+        // Only completed sessions (EndedAt != null) with real duration are counted.
+        var bookIds = items.Select(x => x.BookId).ToList();
+        var speedRows = await uow.ReadingSessions.Query()
+            .Where(rs => rs.UserId == q.UserId
+                      && bookIds.Contains(rs.BookId)
+                      && rs.EndedAt != null
+                      && rs.DurationMinutes > 0)
+            .GroupBy(rs => rs.BookId)
+            .Select(g => new
+            {
+                BookId      = g.Key,
+                TotalPages  = g.Sum(rs => rs.PagesRead),
+                TotalMins   = g.Sum(rs => rs.DurationMinutes)
+            })
+            .ToListAsync(ct);
+
+        var speedMap = speedRows.ToDictionary(
+            s => s.BookId,
+            s => s.TotalMins > 0 ? (double)s.TotalPages / s.TotalMins : 0.0);
+
+        // ── Step 3: build DTOs with ETA ───────────────────────────────────
+        var dtos = items.Select(ub =>
+        {
+            speedMap.TryGetValue(ub.BookId, out var avgSpeed);
+            int? eta = null;
+            if (avgSpeed > 0 && ub.TotalPages > 0 && !ub.IsCompleted)
+            {
+                var pagesLeft = (int)Math.Ceiling(ub.TotalPages * (1 - ub.ReadingProgressPercent / 100.0));
+                eta = (int)Math.Ceiling(pagesLeft / avgSpeed);
+            }
+            return new UserLibraryBookDto(
+                ub.Id, ub.BookId, ub.Title, ub.Author, ub.CoverImageUrl,
+                ub.ReadingProgressPercent, ub.LastReadAt, ub.IsCompleted,
+                ub.TotalPages, Math.Round(avgSpeed, 2), eta);
+        }).ToList();
+
+        return new PagedList<UserLibraryBookDto>(dtos, totalCount, q.PageNumber, pageSize);
     }
 }
