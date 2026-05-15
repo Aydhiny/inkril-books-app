@@ -7,15 +7,13 @@ namespace Inkril.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class AuthController(IMediator mediator) : ControllerBase
+public class AuthController(IMediator mediator) : ApiControllerBase
 {
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterCommand cmd, CancellationToken ct)
     {
         var result = await mediator.Send(cmd, ct);
-        return result.Succeeded
-            ? Ok(result.Value)
-            : BadRequest(new { errors = result.Errors });
+        return ToResult(result, Ok);
     }
 
     [HttpPost("login")]
@@ -24,7 +22,7 @@ public class AuthController(IMediator mediator) : ControllerBase
         var result = await mediator.Send(cmd, ct);
         return result.Succeeded
             ? Ok(result.Value)
-            : Unauthorized(new { errors = result.Errors });
+            : Problem(detail: result.Errors[0], statusCode: 401, title: "Authentication failed.");
     }
 
     [HttpPost("refresh")]
@@ -33,7 +31,7 @@ public class AuthController(IMediator mediator) : ControllerBase
         var result = await mediator.Send(cmd, ct);
         return result.Succeeded
             ? Ok(result.Value)
-            : Unauthorized(new { errors = result.Errors });
+            : Problem(detail: result.Errors[0], statusCode: 401, title: "Authentication failed.");
     }
 
     /// <summary>
@@ -45,9 +43,7 @@ public class AuthController(IMediator mediator) : ControllerBase
     {
         var result = await mediator.Send(cmd, ct);
         // Always 200 — the message itself is deliberately vague.
-        return result.Succeeded
-            ? Ok(new { message = result.Value })
-            : BadRequest(new { errors = result.Errors });
+        return ToResult(result, msg => Ok(new { message = msg }));
     }
 
     /// <summary>
@@ -57,9 +53,7 @@ public class AuthController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordCommand cmd, CancellationToken ct)
     {
         var result = await mediator.Send(cmd, ct);
-        return result.Succeeded
-            ? Ok(new { message = result.Value })
-            : BadRequest(new { errors = result.Errors });
+        return ToResult(result, msg => Ok(new { message = msg }));
     }
 
     /// <summary>
@@ -71,6 +65,6 @@ public class AuthController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> Logout([FromBody] LogoutCommand cmd, CancellationToken ct)
     {
         var result = await mediator.Send(cmd, ct);
-        return result.Succeeded ? NoContent() : BadRequest(new { errors = result.Errors });
+        return ToResult(result, NoContent());
     }
 }

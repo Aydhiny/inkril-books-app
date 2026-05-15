@@ -8,7 +8,7 @@ namespace Inkril.API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class ChallengesController(IMediator mediator) : ControllerBase
+public class ChallengesController(IMediator mediator) : ApiControllerBase
 {
     /// <summary>Returns today's challenges with live progress for the current user.</summary>
     [HttpGet]

@@ -9,7 +9,7 @@ namespace Inkril.API.Controllers;
 [ApiController]
 [Route("api/genres")]
 [Authorize]
-public class GenresController(IMediator mediator) : ControllerBase
+public class GenresController(IMediator mediator) : ApiControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetAll(CancellationToken ct)
@@ -20,9 +20,7 @@ public class GenresController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> Create([FromBody] CreateGenreCommand cmd, CancellationToken ct)
     {
         var result = await mediator.Send(cmd, ct);
-        return result.Succeeded
-            ? Ok(new { id = result.Value })
-            : BadRequest(new { errors = result.Errors });
+        return ToResult(result, id => Ok(new { id }));
     }
 
     [HttpPut("{id:guid}")]
@@ -31,9 +29,7 @@ public class GenresController(IMediator mediator) : ControllerBase
     {
         // Bind route id into the command record
         var result = await mediator.Send(cmd with { Id = id }, ct);
-        return result.Succeeded
-            ? NoContent()
-            : BadRequest(new { errors = result.Errors });
+        return ToResult(result, NoContent());
     }
 
     [HttpDelete("{id:guid}")]
@@ -41,8 +37,6 @@ public class GenresController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         var result = await mediator.Send(new DeleteGenreCommand(id), ct);
-        return result.Succeeded
-            ? NoContent()
-            : BadRequest(new { errors = result.Errors });
+        return ToResult(result, NoContent());
     }
 }

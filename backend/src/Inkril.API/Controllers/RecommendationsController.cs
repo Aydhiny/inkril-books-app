@@ -9,7 +9,7 @@ namespace Inkril.API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class RecommendationsController(IMediator mediator, ICurrentUserService currentUser) : ControllerBase
+public class RecommendationsController(IMediator mediator, ICurrentUserService currentUser) : ApiControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> Get([FromQuery] int count = 10, CancellationToken ct = default)

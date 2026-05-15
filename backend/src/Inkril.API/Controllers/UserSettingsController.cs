@@ -9,13 +9,13 @@ namespace Inkril.API.Controllers;
 [ApiController]
 [Route("api/user-settings")]
 [Authorize]
-public class UserSettingsController(IMediator mediator) : ControllerBase
+public class UserSettingsController(IMediator mediator) : ApiControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> Get(CancellationToken ct)
     {
         var result = await mediator.Send(new GetUserSettingsQuery(), ct);
-        return result.Succeeded ? Ok(result.Value) : BadRequest(result.Errors);
+        return ToResult(result, Ok);
     }
 
     [HttpPut]
@@ -23,6 +23,6 @@ public class UserSettingsController(IMediator mediator) : ControllerBase
         [FromBody] UpdateUserSettingsCommand cmd, CancellationToken ct)
     {
         var result = await mediator.Send(cmd, ct);
-        return result.Succeeded ? NoContent() : BadRequest(result.Errors);
+        return ToResult(result, NoContent());
     }
 }

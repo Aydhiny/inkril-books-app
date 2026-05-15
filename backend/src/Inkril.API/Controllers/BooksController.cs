@@ -12,11 +12,31 @@ namespace Inkril.API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class BooksController(IMediator mediator, ICurrentUserService currentUser, IUnitOfWork uow, IWebHostEnvironment env) : ControllerBase
+public class BooksController(IMediator mediator, ICurrentUserService currentUser, IUnitOfWork uow, IWebHostEnvironment env) : ApiControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] GetBooksQuery query, CancellationToken ct)
-        => Ok(await mediator.Send(query, ct));
+    {
+        var result = await mediator.Send(query, ct);
+
+        // Compute a weak ETag from the sorted IDs of the returned page.
+        // Changes whenever books are added, removed, or a filter changes the set.
+        // Clients that send If-None-Match get a 304 and skip JSON parsing entirely.
+        var idBytes = System.Text.Encoding.UTF8.GetBytes(
+            string.Concat(result.Items.OrderBy(b => b.Id).Select(b => b.Id.ToString("N"))));
+        var hash  = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(idBytes));
+        var etag  = $"\"{hash[..16]}\"";
+
+        if (Request.Headers.IfNoneMatch.Contains(etag))
+            return StatusCode(StatusCodes.Status304NotModified);
+
+        Response.Headers.ETag         = etag;
+        // Private — each user may see a different visibility subset.
+        // max-age=30 lets fast back-navigations skip a round-trip entirely.
+        Response.Headers.CacheControl = "private, max-age=30";
+
+        return Ok(result);
+    }
 
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
@@ -45,9 +65,7 @@ public class BooksController(IMediator mediator, ICurrentUserService currentUser
     public async Task<IActionResult> Create([FromBody] CreateBookCommand cmd, CancellationToken ct)
     {
         var result = await mediator.Send(cmd, ct);
-        return result.Succeeded
-            ? CreatedAtAction(nameof(GetById), new { id = result.Value }, new { id = result.Value })
-            : BadRequest(new { errors = result.Errors });
+        return ToResult(result, id => CreatedAtAction(nameof(GetById), new { id }, new { id }));
     }
 
     [HttpPut("{id:guid}")]
@@ -56,7 +74,7 @@ public class BooksController(IMediator mediator, ICurrentUserService currentUser
     {
         if (id != cmd.Id) return BadRequest("Route ID and body ID do not match.");
         var result = await mediator.Send(cmd, ct);
-        return result.Succeeded ? NoContent() : BadRequest(new { errors = result.Errors });
+        return ToResult(result, NoContent());
     }
 
     [HttpDelete("{id:guid}")]

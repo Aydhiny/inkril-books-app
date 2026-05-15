@@ -9,7 +9,7 @@ namespace Inkril.API.Controllers;
 
 [ApiController]
 [Route("api/books/{bookId:guid}/reviews")]
-public class ReviewsController(IMediator mediator, ICurrentUserService currentUser) : ControllerBase
+public class ReviewsController(IMediator mediator, ICurrentUserService currentUser) : ApiControllerBase
 {
     [HttpGet]
     [AllowAnonymous]
@@ -29,9 +29,7 @@ public class ReviewsController(IMediator mediator, ICurrentUserService currentUs
     {
         var userId = currentUser.UserId ?? throw new UnauthorizedAccessException();
         var result = await mediator.Send(new CreateReviewCommand(userId, bookId, req.Rating, req.Comment), ct);
-        return result.Succeeded
-            ? Ok(new { id = result.Value })
-            : BadRequest(new { errors = result.Errors });
+        return ToResult(result, id => Ok(new { id }));
     }
 }
 

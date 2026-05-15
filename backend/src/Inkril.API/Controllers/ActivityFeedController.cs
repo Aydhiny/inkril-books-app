@@ -8,7 +8,7 @@ namespace Inkril.API.Controllers;
 [ApiController]
 [Route("api/activity-feed")]
 [Authorize]
-public class ActivityFeedController(IMediator mediator) : ControllerBase
+public class ActivityFeedController(IMediator mediator) : ApiControllerBase
 {
     /// <summary>Returns the last 14 days of reading activity from the user's friends.</summary>
     [HttpGet]

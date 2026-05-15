@@ -9,13 +9,26 @@ using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// ── Structured logging (Serilog) ──────────────────────────────────────────────
+// Reads sink/level configuration from appsettings.json under "Serilog" key.
+// Structured properties (UserId, CommandType, DurationMs) are emitted by
+// LoggingBehavior so every request is traceable without touching controller code.
+builder.Host.UseSerilog((ctx, lc) => lc
+    .ReadFrom.Configuration(ctx.Configuration)
+    .Enrich.FromLogContext()
+    .Enrich.WithProperty("Application", "Inkril.API"));
 
 // ── Configuration is loaded from appsettings.json + environment variables ────
 // No secrets are hardcoded. See .env.example for required env vars.
 
 builder.Services.AddControllers();
+// Enables the RFC 7807 ProblemDetails format for ValidationProblem() / Problem()
+// calls in controllers. Without this, ASP.NET 8 falls back to its own format.
+builder.Services.AddProblemDetails();
 builder.Services.AddEndpointsApiExplorer();
 
 // ── Swagger with JWT support ──────────────────────────────────────────────────

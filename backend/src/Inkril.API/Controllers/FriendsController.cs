@@ -12,7 +12,7 @@ namespace Inkril.API.Controllers;
 public class FriendsController(
     IMediator mediator,
     IUnitOfWork uow,
-    ICurrentUserService currentUser) : ControllerBase
+    ICurrentUserService currentUser) : ApiControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetFriends(CancellationToken ct)
@@ -27,7 +27,7 @@ public class FriendsController(
     {
         var senderId = currentUser.UserId ?? throw new UnauthorizedAccessException();
         var result = await mediator.Send(new SendFriendRequestCommand(senderId, dto.ReceiverId), ct);
-        return result.Succeeded ? Ok() : BadRequest(new { errors = result.Errors });
+        return ToResult(result, Ok());
     }
 
     [HttpGet("requests/pending")]
@@ -44,7 +44,7 @@ public class FriendsController(
     {
         var userId = currentUser.UserId ?? throw new UnauthorizedAccessException();
         var result = await mediator.Send(new RespondToFriendRequestCommand(id, userId, dto.Accept), ct);
-        return result.Succeeded ? NoContent() : BadRequest(new { errors = result.Errors });
+        return ToResult(result, NoContent());
     }
 }
 

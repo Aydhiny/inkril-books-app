@@ -50,17 +50,21 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
 
     private static async Task WriteErrorAsync(
         HttpContext context, HttpStatusCode status,
-        string message, IEnumerable<string>? errors = null)
+        string title, IEnumerable<string>? errors = null)
     {
         context.Response.StatusCode = (int)status;
-        context.Response.ContentType = "application/json";
+        // RFC 7807 — application/problem+json tells clients this is a structured
+        // error object, not a raw API payload. Swagger renders it correctly and
+        // mobile clients can distinguish error envelopes from success bodies.
+        context.Response.ContentType = "application/problem+json";
 
         var body = JsonSerializer.Serialize(new
         {
+            type   = "https://tools.ietf.org/html/rfc7807",
+            title,
             status = (int)status,
-            message,
-            errors = errors?.ToArray() ?? []
-        });
+            errors = errors?.ToArray() ?? (string[])[]
+        }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
 
         await context.Response.WriteAsync(body);
     }

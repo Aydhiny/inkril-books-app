@@ -12,16 +12,14 @@ namespace Inkril.API.Controllers;
 public class ReadingSessionsController(
     IMediator mediator,
     IUnitOfWork uow,
-    ICurrentUserService currentUser) : ControllerBase
+    ICurrentUserService currentUser) : ApiControllerBase
 {
     [HttpPost]
     public async Task<IActionResult> Start([FromBody] StartReadingSessionCommand cmd, CancellationToken ct)
     {
         var userId = currentUser.UserId ?? throw new UnauthorizedAccessException();
         var result = await mediator.Send(cmd with { UserId = userId }, ct);
-        return result.Succeeded
-            ? CreatedAtAction(nameof(Start), new { id = result.Value }, new { id = result.Value })
-            : BadRequest(new { errors = result.Errors });
+        return ToResult(result, id => CreatedAtAction(nameof(Start), new { id }, new { id }));
     }
 
     [HttpPut("{id:guid}/end")]
@@ -29,7 +27,7 @@ public class ReadingSessionsController(
     {
         var userId = currentUser.UserId ?? throw new UnauthorizedAccessException();
         var result = await mediator.Send(new EndReadingSessionCommand(id, userId, req.EndPage), ct);
-        return result.Succeeded ? NoContent() : BadRequest(new { errors = result.Errors });
+        return ToResult(result, NoContent());
     }
 
     [HttpGet("my")]

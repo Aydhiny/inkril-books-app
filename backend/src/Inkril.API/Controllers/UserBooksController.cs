@@ -10,7 +10,7 @@ namespace Inkril.API.Controllers;
 [ApiController]
 [Route("api/user-books")]
 [Authorize]
-public class UserBooksController(IMediator mediator, ICurrentUserService currentUser) : ControllerBase
+public class UserBooksController(IMediator mediator, ICurrentUserService currentUser) : ApiControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetLibrary(
@@ -27,9 +27,7 @@ public class UserBooksController(IMediator mediator, ICurrentUserService current
     {
         var userId = currentUser.UserId ?? throw new UnauthorizedAccessException();
         var result = await mediator.Send(new AddBookToLibraryCommand(userId, req.BookId), ct);
-        return result.Succeeded
-            ? Ok(new { id = result.Value })
-            : BadRequest(new { errors = result.Errors });
+        return ToResult(result, id => Ok(new { id }));
     }
 
     /// <summary>
@@ -42,7 +40,7 @@ public class UserBooksController(IMediator mediator, ICurrentUserService current
     {
         var userId = currentUser.UserId ?? throw new UnauthorizedAccessException();
         var result = await mediator.Send(new UpdateReadingProgressCommand(userId, bookId, req.CurrentPage), ct);
-        return result.Succeeded ? Ok() : BadRequest(new { errors = result.Errors });
+        return ToResult(result, Ok());
     }
 
     /// <summary>
@@ -54,7 +52,7 @@ public class UserBooksController(IMediator mediator, ICurrentUserService current
     {
         var userId = currentUser.UserId ?? throw new UnauthorizedAccessException();
         var result = await mediator.Send(new GetFriendsProgressQuery(userId, bookId), ct);
-        return result.Succeeded ? Ok(result.Value) : BadRequest(new { errors = result.Errors });
+        return ToResult(result, Ok);
     }
 }
 

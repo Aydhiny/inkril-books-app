@@ -9,7 +9,7 @@ namespace Inkril.API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class LeaderboardController(IMediator mediator, ICurrentUserService currentUser) : ControllerBase
+public class LeaderboardController(IMediator mediator, ICurrentUserService currentUser) : ApiControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> Get([FromQuery] int top = 20, CancellationToken ct = default)

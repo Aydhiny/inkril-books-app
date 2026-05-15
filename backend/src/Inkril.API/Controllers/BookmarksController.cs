@@ -12,7 +12,7 @@ namespace Inkril.API.Controllers;
 [Authorize]
 public class BookmarksController(
     IMediator mediator,
-    ICurrentUserService currentUser) : ControllerBase
+    ICurrentUserService currentUser) : ApiControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetForBook([FromQuery] Guid bookId, CancellationToken ct)
@@ -27,9 +27,7 @@ public class BookmarksController(
         var userId = currentUser.UserId ?? throw new UnauthorizedAccessException();
         var result = await mediator.Send(
             new CreateBookmarkCommand(userId, req.BookId, req.PageNumber, req.HighlightedText, req.Note, req.Color), ct);
-        return result.Succeeded
-            ? Ok(new { id = result.Value })
-            : BadRequest(new { errors = result.Errors });
+        return ToResult(result, id => Ok(new { id }));
     }
 
     [HttpDelete("{id:guid}")]
@@ -37,7 +35,7 @@ public class BookmarksController(
     {
         var userId = currentUser.UserId ?? throw new UnauthorizedAccessException();
         var result = await mediator.Send(new DeleteBookmarkCommand(id, userId), ct);
-        return result.Succeeded ? NoContent() : BadRequest(new { errors = result.Errors });
+        return ToResult(result, NoContent());
     }
 
     /// <summary>Returns one of the user's highlighted bookmarks, rotating daily.</summary>
@@ -46,7 +44,7 @@ public class BookmarksController(
     {
         var userId = currentUser.UserId ?? throw new UnauthorizedAccessException();
         var result = await mediator.Send(new GetRandomHighlightQuery(userId), ct);
-        return result.Succeeded ? Ok(result.Value) : BadRequest(new { errors = result.Errors });
+        return ToResult(result, Ok);
     }
 
     /// <summary>Emails all highlights for a book to the current user.</summary>
@@ -55,7 +53,7 @@ public class BookmarksController(
     {
         var userId = currentUser.UserId ?? throw new UnauthorizedAccessException();
         var result = await mediator.Send(new ExportBookmarksCommand(userId, req.BookId), ct);
-        return result.Succeeded ? Ok(new { message = result.Value }) : BadRequest(new { errors = result.Errors });
+        return ToResult(result, msg => Ok(new { message = msg }));
     }
 }
 

@@ -10,7 +10,7 @@ namespace Inkril.API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class UsersController(IMediator mediator, ICurrentUserService currentUser) : ControllerBase
+public class UsersController(IMediator mediator, ICurrentUserService currentUser) : ApiControllerBase
 {
     [HttpGet]
     [Authorize(Roles = "desktop")]
@@ -23,7 +23,7 @@ public class UsersController(IMediator mediator, ICurrentUserService currentUser
     {
         if (id != cmd.UserId) return BadRequest("Route ID and body ID do not match.");
         var result = await mediator.Send(cmd, ct);
-        return result.Succeeded ? NoContent() : BadRequest(new { errors = result.Errors });
+        return ToResult(result, NoContent());
     }
 
     [HttpGet("{id:guid}/profile")]
@@ -46,7 +46,7 @@ public class UsersController(IMediator mediator, ICurrentUserService currentUser
     {
         var userId = currentUser.UserId ?? throw new UnauthorizedAccessException();
         var result = await mediator.Send(cmd with { UserId = userId }, ct);
-        return result.Succeeded ? NoContent() : BadRequest(new { errors = result.Errors });
+        return ToResult(result, NoContent());
     }
 
     [HttpDelete("{id:guid}")]
@@ -63,7 +63,7 @@ public class UsersController(IMediator mediator, ICurrentUserService currentUser
     {
         if (id != cmd.UserId) return BadRequest("Route ID and body ID do not match.");
         var result = await mediator.Send(cmd, ct);
-        return result.Succeeded ? NoContent() : BadRequest(new { errors = result.Errors });
+        return ToResult(result, NoContent());
     }
 
     [HttpGet("search")]
@@ -81,6 +81,6 @@ public class UsersController(IMediator mediator, ICurrentUserService currentUser
         var userId = currentUser.UserId ?? throw new UnauthorizedAccessException();
         var y = year ?? DateTime.UtcNow.Year;
         var result = await mediator.Send(new GetReadingHeatmapQuery(userId, y), ct);
-        return result.Succeeded ? Ok(result.Value) : BadRequest(new { errors = result.Errors });
+        return ToResult(result, Ok);
     }
 }

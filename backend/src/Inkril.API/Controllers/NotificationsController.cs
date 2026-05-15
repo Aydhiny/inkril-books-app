@@ -13,7 +13,7 @@ namespace Inkril.API.Controllers;
 public class NotificationsController(
     IMediator mediator,
     IUnitOfWork uow,
-    ICurrentUserService currentUser) : ControllerBase
+    ICurrentUserService currentUser) : ApiControllerBase
 {
     private const int MaxPageSize = 50;
 
@@ -46,7 +46,7 @@ public class NotificationsController(
     {
         var userId = currentUser.UserId ?? throw new UnauthorizedAccessException();
         var result = await mediator.Send(new MarkNotificationReadCommand(id, userId), ct);
-        return result.Succeeded ? NoContent() : BadRequest(new { errors = result.Errors });
+        return ToResult(result, NoContent());
     }
 
     [HttpPut("read-all")]
@@ -54,7 +54,7 @@ public class NotificationsController(
     {
         var userId = currentUser.UserId ?? throw new UnauthorizedAccessException();
         var result = await mediator.Send(new MarkAllNotificationsReadCommand(userId), ct);
-        return result.Succeeded ? NoContent() : BadRequest(new { errors = result.Errors });
+        return ToResult(result, NoContent());
     }
 
     [HttpDelete("{id:guid}")]
