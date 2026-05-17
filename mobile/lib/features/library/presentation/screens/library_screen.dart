@@ -1075,8 +1075,11 @@ class _TodaysQuoteSection extends ConsumerWidget {
     bool isPersonal = false;
 
     final highlight = qotdAsync.valueOrNull;
-    if (highlight != null) {
-      quoteText  = '"${highlight['highlightedText'] as String}"';
+    // highlightedText can be null — bookmarks may have notes but no text selection.
+    // Fall through to the static quote if the field is absent or empty.
+    final highlightText = highlight?['highlightedText'] as String?;
+    if (highlight != null && highlightText != null && highlightText.isNotEmpty) {
+      quoteText  = '"$highlightText"';
       quoteSource = 'Your highlight — ${highlight['bookTitle'] as String? ?? 'a book you read'}';
       isPersonal = true;
     } else {

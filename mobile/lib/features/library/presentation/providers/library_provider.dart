@@ -5,7 +5,9 @@ final publicBooksProvider = FutureProvider<List<Map<String, dynamic>>>((ref) asy
   final dio = ref.read(dioProvider);
   final response = await dio.get('/api/books');
   final data = response.data as Map<String, dynamic>;
-  return List<Map<String, dynamic>>.from(data['items'] as List);
+  // 'items' can be null if the page is empty — treat it as an empty list
+  // rather than throwing, which would crash the library screen build.
+  return List<Map<String, dynamic>>.from(data['items'] as List? ?? []);
 });
 
 final bookDetailProvider = FutureProvider.family<Map<String, dynamic>, String>((ref, bookId) async {
