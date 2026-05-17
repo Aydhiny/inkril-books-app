@@ -217,9 +217,13 @@ class _AppShell extends StatelessWidget {
 
   int _selectedIndex(BuildContext context) {
     final loc = GoRouterState.of(context).matchedLocation;
-    if (loc.startsWith('/reading') || loc.startsWith('/reader')) return 1;
+    // Sub-pages of the reading hub keep tab 1 highlighted.
+    if (loc.startsWith('/reading') || loc.startsWith('/reader') ||
+        loc.startsWith('/reading-stats') || loc.startsWith('/challenges')) return 1;
     if (loc.startsWith('/leaderboard')) return 2;
     if (loc.startsWith('/settings'))   return 3;
+    // Everything else (/library, /books/:id, /profile, /friends,
+    // /notifications) is rooted in the library tab.
     return 0;
   }
 }

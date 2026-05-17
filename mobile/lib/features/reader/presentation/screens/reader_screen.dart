@@ -1662,7 +1662,15 @@ class _ReadingSettingsSheetState extends State<_ReadingSettingsSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    // ConstrainedBox caps the sheet at 92 % of screen height so it never
+    // overflows on small devices. Flexible + SingleChildScrollView inside
+    // handles the actual scrolling when content is taller than the cap.
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    final bottomPad    = MediaQuery.viewPaddingOf(context).bottom;
+
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: screenHeight * 0.92),
+      child: Container(
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
@@ -1671,8 +1679,11 @@ class _ReadingSettingsSheetState extends State<_ReadingSettingsSheet> {
               color: Color(0x1A6B21A8), blurRadius: 32, offset: Offset(0, -4))
         ],
       ),
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
+        // ── Non-scrollable: drag handle + title ────────────────────────────
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 0),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
         // Handle
         Center(
           child: Container(
@@ -1707,8 +1718,14 @@ class _ReadingSettingsSheetState extends State<_ReadingSettingsSheet> {
                 color: Color(0xFF1F2937)),
           ),
         ]),
+          ]),
+        ),
 
-        const SizedBox(height: 20),
+        // ── Scrollable settings body ────────────────────────────────────────
+        Flexible(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(24, 20, 24, 16 + bottomPad),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
 
         // ── Night mode ────────────────────────────────────────────────────
         GestureDetector(
@@ -2052,7 +2069,11 @@ class _ReadingSettingsSheetState extends State<_ReadingSettingsSheet> {
             ),
           ),
         ]),
+            ]),
+          ),
+        ),
       ]),
+    ),
     );
   }
 }

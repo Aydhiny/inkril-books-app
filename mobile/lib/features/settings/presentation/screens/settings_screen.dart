@@ -264,6 +264,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     await showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      // isScrollControlled lets the sheet grow beyond the default 50% cap.
+      // Without this, 6 goal tiles overflow on any screen smaller than ~780 px.
+      isScrollControlled: true,
       builder: (sheetCtx) => _DailyGoalSheet(
         current: _dailyGoalMinutes,
         onPick: (val) {
@@ -279,6 +282,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     await showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (sheetCtx) => _YearlyGoalSheet(
         current: _yearlyGoalBooks,
         onPick: (val) {
@@ -311,37 +315,53 @@ class _DailyGoalSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: context.cardBg,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        border: Border(top: BorderSide(color: context.borderPurpleMid, width: 2)),
+    final bottomPad = MediaQuery.viewPaddingOf(context).bottom;
+    return ConstrainedBox(
+      // Cap at 85 % of screen height so the sheet never overflows on any device.
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.85,
       ),
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Container(
-          width: 40,
-          height: 4,
-          decoration: BoxDecoration(
-            color: context.borderPurpleMid,
-            borderRadius: BorderRadius.circular(2),
+      child: Container(
+        decoration: BoxDecoration(
+          color: context.cardBg,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          border: Border(top: BorderSide(color: context.borderPurpleMid, width: 2)),
+        ),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          // ── Non-scrollable header ──────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: context.borderPurpleMid,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Daily Reading Goal',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  color: context.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'How much do you want to read each day?',
+                style: TextStyle(fontSize: 14, color: context.textSecondary),
+              ),
+              const SizedBox(height: 20),
+            ]),
           ),
-        ),
-        const SizedBox(height: 20),
-        Text(
-          'Daily Reading Goal',
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w900,
-            color: context.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'How much do you want to read each day?',
-          style: TextStyle(fontSize: 14, color: context.textSecondary),
-        ),
-        const SizedBox(height: 20),
+          // ── Scrollable goal list ───────────────────────────────────────────
+          Flexible(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(24, 0, 24, 16 + bottomPad),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
         ...(_goals.map((g) {
           final mins = g.$1;
           final title = g.$2;
@@ -398,7 +418,11 @@ class _DailyGoalSheet extends StatelessWidget {
             ),
           );
         })),
-      ]),
+              ]),
+            ),
+          ),
+        ]),
+      ),
     );
   }
 }
@@ -424,38 +448,51 @@ class _YearlyGoalSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: context.cardBg,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        border: Border(top: BorderSide(color: context.borderPurpleMid, width: 2)),
+    final bottomPad = MediaQuery.viewPaddingOf(context).bottom;
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.85,
       ),
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Container(
-          width: 40,
-          height: 4,
-          decoration: BoxDecoration(
-            color: context.borderPurpleMid,
-            borderRadius: BorderRadius.circular(2),
+      child: Container(
+        decoration: BoxDecoration(
+          color: context.cardBg,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          border: Border(top: BorderSide(color: context.borderPurpleMid, width: 2)),
+        ),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: context.borderPurpleMid,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                '${DateTime.now().year} Reading Goal',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  color: context.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'How many books do you want to read this year?',
+                style: TextStyle(fontSize: 14, color: context.textSecondary),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+            ]),
           ),
-        ),
-        const SizedBox(height: 20),
-        Text(
-          '${DateTime.now().year} Reading Goal',
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w900,
-            color: context.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'How many books do you want to read this year?',
-          style: TextStyle(fontSize: 14, color: context.textSecondary),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 20),
+          Flexible(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(24, 0, 24, 16 + bottomPad),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
         ...(_goals.map((g) {
           final count = g.$1;
           final title = g.$2;
@@ -505,7 +542,11 @@ class _YearlyGoalSheet extends StatelessWidget {
             ),
           );
         })),
-      ]),
+              ]),
+            ),
+          ),
+        ]),
+      ),
     );
   }
 }
