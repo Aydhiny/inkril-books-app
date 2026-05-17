@@ -294,8 +294,12 @@ class _BottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 80,
+    return DecoratedBox(
+      // No hardcoded height — SafeArea + 56 px icons determine the correct
+      // size on every device. A fixed 80 px caused icons to squish after
+      // returning from the reader because the system nav bar bottom inset
+      // (24–36 px) was added *inside* the fixed box, leaving < 30 px for the
+      // 56 px NavItems.
       decoration: BoxDecoration(
         color: context.navBg,
         border: Border(
