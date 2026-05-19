@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -106,8 +107,13 @@ class _TopBar extends StatelessWidget {
           ),
           clipBehavior: Clip.antiAlias,
           child: photoUrl != null && photoUrl.isNotEmpty
-              ? Image.network(photoUrl, fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => _AvatarFallback(initials))
+              ? CachedNetworkImage(
+                  imageUrl: photoUrl,
+                  fit: BoxFit.cover,
+                  memCacheWidth: 144,
+                  errorWidget: (_, __, ___) => _AvatarFallback(initials),
+                  placeholder: (_, __) => _AvatarFallback(initials),
+                )
               : _AvatarFallback(initials),
         ),
       ],
@@ -412,7 +418,7 @@ class _WeeklyProgressSection extends StatelessWidget {
           border: Border.all(color: const Color(0xFFE9D5FF), width: 1.5),
         ),
         child: SizedBox(
-          height: 200,
+          height: (MediaQuery.sizeOf(context).height * 0.22).clamp(160.0, 220.0),
           child: _LineChart(weeklyStats: weeklyStats),
         ),
       ),

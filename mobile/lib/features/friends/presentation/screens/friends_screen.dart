@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -421,10 +422,12 @@ class _UserCard extends StatelessWidget {
             ),
             clipBehavior: Clip.antiAlias,
             child: avatarUrl != null && avatarUrl!.isNotEmpty
-                ? Image.network(
-                    avatarUrl!,
+                ? CachedNetworkImage(
+                    imageUrl: avatarUrl!,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _AvatarFallback(username),
+                    memCacheWidth: 104,
+                    errorWidget: (_, __, ___) => _AvatarFallback(username),
+                    placeholder: (_, __) => _AvatarFallback(username),
                   )
                 : _AvatarFallback(username),
           ),

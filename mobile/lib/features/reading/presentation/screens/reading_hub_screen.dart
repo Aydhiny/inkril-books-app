@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -245,10 +246,12 @@ class _BookCover extends StatelessWidget {
         border: Border.all(color: const Color(0xFF9333EA), width: 3),
       ),
       child: coverUrl != null && coverUrl!.isNotEmpty
-          ? Image.network(
-              coverUrl!,
+          ? CachedNetworkImage(
+              imageUrl: coverUrl!,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => _CoverFallback(title: title),
+              memCacheWidth: 176,
+              errorWidget: (_, __, ___) => _CoverFallback(title: title),
+              placeholder: (_, __) => _CoverFallback(title: title),
             )
           : _CoverFallback(title: title),
     );
@@ -586,7 +589,18 @@ class _ActivityItem extends StatelessWidget {
         ClipRRect(
           borderRadius: BorderRadius.circular(8),
           child: coverUrl != null && coverUrl.isNotEmpty
-              ? Image.network(coverUrl, width: 44, height: 60, fit: BoxFit.cover)
+              ? CachedNetworkImage(
+                  imageUrl: coverUrl,
+                  width: 44,
+                  height: 60,
+                  fit: BoxFit.cover,
+                  memCacheWidth: 88,
+                  errorWidget: (_, __, ___) => Container(
+                    color: context.primarySurface,
+                    child: Center(child: Text(emoji.isEmpty ? '📚' : String.fromCharCodes(emoji.runes.take(2)),
+                        style: const TextStyle(fontSize: 20))),
+                  ),
+                )
               : Container(
                   width: 44,
                   height: 60,

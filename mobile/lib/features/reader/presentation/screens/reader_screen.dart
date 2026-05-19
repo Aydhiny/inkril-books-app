@@ -660,6 +660,50 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
             ),
           ),
 
+          // ── Controls toggle pill — right-center edge, always visible ──
+          // Tapping this toggles all reader UI without requiring a tap on the
+          // PDF content itself. More opaque when controls are hidden so the
+          // user can always find it for distraction-free reading.
+          Positioned(
+            right: 0,
+            top: 0,
+            bottom: 0,
+            child: Center(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => setState(() {
+                  _showControls = !_showControls;
+                  if (_showControls) _showBookmarksPanel = false;
+                }),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOut,
+                  width: 20,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: _showControls
+                        ? Colors.black.withValues(alpha: 0.22)
+                        : Colors.black.withValues(alpha: 0.58),
+                    borderRadius: const BorderRadius.horizontal(
+                      left: Radius.circular(12),
+                    ),
+                  ),
+                  child: Center(
+                    child: Icon(
+                      _showControls
+                          ? Icons.visibility_rounded
+                          : Icons.visibility_off_rounded,
+                      size: 11,
+                      color: Colors.white.withValues(
+                        alpha: _showControls ? 0.65 : 1.0,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
           // ── Session summary overlay ───────────────────────────────────
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 300),
