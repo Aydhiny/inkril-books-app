@@ -81,11 +81,8 @@ public class EndReadingSessionCommandHandler(
             ? Math.Round((double)session.EndPage / book.TotalPages * 100, 1)
             : 0;
 
-        if (userBook.ReadingProgressPercent >= 100 && !userBook.IsCompleted)
-        {
-            userBook.IsCompleted = true;
-            userBook.CompletedAt = DateTime.UtcNow;
-        }
+        if (userBook.ReadingProgressPercent >= 100)
+            userBook.MarkCompleted();
 
         userBook.UpdatedAt = DateTime.UtcNow;
         uow.UserBooks.Update(userBook);

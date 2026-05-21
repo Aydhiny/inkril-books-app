@@ -26,4 +26,17 @@ public class UserBook : BaseEntity
     public bool IsCompleted { get; set; } = false;
 
     public DateTime? CompletedAt { get; set; }
+
+    /// <summary>
+    /// Marks the book as completed if it hasn't been already.
+    /// Centralises completion logic so EndReadingSession and UpdateReadingProgress
+    /// can't diverge over time.
+    /// </summary>
+    public void MarkCompleted()
+    {
+        if (IsCompleted) return;
+        IsCompleted = true;
+        CompletedAt = DateTime.UtcNow;
+        UpdatedAt = DateTime.UtcNow;
+    }
 }
