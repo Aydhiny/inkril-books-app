@@ -4,6 +4,7 @@ using Inkril.Application.Common.Models;
 using Inkril.Domain.Entities;
 using MediatR;
 
+
 namespace Inkril.Application.Features.UserBooks.Commands;
 
 /// <summary>
@@ -11,37 +12,37 @@ namespace Inkril.Application.Features.UserBooks.Commands;
 /// Does NOT create or end a ReadingSession; it just persists the current page position so
 /// that if the app is force-killed the user still resumes from the last synced page.
 /// </summary>
-public record UpdateReadingProgressCommand(
-    Guid UserId, Guid BookId, int CurrentPage) : IRequest<Result>;
+public record UpdateReadingProgressCommand(Guid BookId, int CurrentPage) : IRequest<Result>;
 
 public class UpdateReadingProgressCommandValidator : AbstractValidator<UpdateReadingProgressCommand>
 {
     public UpdateReadingProgressCommandValidator()
     {
-        RuleFor(x => x.UserId).NotEmpty();
         RuleFor(x => x.BookId).NotEmpty();
         RuleFor(x => x.CurrentPage).GreaterThanOrEqualTo(0);
     }
 }
 
-public class UpdateReadingProgressCommandHandler(IUnitOfWork uow)
+public class UpdateReadingProgressCommandHandler(IUnitOfWork uow, ICurrentUserService currentUser)
     : IRequestHandler<UpdateReadingProgressCommand, Result>
 {
     public async Task<Result> Handle(UpdateReadingProgressCommand cmd, CancellationToken ct)
     {
+        var userId = currentUser.UserId ?? throw new UnauthorizedAccessException();
+
         var book = await uow.Books.GetByIdAsync(cmd.BookId, ct);
         if (book is null) return Result.Failure("Book not found.");
 
         var userBook = await uow.UserBooks.FirstOrDefaultAsync(
-            ub => ub.UserId == cmd.UserId && ub.BookId == cmd.BookId, ct);
+            ub => ub.UserId == userId && ub.BookId == cmd.BookId, ct);
 
         if (userBook is null)
         {
             userBook = new UserBook
             {
-                UserId = cmd.UserId,
+                UserId = userId,
                 BookId = cmd.BookId,
-                CreatedBy = cmd.UserId.ToString()
+                CreatedBy = userId.ToString()
             };
             await uow.UserBooks.AddAsync(userBook, ct);
         }

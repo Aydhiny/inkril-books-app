@@ -17,16 +17,14 @@ public class ReadingSessionsController(
     [HttpPost]
     public async Task<IActionResult> Start([FromBody] StartReadingSessionCommand cmd, CancellationToken ct)
     {
-        var userId = currentUser.UserId ?? throw new UnauthorizedAccessException();
-        var result = await mediator.Send(cmd with { UserId = userId }, ct);
+        var result = await mediator.Send(cmd, ct);
         return ToResult(result, id => CreatedAtAction(nameof(Start), new { id }, new { id }));
     }
 
     [HttpPut("{id:guid}/end")]
     public async Task<IActionResult> End(Guid id, [FromBody] EndSessionRequest req, CancellationToken ct)
     {
-        var userId = currentUser.UserId ?? throw new UnauthorizedAccessException();
-        var result = await mediator.Send(new EndReadingSessionCommand(id, userId, req.EndPage), ct);
+        var result = await mediator.Send(new EndReadingSessionCommand(id, req.EndPage), ct);
         return ToResult(result, NoContent());
     }
 

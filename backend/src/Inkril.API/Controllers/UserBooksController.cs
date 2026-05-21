@@ -38,8 +38,7 @@ public class UserBooksController(IMediator mediator, ICurrentUserService current
     [HttpPatch("{bookId:guid}/progress")]
     public async Task<IActionResult> UpdateProgress(Guid bookId, [FromBody] UpdateProgressRequest req, CancellationToken ct)
     {
-        var userId = currentUser.UserId ?? throw new UnauthorizedAccessException();
-        var result = await mediator.Send(new UpdateReadingProgressCommand(userId, bookId, req.CurrentPage), ct);
+        var result = await mediator.Send(new UpdateReadingProgressCommand(bookId, req.CurrentPage), ct);
         return ToResult(result, Ok());
     }
 

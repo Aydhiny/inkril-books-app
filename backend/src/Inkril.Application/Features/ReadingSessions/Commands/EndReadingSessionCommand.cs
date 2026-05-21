@@ -7,26 +7,28 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Inkril.Application.Features.ReadingSessions.Commands;
 
-public record EndReadingSessionCommand(
-    Guid SessionId, Guid UserId, int EndPage) : IRequest<Result>;
+public record EndReadingSessionCommand(Guid SessionId, int EndPage) : IRequest<Result>;
 
 public class EndReadingSessionCommandValidator : AbstractValidator<EndReadingSessionCommand>
 {
     public EndReadingSessionCommandValidator()
     {
         RuleFor(x => x.SessionId).NotEmpty();
-        RuleFor(x => x.UserId).NotEmpty();
         RuleFor(x => x.EndPage).GreaterThanOrEqualTo(0);
     }
 }
 
-public class EndReadingSessionCommandHandler(IUnitOfWork uow, IMessagePublisher publisher)
+public class EndReadingSessionCommandHandler(
+    IUnitOfWork uow,
+    IMessagePublisher publisher,
+    ICurrentUserService currentUser)
     : IRequestHandler<EndReadingSessionCommand, Result>
 {
     public async Task<Result> Handle(EndReadingSessionCommand cmd, CancellationToken ct)
     {
+        var userId = currentUser.UserId ?? throw new UnauthorizedAccessException();
         var session = await uow.ReadingSessions.GetByIdAsync(cmd.SessionId, ct);
-        if (session is null || session.UserId != cmd.UserId)
+        if (session is null || session.UserId != userId)
             return Result.Failure("Reading session not found.");
 
         if (session.EndedAt.HasValue)
@@ -43,13 +45,13 @@ public class EndReadingSessionCommandHandler(IUnitOfWork uow, IMessagePublisher 
         await uow.SaveChangesAsync(ct);
 
         var milestones = new[] { 30, 60, 120 };
-        var totalToday = await GetTodayMinutesAsync(cmd.UserId, ct);
+        var totalToday = await GetTodayMinutesAsync(userId, ct);
         foreach (var milestone in milestones)
         {
             if (totalToday - session.DurationMinutes < milestone && totalToday >= milestone)
             {
                 await publisher.PublishAsync(
-                    new { UserId = cmd.UserId, Milestone = $"{milestone}-minute reading goal", StreakDays = streakDays },
+                    new { UserId = userId, Milestone = $"{milestone}-minute reading goal", StreakDays = streakDays },
                     routingKey: "reading.milestone", ct);
                 break;
             }
