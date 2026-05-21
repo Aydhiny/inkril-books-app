@@ -2,7 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
-using Inkril.Application.Features.Auth.Commands;
+using Inkril.Application.Common.Interfaces;
 using Inkril.Domain.Entities;
 using Inkril.Infrastructure.Data;
 using Microsoft.AspNetCore.Identity;
@@ -17,6 +17,8 @@ public class TokenService(
     UserManager<ApplicationUser> userManager,
     InkrilDbContext db) : ITokenService
 {
+    private static readonly TimeSpan RefreshTokenLifetime = TimeSpan.FromDays(7);
+
     public async Task<(string AccessToken, string RefreshToken)> GenerateTokensAsync(ApplicationUser user)
     {
         var roles = await userManager.GetRolesAsync(user);
@@ -41,35 +43,45 @@ public class TokenService(
             signingCredentials: new SigningCredentials(key, SecurityAlgorithms.HmacSha256));
 
         var accessToken = new JwtSecurityTokenHandler().WriteToken(token);
-        var refreshToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
 
-        // Store refresh token in user (simple approach — for production use a dedicated RefreshToken table)
-        await userManager.SetAuthenticationTokenAsync(user, "Inkril", "RefreshToken", refreshToken);
+        // Rotate: delete any existing refresh tokens for this user before issuing a new one.
+        // This prevents an old stolen token from being valid after a fresh login.
+        var oldTokens = await db.RefreshTokens
+            .Where(rt => rt.UserId == user.Id)
+            .ToListAsync();
+        db.RefreshTokens.RemoveRange(oldTokens);
 
-        return (accessToken, refreshToken);
+        var refreshTokenValue = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
+        var refreshToken = new RefreshToken
+        {
+            UserId = user.Id,
+            Token = refreshTokenValue,
+            ExpiresAt = DateTime.UtcNow.Add(RefreshTokenLifetime),
+        };
+        db.RefreshTokens.Add(refreshToken);
+        await db.SaveChangesAsync();
+
+        return (accessToken, refreshTokenValue);
     }
 
     public async Task<ApplicationUser?> ValidateRefreshTokenAsync(string refreshToken)
     {
-        // Query AspNetUserTokens directly — one indexed lookup instead of loading
-        // all users into memory and iterating (previous approach was an O(n) full
-        // table scan that would block the thread pool under load).
-        var tokenRow = await db.UserTokens
-            .Where(t => t.LoginProvider == "Inkril"
-                     && t.Name == "RefreshToken"
-                     && t.Value == refreshToken)
-            .Select(t => t.UserId)
-            .FirstOrDefaultAsync();
+        var row = await db.RefreshTokens
+            .Include(rt => rt.User)
+            .FirstOrDefaultAsync(rt =>
+                rt.Token == refreshToken &&
+                !rt.IsRevoked &&
+                rt.ExpiresAt > DateTime.UtcNow);
 
-        if (tokenRow == default) return null;
-
-        return await userManager.FindByIdAsync(tokenRow.ToString());
+        return row?.User;
     }
 
     public async Task RevokeRefreshTokenAsync(ApplicationUser user)
     {
-        // Removing the stored token means any subsequent refresh attempt will fail —
-        // effectively invalidating the session server-side (§5 requirement).
-        await userManager.RemoveAuthenticationTokenAsync(user, "Inkril", "RefreshToken");
+        var tokens = await db.RefreshTokens
+            .Where(rt => rt.UserId == user.Id)
+            .ToListAsync();
+        db.RefreshTokens.RemoveRange(tokens);
+        await db.SaveChangesAsync();
     }
 }

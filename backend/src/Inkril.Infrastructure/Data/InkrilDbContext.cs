@@ -29,6 +29,9 @@ public class InkrilDbContext(DbContextOptions<InkrilDbContext> options)
     public DbSet<Genre> Genres => Set<Genre>();
     public DbSet<BookGenre> BookGenres => Set<BookGenre>();
 
+    // ── Auth infrastructure ───────────────────────────────────────────────
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -90,6 +93,22 @@ public class InkrilDbContext(DbContextOptions<InkrilDbContext> options)
         builder.Entity<FriendRequest>().HasQueryFilter(fr => !fr.IsDeleted);
         builder.Entity<Notification>().HasQueryFilter(n => !n.IsDeleted);
         builder.Entity<DailyReadingStat>().HasQueryFilter(d => !d.IsDeleted);
+
+        // ── RefreshToken ───────────────────────────────────────────────
+        builder.Entity<RefreshToken>()
+            .HasOne(rt => rt.User)
+            .WithMany()
+            .HasForeignKey(rt => rt.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<RefreshToken>()
+            .HasIndex(rt => rt.Token)
+            .IsUnique();
+
+        builder.Entity<RefreshToken>()
+            .Property(rt => rt.Token)
+            .HasMaxLength(256)
+            .IsRequired();
 
         // ── Additional indexes on hot query paths ─────────────────────
         // These fill gaps that EF does not create automatically via FK conventions.
