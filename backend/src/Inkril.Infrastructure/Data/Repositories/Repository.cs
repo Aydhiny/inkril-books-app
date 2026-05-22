@@ -42,6 +42,9 @@ public class Repository<T>(InkrilDbContext context) : IRepository<T> where T : B
     public void Remove(T entity)
         => _set.Remove(entity);
 
+    public void Detach(T entity)
+        => context.Entry(entity).State = EntityState.Detached;
+
     /// <summary>Soft delete — sets IsDeleted = true instead of physical removal.</summary>
     public void SoftDelete(T entity)
     {

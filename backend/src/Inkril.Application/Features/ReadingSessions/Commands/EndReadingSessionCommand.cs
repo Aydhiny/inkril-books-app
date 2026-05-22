@@ -41,8 +41,13 @@ public class EndReadingSessionCommandHandler(
         uow.ReadingSessions.Update(session);
 
         await UpdateUserBookProgressAsync(session, ct);
-        var streakDays = await UpsertDailyStatAsync(session, ct);
+
+        // Save session + UserBook in their own transaction first.
+        // The daily-stat upsert runs separately so its concurrency guard
+        // (catch on unique constraint) doesn't need to roll back session data.
         await uow.SaveChangesAsync(ct);
+
+        var streakDays = await UpsertDailyStatAsync(session, ct);
 
         var milestones = new[] { 30, 60, 120 };
         var totalToday = await GetTodayMinutesAsync(userId, ct);
@@ -88,6 +93,11 @@ public class EndReadingSessionCommandHandler(
         uow.UserBooks.Update(userBook);
     }
 
+    /// <summary>
+    /// Upserts the DailyReadingStat row for today. If two sessions end simultaneously
+    /// for the same user, the unique index on (UserId, Date) blocks the second INSERT.
+    /// The catch falls back to a direct UPDATE so no minutes are lost.
+    /// </summary>
     private async Task<int> UpsertDailyStatAsync(ReadingSession session, CancellationToken ct)
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
@@ -103,7 +113,7 @@ public class EndReadingSessionCommandHandler(
 
         if (stat is null)
         {
-            stat = new DailyReadingStat
+            var newStat = new DailyReadingStat
             {
                 UserId = session.UserId,
                 Date = today,
@@ -112,7 +122,31 @@ public class EndReadingSessionCommandHandler(
                 StreakDays = streak,
                 CreatedBy = session.UserId.ToString()
             };
-            await uow.DailyReadingStats.AddAsync(stat, ct);
+            await uow.DailyReadingStats.AddAsync(newStat, ct);
+
+            try
+            {
+                await uow.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
+            {
+                // A concurrent session beat us to the INSERT. Detach the ghost entity
+                // so it doesn't block the follow-up save, then accumulate into the
+                // row that the other thread already committed.
+                uow.DailyReadingStats.Detach(newStat);
+
+                var existing = await uow.DailyReadingStats.FirstOrDefaultAsync(
+                    s => s.UserId == session.UserId && s.Date == today, ct);
+
+                if (existing is not null)
+                {
+                    existing.MinutesRead += session.DurationMinutes;
+                    existing.PagesRead += session.PagesRead;
+                    existing.UpdatedAt = DateTime.UtcNow;
+                    uow.DailyReadingStats.Update(existing);
+                    await uow.SaveChangesAsync(ct);
+                }
+            }
         }
         else
         {
@@ -121,6 +155,7 @@ public class EndReadingSessionCommandHandler(
             stat.StreakDays = streak;
             stat.UpdatedAt = DateTime.UtcNow;
             uow.DailyReadingStats.Update(stat);
+            await uow.SaveChangesAsync(ct);
         }
 
         return streak;
@@ -133,4 +168,9 @@ public class EndReadingSessionCommandHandler(
             s => s.UserId == userId && s.Date == today, ct);
         return stat?.MinutesRead ?? 0;
     }
+
+    private static bool IsUniqueConstraintViolation(DbUpdateException ex)
+        => ex.InnerException?.Message.Contains("unique", StringComparison.OrdinalIgnoreCase) == true
+        || ex.InnerException?.Message.Contains("duplicate", StringComparison.OrdinalIgnoreCase) == true
+        || ex.InnerException?.Message.Contains("23505") == true; // PostgreSQL unique violation code
 }

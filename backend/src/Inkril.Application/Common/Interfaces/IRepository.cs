@@ -20,5 +20,7 @@ public interface IRepository<T> where T : BaseEntity
     void Update(T entity);
     void Remove(T entity);
     void SoftDelete(T entity);
+    /// <summary>Detaches a tracked entity from the change tracker without saving.</summary>
+    void Detach(T entity);
     IQueryable<T> Query();
 }
