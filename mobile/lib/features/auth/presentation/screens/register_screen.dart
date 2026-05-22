@@ -29,16 +29,24 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    await ref.read(authNotifierProvider.notifier).register(
-          firstName: _firstNameCtrl.text.trim(),
-          lastName: _lastNameCtrl.text.trim(),
-          email: _emailCtrl.text.trim(),
-          userName: _usernameCtrl.text.trim(),
-          password: _passwordCtrl.text,
-        );
+    // Capture the notifier before any await. After an async gap, `ref` may no
+    // longer be valid if the widget was disposed while the request was in flight
+    // (e.g., user navigated away during the 30-second timeout).
+    final notifier = ref.read(authNotifierProvider.notifier);
+
+    await notifier.register(
+      firstName: _firstNameCtrl.text.trim(),
+      lastName: _lastNameCtrl.text.trim(),
+      email: _emailCtrl.text.trim(),
+      userName: _usernameCtrl.text.trim(),
+      password: _passwordCtrl.text,
+    );
+
+    // Guard BEFORE any post-await ref/context access.
+    if (!mounted) return;
 
     final state = ref.read(authNotifierProvider);
-    if (state.hasError && mounted) {
+    if (state.hasError) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(state.error.toString()), backgroundColor: Theme.of(context).colorScheme.error),
       );
