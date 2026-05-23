@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'core/config/app_config.dart';
 import 'core/router/app_router.dart';
 import 'core/providers/auth_provider.dart';
 import 'core/providers/theme_provider.dart';
@@ -10,6 +12,10 @@ import 'features/reader/presentation/providers/reader_settings_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialise Stripe with the publishable key injected at build time.
+  // Uses test key by default — replace via --dart-define=STRIPE_PUBLISHABLE_KEY=…
+  Stripe.publishableKey = AppConfig.stripePublishableKey;
 
   // Read storage once at startup so the router guard has the correct
   // initial state before the first frame renders.
