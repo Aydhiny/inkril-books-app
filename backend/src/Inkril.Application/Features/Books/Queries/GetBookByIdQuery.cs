@@ -15,7 +15,8 @@ public record BookDetailDto(
     string? CoverImageUrl, long FileSizeBytes,
     int TotalPages, DateTime PublishedDate, string? ISBN,
     string? Publisher, string? Language, double AverageRating,
-    int RatingCount, IEnumerable<string> Genres);
+    int RatingCount, IEnumerable<string> Genres,
+    bool IsPremium, decimal? Price, bool IsPurchasedByUser);
 
 public record GetBookByIdQuery(Guid BookId, Guid? RequestingUserId) : IRequest<Result<BookDetailDto>>;
 
@@ -31,12 +32,19 @@ public class GetBookByIdQueryHandler(IUnitOfWork uow)
         if (book is null)
             return Result<BookDetailDto>.Failure("Book not found.");
 
+        // Check if the requesting user has already purchased this book
+        var isPurchased = q.RequestingUserId.HasValue && await uow.Purchases.AnyAsync(
+            p => p.UserId == q.RequestingUserId.Value
+              && p.BookId == q.BookId
+              && p.Status == "succeeded", ct);
+
         return Result<BookDetailDto>.Success(new BookDetailDto(
             book.Id, book.Title, book.Author, book.Description,
             book.CoverImageUrl, book.FileSizeBytes,
             book.TotalPages, book.PublishedDate, book.ISBN,
             book.Publisher, book.Language, book.AverageRating,
             book.RatingCount,
-            book.BookGenres.Select(bg => bg.Genre.Name)));
+            book.BookGenres.Select(bg => bg.Genre.Name),
+            book.IsPremium, book.Price, isPurchased));
     }
 }

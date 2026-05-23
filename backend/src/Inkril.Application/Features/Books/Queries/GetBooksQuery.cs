@@ -9,7 +9,8 @@ public record BookDto(
     Guid Id, string Title, string Author, string? Description,
     string? CoverImageUrl, long FileSizeBytes, int TotalPages,
     DateTime PublishedDate, bool IsPublic, double AverageRating,
-    int RatingCount, IEnumerable<string> Genres);
+    int RatingCount, IEnumerable<string> Genres,
+    bool IsPremium, decimal? Price);
 
 public record GetBooksQuery(
     string? SearchTerm,
@@ -47,7 +48,8 @@ public class GetBooksQueryHandler(IUnitOfWork uow) : IRequestHandler<GetBooksQue
             b.Id, b.Title, b.Author, b.Description, b.CoverImageUrl,
             b.FileSizeBytes, b.TotalPages, b.PublishedDate, b.IsPublic,
             b.AverageRating, b.RatingCount,
-            b.BookGenres.Select(bg => bg.Genre.Name)));
+            b.BookGenres.Select(bg => bg.Genre.Name),
+            b.IsPremium, b.Price));
 
         return await PagedList<BookDto>.CreateAsync(projected, q.PageNumber, pageSize, ct);
     }
