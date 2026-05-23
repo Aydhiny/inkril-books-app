@@ -60,7 +60,7 @@ class PaymentNotifier extends StateNotifier<PaymentState> {
 
       // ② Initialise the Stripe Payment Sheet
       await Stripe.instance.initPaymentSheet(
-        paymentSheetData: SetupPaymentSheetParameters(
+        paymentSheetParameters: SetupPaymentSheetParameters(
           paymentIntentClientSecret: clientSecret,
           merchantDisplayName: 'Inkril Books',
           // billingDetailsCollectionConfiguration lets the sheet auto-fill
