@@ -7,6 +7,7 @@ import '../../../../core/api/api_client.dart';
 import '../../../../core/config/app_config.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../payments/presentation/providers/payment_provider.dart';
 import '../providers/library_provider.dart';
 
 class BookDetailScreen extends ConsumerWidget {
@@ -104,6 +105,9 @@ class _BookBody extends StatelessWidget {
     final description = book['description'] as String? ?? '';
     final genres = book['genres'] as List? ?? [];
     final coverUrl = book['coverImageUrl'] as String?;
+    final isPremium = book['isPremium'] as bool? ?? false;
+    final price = (book['price'] as num?)?.toDouble();
+    final isPurchased = book['isPurchasedByUser'] as bool? ?? false;
 
     final fileSizeMb = fileSizeBytes > 0
         ? '${(fileSizeBytes / (1024 * 1024)).toStringAsFixed(0)} MB'
@@ -314,31 +318,96 @@ class _BookBody extends StatelessWidget {
             ),
           const SizedBox(height: 16),
 
+          // ── Premium badge ─────────────────────────────────────────
+          if (isPremium && !isPurchased)
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFFFD700), Color(0xFFF59E0B)],
+                ),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFF59E0B).withValues(alpha: 0.35),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.workspace_premium_rounded,
+                    color: Color(0xFF78350F), size: 18),
+                const SizedBox(width: 8),
+                Text(
+                  price != null
+                      ? 'Premium · \$${price.toStringAsFixed(2)}'
+                      : 'Premium',
+                  style: const TextStyle(
+                    color: Color(0xFF78350F),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                  ),
+                ),
+              ]),
+            ),
+
+          if (isPremium && isPurchased)
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF22C55E).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                    color: const Color(0xFF22C55E).withValues(alpha: 0.4),
+                    width: 2),
+              ),
+              child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.check_circle_rounded,
+                    color: Color(0xFF16A34A), size: 18),
+                SizedBox(width: 8),
+                Text(
+                  'Purchased',
+                  style: TextStyle(
+                    color: Color(0xFF16A34A),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
+              ]),
+            ),
+
           // ── Action buttons ────────────────────────────────────────
-          Row(children: [
-            Expanded(
-              child: FilledButton.icon(
-                icon: const Icon(Icons.menu_book_rounded, size: 18),
-                label: Text(progress != null
-                    ? 'Continue Reading'
-                    : 'Start Reading'),
-                onPressed: () => context.push('/reader/$bookId'),
+          if (isPremium && !isPurchased)
+            // Buy button — full-width, amber/gold tones
+            _BuyButton(bookId: bookId, price: price)
+          else
+            Row(children: [
+              Expanded(
+                child: FilledButton.icon(
+                  icon: const Icon(Icons.menu_book_rounded, size: 18),
+                  label: Text(progress != null
+                      ? 'Continue Reading'
+                      : 'Start Reading'),
+                  onPressed: () => context.push('/reader/$bookId'),
+                ),
               ),
-            ),
-            const SizedBox(width: 10),
-            OutlinedButton(
-              onPressed: () => _addToLibrary(context, ref),
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size(52, 52),
-                padding: EdgeInsets.zero,
-                side: const BorderSide(color: AppTheme.primary, width: 2.5),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
+              const SizedBox(width: 10),
+              OutlinedButton(
+                onPressed: () => _addToLibrary(context, ref),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(52, 52),
+                  padding: EdgeInsets.zero,
+                  side: const BorderSide(color: AppTheme.primary, width: 2.5),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                ),
+                child: const Icon(Icons.library_add_outlined,
+                    color: AppTheme.primary),
               ),
-              child: const Icon(Icons.library_add_outlined,
-                  color: AppTheme.primary),
-            ),
-          ]),
+            ]),
           const SizedBox(height: 20),
 
           // ── Description ───────────────────────────────────────────
@@ -472,6 +541,101 @@ class _BookBody extends StatelessWidget {
         },
       ),
     );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Buy button — full-width, triggers the Stripe payment sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _BuyButton extends ConsumerWidget {
+  final String bookId;
+  final double? price;
+
+  const _BuyButton({required this.bookId, required this.price});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final payState = ref.watch(paymentProvider);
+    final isLoading = payState.status == PaymentStatus.loading;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          height: 52,
+          child: ElevatedButton.icon(
+            onPressed: isLoading ? null : () => _buy(context, ref),
+            icon: isLoading
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white),
+                  )
+                : const Icon(Icons.credit_card_rounded, size: 20),
+            label: Text(
+              isLoading
+                  ? 'Processing…'
+                  : price != null
+                      ? 'Buy for \$${price!.toStringAsFixed(2)}'
+                      : 'Purchase',
+              style: const TextStyle(
+                  fontWeight: FontWeight.w800, fontSize: 16),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFF59E0B),
+              foregroundColor: const Color(0xFF78350F),
+              disabledBackgroundColor:
+                  const Color(0xFFF59E0B).withValues(alpha: 0.5),
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14)),
+            ),
+          ),
+        ),
+        if (payState.status == PaymentStatus.failure &&
+            payState.errorMessage != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            payState.errorMessage!,
+            style: const TextStyle(
+                color: Color(0xFFEF4444),
+                fontSize: 13,
+                fontWeight: FontWeight.w600),
+            textAlign: TextAlign.center,
+          ),
+        ],
+        const SizedBox(height: 6),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: const [
+            Icon(Icons.lock_rounded, size: 13, color: Color(0xFF9CA3AF)),
+            SizedBox(width: 4),
+            Text(
+              'Secure payment · Powered by Stripe',
+              style:
+                  TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Future<void> _buy(BuildContext context, WidgetRef ref) async {
+    final notifier = ref.read(paymentProvider.notifier);
+    final success = await notifier.purchaseBook(bookId);
+    if (success && context.mounted) {
+      // Invalidate book detail so isPurchasedByUser refreshes
+      ref.invalidate(bookDetailProvider(bookId));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Purchase successful! You can now read this book.'),
+        backgroundColor: const Color(0xFF22C55E),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ));
+    }
   }
 }
 
