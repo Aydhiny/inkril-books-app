@@ -25,6 +25,12 @@ public class ApplicationUser : IdentityUser<Guid>
 
     public bool IsBlocked { get; set; } = false;
 
+    /// <summary>
+    /// Stripe Customer ID (cus_…). Populated on first payment interaction.
+    /// Null until the user initiates a purchase or saves a payment method.
+    /// </summary>
+    public string? StripeCustomerId { get; set; }
+
     // Navigation properties
     public UserSettings? Settings { get; set; }
     public ICollection<UserBook> UserBooks { get; set; } = [];
