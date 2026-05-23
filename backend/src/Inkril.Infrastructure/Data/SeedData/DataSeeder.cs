@@ -92,21 +92,30 @@ public class DataSeeder(
 
     private async Task SeedBooksAsync()
     {
-        var fictionId = context.Genres.First(g => g.Name == "Fiction").Id;
-        var scifiId   = context.Genres.First(g => g.Name == "Science Fiction").Id;
-        var romanceId = context.Genres.First(g => g.Name == "Romance").Id;
+        var fictionId   = context.Genres.First(g => g.Name == "Fiction").Id;
+        var scifiId     = context.Genres.First(g => g.Name == "Science Fiction").Id;
+        var romanceId   = context.Genres.First(g => g.Name == "Romance").Id;
+        var selfHelpId  = context.Genres.First(g => g.Name == "Self-Help").Id;
+        var historyId   = context.Genres.First(g => g.Name == "History").Id;
+        var psychologyId = context.Genres.First(g => g.Name == "Psychology").Id;
 
         // Cover images via Open Library (free, no auth required)
         var coverMap = new Dictionary<string, string>
         {
-            ["Moby Dick"]                    = "https://covers.openlibrary.org/b/isbn/9780142437247-L.jpg",
-            ["1984"]                         = "https://covers.openlibrary.org/b/isbn/9780451524935-L.jpg",
-            ["The Great Gatsby"]             = "https://covers.openlibrary.org/b/isbn/9780743273565-L.jpg",
-            ["Pride and Prejudice"]          = "https://covers.openlibrary.org/b/isbn/9780141439518-L.jpg",
-            ["Dune"]                         = "https://covers.openlibrary.org/b/isbn/9780441013593-L.jpg",
-            ["The Alchemist"]                = "https://covers.openlibrary.org/b/isbn/9780061122415-L.jpg",
-            ["To Kill a Mockingbird"]        = "https://covers.openlibrary.org/b/isbn/9780446310789-L.jpg",
-            ["The Little Prince"]            = "https://covers.openlibrary.org/b/isbn/9780156013987-L.jpg",
+            ["Moby Dick"]                       = "https://covers.openlibrary.org/b/isbn/9780142437247-L.jpg",
+            ["1984"]                            = "https://covers.openlibrary.org/b/isbn/9780451524935-L.jpg",
+            ["The Great Gatsby"]                = "https://covers.openlibrary.org/b/isbn/9780743273565-L.jpg",
+            ["Pride and Prejudice"]             = "https://covers.openlibrary.org/b/isbn/9780141439518-L.jpg",
+            ["Dune"]                            = "https://covers.openlibrary.org/b/isbn/9780441013593-L.jpg",
+            ["The Alchemist"]                   = "https://covers.openlibrary.org/b/isbn/9780061122415-L.jpg",
+            ["To Kill a Mockingbird"]           = "https://covers.openlibrary.org/b/isbn/9780446310789-L.jpg",
+            ["The Little Prince"]               = "https://covers.openlibrary.org/b/isbn/9780156013987-L.jpg",
+            // Premium books
+            ["Atomic Habits"]                   = "https://covers.openlibrary.org/b/isbn/9780735211292-L.jpg",
+            ["Sapiens"]                         = "https://covers.openlibrary.org/b/isbn/9780062316097-L.jpg",
+            ["The Psychology of Money"]         = "https://covers.openlibrary.org/b/isbn/9780857197689-L.jpg",
+            ["Deep Work"]                       = "https://covers.openlibrary.org/b/isbn/9781455586691-L.jpg",
+            ["Thinking, Fast and Slow"]         = "https://covers.openlibrary.org/b/isbn/9780374533557-L.jpg",
         };
 
         if (!await context.Books.AnyAsync())
@@ -193,6 +202,63 @@ public class DataSeeder(
                     IsPublic = true,
                     BookGenres = [new BookGenre { GenreId = fictionId }]
                 },
+
+                // ── Premium books ─────────────────────────────────────────────
+                new() {
+                    Title = "Atomic Habits", Author = "James Clear",
+                    Description = "An easy and proven way to build good habits and break bad ones. " +
+                                  "Tiny changes, remarkable results — the #1 most-sold self-help book of the decade.",
+                    CoverImageUrl = coverMap["Atomic Habits"],
+                    FilePath = "/uploads/books/atomic-habits.pdf", TotalPages = 320,
+                    FileSizeBytes = 1024 * 1024 * 6,
+                    PublishedDate = new DateTime(2018, 10, 16, 0, 0, 0, DateTimeKind.Utc),
+                    IsPublic = true, IsPremium = true, Price = 4.99m,
+                    BookGenres = [new BookGenre { GenreId = selfHelpId }]
+                },
+                new() {
+                    Title = "Sapiens", Author = "Yuval Noah Harari",
+                    Description = "A brief history of humankind — from the Stone Age to the AI Age. " +
+                                  "How Homo sapiens came to dominate the planet and what the future holds.",
+                    CoverImageUrl = coverMap["Sapiens"],
+                    FilePath = "/uploads/books/sapiens.pdf", TotalPages = 443,
+                    FileSizeBytes = 1024 * 1024 * 9,
+                    PublishedDate = new DateTime(2011, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                    IsPublic = true, IsPremium = true, Price = 6.99m,
+                    BookGenres = [new BookGenre { GenreId = historyId }]
+                },
+                new() {
+                    Title = "The Psychology of Money", Author = "Morgan Housel",
+                    Description = "Timeless lessons on wealth, greed, and happiness. " +
+                                  "How your relationship with money shapes your financial decisions.",
+                    CoverImageUrl = coverMap["The Psychology of Money"],
+                    FilePath = "/uploads/books/psychology-of-money.pdf", TotalPages = 256,
+                    FileSizeBytes = 1024 * 1024 * 5,
+                    PublishedDate = new DateTime(2020, 9, 8, 0, 0, 0, DateTimeKind.Utc),
+                    IsPublic = true, IsPremium = true, Price = 3.99m,
+                    BookGenres = [new BookGenre { GenreId = selfHelpId }]
+                },
+                new() {
+                    Title = "Deep Work", Author = "Cal Newport",
+                    Description = "Rules for focused success in a distracted world. " +
+                                  "The ability to perform deep work is becoming both rarer and more valuable.",
+                    CoverImageUrl = coverMap["Deep Work"],
+                    FilePath = "/uploads/books/deep-work.pdf", TotalPages = 304,
+                    FileSizeBytes = 1024 * 1024 * 5,
+                    PublishedDate = new DateTime(2016, 1, 5, 0, 0, 0, DateTimeKind.Utc),
+                    IsPublic = true, IsPremium = true, Price = 4.99m,
+                    BookGenres = [new BookGenre { GenreId = selfHelpId }]
+                },
+                new() {
+                    Title = "Thinking, Fast and Slow", Author = "Daniel Kahneman",
+                    Description = "Nobel Prize winner Daniel Kahneman explores the two systems of thought " +
+                                  "that shape our judgements and reveals the flaws in human reasoning.",
+                    CoverImageUrl = coverMap["Thinking, Fast and Slow"],
+                    FilePath = "/uploads/books/thinking-fast-and-slow.pdf", TotalPages = 499,
+                    FileSizeBytes = 1024 * 1024 * 10,
+                    PublishedDate = new DateTime(2011, 10, 25, 0, 0, 0, DateTimeKind.Utc),
+                    IsPublic = true, IsPremium = true, Price = 5.99m,
+                    BookGenres = [new BookGenre { GenreId = psychologyId }]
+                },
             };
 
             await context.Books.AddRangeAsync(books);
@@ -252,6 +318,44 @@ public class DataSeeder(
                     IsPublic = true,
                     BookGenres = [new BookGenre { GenreId = fictionId }]
                 });
+
+            // Add premium books if not yet seeded
+            var premiumTitles = new[]
+            {
+                ("Atomic Habits",             "James Clear",        selfHelpId,   true,  4.99m, "/uploads/books/atomic-habits.pdf",            320, (long)(1024 * 1024 * 6), new DateTime(2018, 10, 16, 0, 0, 0, DateTimeKind.Utc)),
+                ("Sapiens",                   "Yuval Noah Harari",  historyId,    true,  6.99m, "/uploads/books/sapiens.pdf",                  443, (long)(1024 * 1024 * 9), new DateTime(2011,  1,  1, 0, 0, 0, DateTimeKind.Utc)),
+                ("The Psychology of Money",   "Morgan Housel",      selfHelpId,   true,  3.99m, "/uploads/books/psychology-of-money.pdf",      256, (long)(1024 * 1024 * 5), new DateTime(2020,  9,  8, 0, 0, 0, DateTimeKind.Utc)),
+                ("Deep Work",                 "Cal Newport",        selfHelpId,   true,  4.99m, "/uploads/books/deep-work.pdf",                304, (long)(1024 * 1024 * 5), new DateTime(2016,  1,  5, 0, 0, 0, DateTimeKind.Utc)),
+                ("Thinking, Fast and Slow",   "Daniel Kahneman",    psychologyId, true,  5.99m, "/uploads/books/thinking-fast-and-slow.pdf",   499, (long)(1024 * 1024 * 10), new DateTime(2011, 10, 25, 0, 0, 0, DateTimeKind.Utc)),
+            };
+
+            foreach (var (title, author, genreId, isPremium, price, filePath, pages, size, pubDate) in premiumTitles)
+            {
+                if (!existingTitles.Contains(title))
+                {
+                    newBooks.Add(new Book
+                    {
+                        Title = title, Author = author,
+                        CoverImageUrl = coverMap.TryGetValue(title, out var cu) ? cu : null,
+                        FilePath = filePath, TotalPages = pages,
+                        FileSizeBytes = size, PublishedDate = pubDate,
+                        IsPublic = true, IsPremium = isPremium, Price = price,
+                        BookGenres = [new BookGenre { GenreId = genreId }]
+                    });
+                }
+                else
+                {
+                    // Patch existing premium books that pre-date the IsPremium/Price columns
+                    var premBook = await context.Books
+                        .FirstOrDefaultAsync(b => b.Title == title);
+                    if (premBook is not null && !premBook.IsPremium)
+                    {
+                        premBook.IsPremium = isPremium;
+                        premBook.Price     = price;
+                        patched = true;
+                    }
+                }
+            }
 
             if (newBooks.Count > 0)
             {
