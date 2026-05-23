@@ -54,17 +54,21 @@ class PaymentNotifier extends StateNotifier<PaymentState> {
         '/api/payments/create-intent',
         data: {'bookId': bookId},
       );
-      final data            = intentRes.data as Map<String, dynamic>;
-      final clientSecret    = data['clientSecret'] as String;
-      final paymentIntentId = data['paymentIntentId'] as String;
+      final data             = intentRes.data as Map<String, dynamic>;
+      final clientSecret     = data['clientSecret'] as String;
+      final paymentIntentId  = data['paymentIntentId'] as String;
+      final stripeCustomerId = data['stripeCustomerId'] as String?;
+      final ephemeralKey     = data['ephemeralKeySecret'] as String?;
 
-      // ② Initialise the Stripe Payment Sheet
+      // ② Initialise the Stripe Payment Sheet.
+      // Passing customerId + ephemeralKeySecret makes any saved card appear
+      // as a default payment option inside the sheet.
       await Stripe.instance.initPaymentSheet(
         paymentSheetParameters: SetupPaymentSheetParameters(
           paymentIntentClientSecret: clientSecret,
           merchantDisplayName: 'Inkril Books',
-          // billingDetailsCollectionConfiguration lets the sheet auto-fill
-          // email if the user has Google Pay configured.
+          customerId: stripeCustomerId,
+          customerEphemeralKeySecret: ephemeralKey,
           billingDetailsCollectionConfiguration:
               const BillingDetailsCollectionConfiguration(
             email: CollectionMode.automatic,

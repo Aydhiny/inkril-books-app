@@ -130,8 +130,8 @@ class _TopBar extends StatelessWidget {
               right: 0,
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 _MiniIconBtn(
-                    icon: Icons.settings_outlined,
-                    onTap: () => context.go('/settings')),
+                    icon: Icons.manage_accounts_outlined,
+                    onTap: () => context.push('/account-settings')),
               ]),
             ),
           ],
