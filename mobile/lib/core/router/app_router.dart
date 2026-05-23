@@ -18,6 +18,7 @@ import '../../features/friends/presentation/screens/friends_screen.dart';
 import '../../features/notifications/presentation/screens/notifications_screen.dart';
 import '../../features/profile/presentation/screens/edit_profile_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
+import '../../features/settings/presentation/screens/legal_screen.dart';
 import '../../features/welcome/presentation/screens/welcome_screen.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_colors.dart';
@@ -154,6 +155,10 @@ final routerProvider = Provider.family<GoRouter, String>((ref, initialLocation) 
           GoRoute(path: '/friends',       pageBuilder: (_, s) => _slide(s, const FriendsScreen())),
           GoRoute(path: '/notifications', pageBuilder: (_, s) => _slide(s, const NotificationsScreen())),
           GoRoute(path: '/settings',      pageBuilder: (_, s) => _slide(s, const SettingsScreen())),
+          GoRoute(
+            path: '/legal/:type',
+            pageBuilder: (_, s) => _slide(s, LegalScreen(type: s.pathParameters['type']!)),
+          ),
           GoRoute(path: '/reading-stats', pageBuilder: (_, s) => _slide(s, const ReadingStatsScreen())),
           GoRoute(path: '/challenges',    pageBuilder: (_, s) => _slide(s, const ChallengesScreen())),
         ],

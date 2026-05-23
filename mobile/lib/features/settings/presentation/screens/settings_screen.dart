@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../../core/providers/theme_provider.dart';
 import '../../../../core/providers/user_settings_provider.dart';
@@ -217,6 +218,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     const SizedBox(height: 12),
                     _SettingsCard(children: [
                       _AppearanceRow(),
+                    ]),
+                    const SizedBox(height: 12),
+                    _SettingsCard(children: [
+                      _NavRow(
+                        icon: Icons.privacy_tip_outlined,
+                        label: 'Privacy Policy',
+                        onTap: () => context.push('/legal/privacy-policy'),
+                      ),
+                      _Divider(),
+                      _NavRow(
+                        icon: Icons.gavel_rounded,
+                        label: 'Terms of Service',
+                        onTap: () => context.push('/legal/terms'),
+                      ),
                     ]),
                     const SizedBox(height: 32),
                   ],
@@ -678,6 +693,41 @@ class _Divider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Divider(height: 1, indent: 16, endIndent: 16, color: context.divider);
+  }
+}
+
+// Navigation row — used for links that push a new screen (Legal docs, etc.)
+class _NavRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  const _NavRow({required this.icon, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(children: [
+          Icon(icon, size: 20, color: AppTheme.primary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 15,
+                color: context.textBody,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          Icon(Icons.chevron_right_rounded,
+              size: 20, color: context.textSecondary),
+        ]),
+      ),
+    );
   }
 }
 
