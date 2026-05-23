@@ -19,6 +19,7 @@ public interface IUnitOfWork : IDisposable
     IRepository<UserSettings> UserSettings { get; }
     IRepository<DailyReadingStat> DailyReadingStats { get; }
     IRepository<Genre> Genres { get; }
+    IRepository<Purchase> Purchases { get; }
 
     Task<int> SaveChangesAsync(CancellationToken ct = default);
 }

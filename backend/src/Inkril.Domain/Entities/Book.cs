@@ -40,6 +40,12 @@ public class Book : BaseEntity
 
     public int RatingCount { get; set; } = 0;
 
+    /// <summary>When true the book requires a one-time purchase before reading.</summary>
+    public bool IsPremium { get; set; } = false;
+
+    /// <summary>Price in USD. Null or zero for free books.</summary>
+    public decimal? Price { get; set; }
+
     // Navigation
     public ICollection<BookGenre> BookGenres { get; set; } = [];
     public ICollection<UserBook> UserBooks { get; set; } = [];

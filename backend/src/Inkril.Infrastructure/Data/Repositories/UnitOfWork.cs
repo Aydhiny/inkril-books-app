@@ -17,6 +17,7 @@ public class UnitOfWork(InkrilDbContext context) : IUnitOfWork
     private IRepository<UserSettings>? _userSettings;
     private IRepository<DailyReadingStat>? _dailyReadingStats;
     private IRepository<Genre>? _genres;
+    private IRepository<Purchase>? _purchases;
 
     public IRepository<Book> Books => _books ??= new Repository<Book>(context);
     public IRepository<UserBook> UserBooks => _userBooks ??= new Repository<UserBook>(context);
@@ -29,6 +30,7 @@ public class UnitOfWork(InkrilDbContext context) : IUnitOfWork
     public IRepository<UserSettings> UserSettings => _userSettings ??= new Repository<UserSettings>(context);
     public IRepository<DailyReadingStat> DailyReadingStats => _dailyReadingStats ??= new Repository<DailyReadingStat>(context);
     public IRepository<Genre> Genres => _genres ??= new Repository<Genre>(context);
+    public IRepository<Purchase> Purchases => _purchases ??= new Repository<Purchase>(context);
 
     public async Task<int> SaveChangesAsync(CancellationToken ct = default)
         => await context.SaveChangesAsync(ct);

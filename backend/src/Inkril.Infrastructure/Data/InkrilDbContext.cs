@@ -29,6 +29,9 @@ public class InkrilDbContext(DbContextOptions<InkrilDbContext> options)
     public DbSet<Genre> Genres => Set<Genre>();
     public DbSet<BookGenre> BookGenres => Set<BookGenre>();
 
+    // ── Payments ──────────────────────────────────────────────────────────
+    public DbSet<Purchase> Purchases => Set<Purchase>();
+
     // ── Auth infrastructure ───────────────────────────────────────────────
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
@@ -93,6 +96,46 @@ public class InkrilDbContext(DbContextOptions<InkrilDbContext> options)
         builder.Entity<FriendRequest>().HasQueryFilter(fr => !fr.IsDeleted);
         builder.Entity<Notification>().HasQueryFilter(n => !n.IsDeleted);
         builder.Entity<DailyReadingStat>().HasQueryFilter(d => !d.IsDeleted);
+        builder.Entity<Purchase>().HasQueryFilter(p => !p.IsDeleted);
+
+        // ── Purchase ───────────────────────────────────────────────────
+        builder.Entity<Purchase>()
+            .HasOne(p => p.User)
+            .WithMany()
+            .HasForeignKey(p => p.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Entity<Purchase>()
+            .HasOne(p => p.Book)
+            .WithMany()
+            .HasForeignKey(p => p.BookId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Fast lookup: has user purchased this book?
+        builder.Entity<Purchase>()
+            .HasIndex(p => new { p.UserId, p.BookId });
+
+        // Stripe reconciliation: look up by PaymentIntentId
+        builder.Entity<Purchase>()
+            .HasIndex(p => p.StripePaymentIntentId)
+            .IsUnique();
+
+        builder.Entity<Purchase>()
+            .Property(p => p.AmountCents).IsRequired();
+
+        builder.Entity<Purchase>()
+            .Property(p => p.Currency).HasMaxLength(3).IsRequired();
+
+        builder.Entity<Purchase>()
+            .Property(p => p.Status).HasMaxLength(20).IsRequired();
+
+        builder.Entity<Purchase>()
+            .Property(p => p.StripePaymentIntentId).HasMaxLength(100).IsRequired();
+
+        // Book price column — precision 18,2 is standard for money in PostgreSQL
+        builder.Entity<Book>()
+            .Property(b => b.Price)
+            .HasColumnType("numeric(18,2)");
 
         // ── RefreshToken ───────────────────────────────────────────────
         builder.Entity<RefreshToken>()
