@@ -48,6 +48,7 @@ public static class DependencyInjection
         services.AddScoped<IEmailService, EmailService>();
         services.AddScoped<IRecommendationService, RecommendationService>();
         services.AddScoped<ITokenService, TokenService>();
+        services.AddScoped<IPaymentService, StripePaymentService>();
 
         // ── Messaging (RabbitMQ) ─────────────────────────────────────────
         services.AddSingleton<IMessagePublisher, RabbitMqPublisher>();
