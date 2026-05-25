@@ -55,6 +55,17 @@ public interface IPaymentService
     /// Detaches a PaymentMethod from its customer so it is no longer saved.
     /// </summary>
     Task DetachPaymentMethodAsync(string paymentMethodId, CancellationToken ct = default);
+
+    // ── Refunds ───────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Issues a refund against the given PaymentIntent.
+    /// Pass <paramref name="amountCents"/> for a partial refund; omit (or pass <c>null</c>)
+    /// to refund the full remaining amount.
+    /// Returns the Stripe Refund ID (re_…) for audit trail storage.
+    /// </summary>
+    Task<string> RefundPaymentAsync(
+        string paymentIntentId, long? amountCents = null, CancellationToken ct = default);
 }
 
 /// <summary>DTO representing one saved card returned from Stripe.</summary>

@@ -160,4 +160,20 @@ public class StripePaymentService : IPaymentService
     {
         await new PaymentMethodService().DetachAsync(paymentMethodId, cancellationToken: ct);
     }
+
+    // ── Refunds ───────────────────────────────────────────────────────────────
+
+    /// <inheritdoc />
+    public async Task<string> RefundPaymentAsync(
+        string paymentIntentId, long? amountCents = null, CancellationToken ct = default)
+    {
+        var options = new RefundCreateOptions
+        {
+            PaymentIntent = paymentIntentId,
+            Amount        = amountCents, // null → Stripe refunds the full remaining amount
+        };
+
+        var refund = await new RefundService().CreateAsync(options, cancellationToken: ct);
+        return refund.Id;
+    }
 }

@@ -1,6 +1,7 @@
 using FluentValidation;
 using Inkril.Application.Common.Interfaces;
 using Inkril.Application.Common.Models;
+using Inkril.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -47,7 +48,8 @@ public class CreatePaymentIntentCommandHandler(IUnitOfWork uow, IPaymentService 
 
         // Prevent duplicate purchases
         var alreadyPurchased = await uow.Purchases.AnyAsync(
-            p => p.UserId == cmd.UserId && p.BookId == cmd.BookId && p.Status == "succeeded", ct);
+            p => p.UserId == cmd.UserId && p.BookId == cmd.BookId
+              && p.Status == PurchaseStatus.Succeeded, ct);
 
         if (alreadyPurchased)
             return Result<PaymentIntentDto>.Failure("You have already purchased this book.");
@@ -74,7 +76,7 @@ public class CreatePaymentIntentCommandHandler(IUnitOfWork uow, IPaymentService 
             StripePaymentIntentId = paymentIntentId,
             AmountCents           = amountCents,
             Currency              = "usd",
-            Status                = "pending",
+            // Status defaults to PurchaseStatus.Pending in the entity constructor
             CreatedBy             = cmd.UserId.ToString()
         }, ct);
 

@@ -1,6 +1,7 @@
 using FluentValidation;
 using Inkril.Application.Common.Interfaces;
 using Inkril.Application.Common.Models;
+using Inkril.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -22,7 +23,6 @@ public class ConfirmPurchaseCommandHandler(IUnitOfWork uow, IPaymentService paym
 {
     public async Task<Result> Handle(ConfirmPurchaseCommand cmd, CancellationToken ct)
     {
-        // Retrieve the pending Purchase record created by CreatePaymentIntentCommand
         var purchase = await uow.Purchases.Query()
             .FirstOrDefaultAsync(
                 p => p.StripePaymentIntentId == cmd.PaymentIntentId
@@ -31,21 +31,21 @@ public class ConfirmPurchaseCommandHandler(IUnitOfWork uow, IPaymentService paym
         if (purchase is null)
             return Result.Failure("Purchase record not found.");
 
-        if (purchase.Status == "succeeded")
-            return Result.Success(); // Idempotent — already confirmed
+        // Idempotent — if already confirmed don't re-verify with Stripe
+        if (purchase.Status == PurchaseStatus.Succeeded)
+            return Result.Success();
 
-        // Verify with Stripe that payment actually succeeded (prevents fake confirmations)
         var succeeded = await paymentService.IsPaymentSucceededAsync(cmd.PaymentIntentId, ct);
         if (!succeeded)
             return Result.Failure("Payment has not been completed. Please try again.");
 
-        purchase.Status = "succeeded";
-        purchase.PaidAt = DateTime.UtcNow;
+        // State machine enforces Pending → Succeeded
+        purchase.Transition(PurchaseStatus.Succeeded);
+        purchase.PaidAt    = DateTime.UtcNow;
         purchase.UpdatedAt = DateTime.UtcNow;
         uow.Purchases.Update(purchase);
 
-        // Add the book to the user's library so the existing ownership-based read-url
-        // gate (GetBookReadUrlQuery → UserBooks check) grants access automatically.
+        // Add book to user's library so the existing read-url gate grants access
         var alreadyInLibrary = await uow.UserBooks.AnyAsync(
             ub => ub.UserId == cmd.UserId && ub.BookId == purchase.BookId, ct);
 

@@ -1,7 +1,9 @@
 using Inkril.Domain.Entities;
+using Inkril.Domain.Enums;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace Inkril.Infrastructure.Data;
 
@@ -126,8 +128,24 @@ public class InkrilDbContext(DbContextOptions<InkrilDbContext> options)
         builder.Entity<Purchase>()
             .Property(p => p.Currency).HasMaxLength(3).IsRequired();
 
+        // Store PurchaseStatus as a lowercase string so the column is human-readable
+        // in the DB and backward-compatible with rows written before the enum existed.
+        var statusConverter = new ValueConverter<PurchaseStatus, string>(
+            v => v.ToString().ToLowerInvariant()
+                  .Replace("partiallyrefunded", "partially_refunded"),
+            v => v == "partially_refunded"
+                    ? PurchaseStatus.PartiallyRefunded
+                    : Enum.Parse<PurchaseStatus>(v, true));  // true = ignoreCase
+
         builder.Entity<Purchase>()
-            .Property(p => p.Status).HasMaxLength(20).IsRequired();
+            .Property(p => p.Status)
+            .HasConversion(statusConverter)
+            .HasMaxLength(25)
+            .IsRequired();
+
+        builder.Entity<Purchase>()
+            .Property(p => p.StripeRefundId)
+            .HasMaxLength(100);
 
         builder.Entity<Purchase>()
             .Property(p => p.StripePaymentIntentId).HasMaxLength(100).IsRequired();

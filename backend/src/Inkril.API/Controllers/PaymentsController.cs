@@ -111,9 +111,51 @@ public class PaymentsController(IMediator mediator, ICurrentUserService currentU
 
         return ToResult(result, Ok());
     }
+
+    // ── Refunds ───────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Issues a full refund for the caller's own purchase.
+    /// Transitions the purchase: Succeeded|PartiallyRefunded → Refunded.
+    /// </summary>
+    [HttpPost("refund")]
+    public async Task<IActionResult> Refund(
+        [FromBody] RefundRequest request, CancellationToken ct)
+    {
+        if (currentUser.UserId is null)
+            return Unauthorized();
+
+        var result = await mediator.Send(
+            new RefundPurchaseCommand(request.PaymentIntentId, currentUser.UserId.Value), ct);
+
+        return ToResult(result, Ok());
+    }
+
+    /// <summary>
+    /// Issues a partial refund for the caller's own purchase.
+    /// Transitions the purchase: Succeeded → PartiallyRefunded, or
+    /// PartiallyRefunded → PartiallyRefunded | Refunded depending on coverage.
+    /// </summary>
+    [HttpPost("partial-refund")]
+    public async Task<IActionResult> PartialRefund(
+        [FromBody] PartialRefundRequest request, CancellationToken ct)
+    {
+        if (currentUser.UserId is null)
+            return Unauthorized();
+
+        var result = await mediator.Send(
+            new PartialRefundPurchaseCommand(
+                request.PaymentIntentId,
+                request.AmountCents,
+                currentUser.UserId.Value), ct);
+
+        return ToResult(result, dto => Ok(dto));
+    }
 }
 
 // ── Request DTOs ──────────────────────────────────────────────────────────────
 
 public record CreateIntentRequest(Guid BookId);
 public record ConfirmRequest(string PaymentIntentId);
+public record RefundRequest(string PaymentIntentId);
+public record PartialRefundRequest(string PaymentIntentId, long AmountCents);

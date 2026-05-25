@@ -1,5 +1,6 @@
 using Inkril.Application.Common.Interfaces;
 using Inkril.Application.Common.Models;
+using Inkril.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -36,7 +37,7 @@ public class GetBookByIdQueryHandler(IUnitOfWork uow)
         var isPurchased = q.RequestingUserId.HasValue && await uow.Purchases.AnyAsync(
             p => p.UserId == q.RequestingUserId.Value
               && p.BookId == q.BookId
-              && p.Status == "succeeded", ct);
+              && p.Status == PurchaseStatus.Succeeded, ct);
 
         return Result<BookDetailDto>.Success(new BookDetailDto(
             book.Id, book.Title, book.Author, book.Description,
