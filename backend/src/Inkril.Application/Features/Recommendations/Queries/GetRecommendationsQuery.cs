@@ -1,5 +1,4 @@
 using Inkril.Application.Common.Interfaces;
-using Inkril.Application.Features.Books.Queries;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -7,7 +6,8 @@ using Microsoft.Extensions.Caching.Memory;
 namespace Inkril.Application.Features.Recommendations.Queries;
 
 /// <summary>
-/// A BookDto extended with the recommendation reason (§2.4 — explainable recommendations).
+/// A BookDto extended with the recommendation reason (§2.4 — explainable recommendations)
+/// and a premium flag so the mobile client can render the correct badge/buy button.
 /// </summary>
 public record RecommendedBookDto(
     Guid Id,
@@ -19,6 +19,8 @@ public record RecommendedBookDto(
     int TotalPages,
     DateTime? PublishedDate,
     bool IsPublic,
+    bool IsPremium,
+    decimal? Price,
     double AverageRating,
     int RatingCount,
     IEnumerable<string> Genres,
@@ -52,13 +54,18 @@ public class GetRecommendationsQueryHandler(
 
                 var books = await uow.Books.Query()
                     .Include(b => b.BookGenres).ThenInclude(bg => bg.Genre)
-                    .Where(b => recommendedIds.Contains(b.Id) && !b.IsDeleted && b.IsPublic)
+                    // IsPublic: book is visible in the catalogue (premium books can still be IsPublic=true)
+                    // IsDeleted is already filtered by the global query filter on Book
+                    .Where(b => recommendedIds.Contains(b.Id) && b.IsPublic)
                     .Select(b => new
                     {
                         b.Id, b.Title, b.Author, b.Description, b.CoverImageUrl,
                         b.FileSizeBytes, b.TotalPages, b.PublishedDate, b.IsPublic,
+                        b.IsPremium, b.Price,
                         b.AverageRating, b.RatingCount,
-                        Genres = b.BookGenres.Select(bg => bg.Genre.Name)
+                        Genres = b.BookGenres
+                            .Where(bg => bg.Genre != null)
+                            .Select(bg => bg.Genre.Name)
                     })
                     .ToListAsync(ct);
 
@@ -71,6 +78,7 @@ public class GetRecommendationsQueryHandler(
                         return new RecommendedBookDto(
                             b.Id, b.Title, b.Author, b.Description, b.CoverImageUrl,
                             b.FileSizeBytes, b.TotalPages, b.PublishedDate, b.IsPublic,
+                            b.IsPremium, b.Price,
                             b.AverageRating, b.RatingCount, b.Genres,
                             reasonByBookId[id]);
                     })

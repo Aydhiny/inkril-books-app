@@ -74,8 +74,18 @@ public class RecommendationService(InkrilDbContext context, ILogger<Recommendati
             .ToListAsync(ct);
 
         // For each candidate book, pick the first matching genre as the reason
+        // Only surface books that are publicly visible in the catalogue.
+        // IsDeleted is filtered by the global EF query filter; IsPublic must be explicit here
+        // because we're querying via BookGenre, not Books directly.
+        var publicBookIds = await context.Books
+            .Where(b => b.IsPublic)
+            .Select(b => b.Id)
+            .ToListAsync(ct);
+
         var candidates = await context.BookGenres
-            .Where(bg => topGenreIds.Contains(bg.GenreId) && !alreadyReadBookIds.Contains(bg.BookId))
+            .Where(bg => topGenreIds.Contains(bg.GenreId)
+                      && !alreadyReadBookIds.Contains(bg.BookId)
+                      && publicBookIds.Contains(bg.BookId))
             .Select(bg => new { bg.BookId, bg.GenreId })
             .Distinct()
             .Take(count)
@@ -126,9 +136,17 @@ public class RecommendationService(InkrilDbContext context, ILogger<Recommendati
             .Select(ub => ub.BookId)
             .ToListAsync(ct);
 
-        // Books those similar users read and liked (rating >= 4)
+        // Books those similar users read and liked (rating >= 4), public only
+        var publicIds = await context.Books
+            .Where(b => b.IsPublic)
+            .Select(b => b.Id)
+            .ToListAsync(ct);
+
         var bookIds = await context.Reviews
-            .Where(r => similarUserIds.Contains(r.UserId) && r.Rating >= 4 && !myBookIds.Contains(r.BookId))
+            .Where(r => similarUserIds.Contains(r.UserId)
+                     && r.Rating >= 4
+                     && !myBookIds.Contains(r.BookId)
+                     && publicIds.Contains(r.BookId))
             .GroupBy(r => r.BookId)
             .OrderByDescending(g => g.Average(r => r.Rating))
             .Take(count)
