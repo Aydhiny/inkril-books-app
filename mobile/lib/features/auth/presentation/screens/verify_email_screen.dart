@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/error_utils.dart';
 import '../providers/auth_notifier.dart';
@@ -65,9 +66,9 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
     final isLoading = ref.watch(authNotifierProvider).isLoading;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.scaffoldBg,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: context.scaffoldBg,
         elevation: 0,
         automaticallyImplyLeading: true,
         leading: IconButton(
@@ -231,7 +232,7 @@ class _FormView extends StatelessWidget {
                 ),
                 filled: true,
                 fillColor: AppTheme.primarySurface,
-                contentPadding: const EdgeInsets.symmetric(vertical: 18),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
                   borderSide: const BorderSide(color: Color(0xFFE9D5FF)),

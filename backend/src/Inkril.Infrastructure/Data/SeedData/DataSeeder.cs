@@ -64,12 +64,17 @@ public class DataSeeder(
             };
 
             var result = await userManager.CreateAsync(user, u.Password);
-            if (result.Succeeded)
+            if (!result.Succeeded)
             {
-                await userManager.AddToRoleAsync(user, u.Role);
-                await context.UserSettings.AddAsync(new UserSettings { UserId = user.Id });
-                logger.LogInformation("Seeded user: {UserName}", u.UserName);
+                // Log the actual errors so silent failures are immediately visible in the console.
+                var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+                logger.LogError("Failed to seed user '{UserName}': {Errors}", u.UserName, errors);
+                continue;
             }
+
+            await userManager.AddToRoleAsync(user, u.Role);
+            await context.UserSettings.AddAsync(new UserSettings { UserId = user.Id });
+            logger.LogInformation("Seeded user: {UserName}", u.UserName);
         }
 
         await context.SaveChangesAsync();

@@ -14,6 +14,7 @@ import '../../../../core/utils/error_utils.dart';
 import '../../../../core/config/app_config.dart';
 import '../../../../core/providers/connectivity_provider.dart';
 import '../../../../core/services/dictionary_service.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/offline_banner.dart';
 import '../../../library/presentation/providers/library_provider.dart';
@@ -479,7 +480,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               filePath: _localPdfPath!,
               enableSwipe: false,
               defaultPage: rightPage < _totalPages ? rightPage : _currentPage,
-              backgroundColor: Colors.white,
+              backgroundColor: effectiveTheme.isDark ? const Color(0xFF1A1230) : Colors.white,
               onViewCreated: (ctrl) => _pdfController2 = ctrl,
               onError: (_) {},
             ),
@@ -922,7 +923,7 @@ class _LoadingView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.scaffoldBg,
       body: Center(
         child:
             Column(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -956,9 +957,9 @@ class _ErrorView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.scaffoldBg,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: context.scaffoldBg,
         foregroundColor: AppTheme.primary,
         elevation: 0,
         title: const Text('Reader'),
@@ -1289,8 +1290,8 @@ class _BookmarksPanel extends ConsumerWidget {
     return Container(
       width: MediaQuery.of(context).size.width * 0.82,
       height: double.infinity,
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: context.cardBg,
         boxShadow: [
           BoxShadow(
               color: Color(0x1A000000),

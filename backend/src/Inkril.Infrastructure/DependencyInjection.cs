@@ -33,7 +33,8 @@ public static class DependencyInjection
         {
             opt.Password.RequireNonAlphanumeric = false;
             opt.Password.RequireUppercase = false;
-            opt.Password.RequiredLength = 6;
+            opt.Password.RequireDigit = false;
+            opt.Password.RequiredLength = 4; // allows professor-required "test" credentials
             opt.User.RequireUniqueEmail = true;
         })
         .AddRoles<IdentityRole<Guid>>()
