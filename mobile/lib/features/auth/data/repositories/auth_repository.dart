@@ -47,7 +47,7 @@ class AuthRepository {
     return auth;
   }
 
-  Future<void> verifyEmail({
+  Future<AuthResponse> verifyEmail({
     required String email,
     required String otp,
   }) async {
@@ -59,6 +59,7 @@ class AuthRepository {
     );
     final auth = AuthResponse.fromJson(response.data as Map<String, dynamic>);
     await _persistTokens(auth);
+    return auth;
   }
 
   Future<void> resendVerification(String email) async {
@@ -98,9 +99,10 @@ class AuthRepository {
   }
 
   Future<void> _persistTokens(AuthResponse auth) async {
-    await _storage.write(key: 'access_token', value: auth.accessToken);
+    await _storage.write(key: 'access_token',  value: auth.accessToken);
     await _storage.write(key: 'refresh_token', value: auth.refreshToken);
-    await _storage.write(key: 'user_id', value: auth.userId);
-    await _storage.write(key: 'user_name', value: auth.userName);
+    await _storage.write(key: 'user_id',       value: auth.userId);
+    await _storage.write(key: 'user_name',     value: auth.userName);
+    await _storage.write(key: 'user_role',     value: auth.role);
   }
 }

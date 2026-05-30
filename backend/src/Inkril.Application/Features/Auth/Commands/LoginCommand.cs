@@ -47,7 +47,10 @@ public class LoginCommandHandler(
                 "Please verify your email before logging in. " +
                 "Check your inbox for a 6-digit code, or use POST /api/auth/resend-verification.");
 
+        var roles = await userManager.GetRolesAsync(user);
+        var role  = roles.Contains("desktop") ? "desktop" : "mobile";
+
         var (access, refresh) = await tokenService.GenerateTokensAsync(user);
-        return Result<AuthResponse>.Success(new AuthResponse(access, refresh, user.Id, user.UserName!, user.Email!));
+        return Result<AuthResponse>.Success(new AuthResponse(access, refresh, user.Id, user.UserName!, user.Email!, role));
     }
 }

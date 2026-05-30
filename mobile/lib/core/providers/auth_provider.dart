@@ -10,3 +10,7 @@ final secureStorageProvider = Provider<FlutterSecureStorage>(
 /// Updated synchronously by AuthNotifier after login / logout.
 /// GoRouter listens via _RouterNotifier → refreshListenable.
 final isAuthenticatedProvider = StateProvider<bool>((_) => false);
+
+/// The logged-in user's role: "desktop" (admin) or "mobile" (regular user).
+/// Defaults to "mobile" — overridden in main() from secure storage.
+final userRoleProvider = StateProvider<String>((_) => 'mobile');

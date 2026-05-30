@@ -43,7 +43,9 @@ public class VerifyEmailCommandHandler(
         if (user.EmailConfirmed)
         {
             var (a, r) = await tokenService.GenerateTokensAsync(user);
-            return Result<AuthResponse>.Success(new AuthResponse(a, r, user.Id, user.UserName!, user.Email!));
+            var existingRoles = await userManager.GetRolesAsync(user);
+            var existingRole  = existingRoles.Contains("desktop") ? "desktop" : "mobile";
+            return Result<AuthResponse>.Success(new AuthResponse(a, r, user.Id, user.UserName!, user.Email!, existingRole));
         }
 
         var stored = await userManager.GetAuthenticationTokenAsync(
@@ -72,8 +74,10 @@ public class VerifyEmailCommandHandler(
 
         // Return fresh tokens — client is now logged in immediately
         var (access, refresh) = await tokenService.GenerateTokensAsync(user);
+        var roles = await userManager.GetRolesAsync(user);
+        var role  = roles.Contains("desktop") ? "desktop" : "mobile";
         return Result<AuthResponse>.Success(
-            new AuthResponse(access, refresh, user.Id, user.UserName!, user.Email!));
+            new AuthResponse(access, refresh, user.Id, user.UserName!, user.Email!, role));
     }
 
     private static bool CryptographicEquals(string a, string b)

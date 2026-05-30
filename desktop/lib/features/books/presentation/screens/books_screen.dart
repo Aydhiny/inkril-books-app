@@ -172,9 +172,20 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
                       : published;
                   return DataRow(cells: [
                     DataCell(book['coverImageUrl'] != null
-                        ? Image.network(book['coverImageUrl'] as String,
-                            width: 40, height: 50, fit: BoxFit.cover)
-                        : const Icon(Icons.book, size: 40)),
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: Image.network(
+                              book['coverImageUrl'] as String,
+                              width: 40,
+                              height: 50,
+                              fit: BoxFit.cover,
+                            ),
+                          )
+                        : const SizedBox(
+                            width: 40,
+                            height: 50,
+                            child: Icon(Icons.book, size: 32),
+                          )),
                     DataCell(SizedBox(
                       width: 200,
                       child: Text(book['title'] as String,

@@ -9,33 +9,59 @@ import '../../features/genres/presentation/screens/genres_screen.dart';
 import '../../features/reports/presentation/screens/reports_screen.dart';
 import '../providers/auth_provider.dart';
 
-final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authStateProvider);
+// ─────────────────────────────────────────────────────────────────────────────
+// Router notifier — bridges Riverpod → GoRouter Listenable
+// ─────────────────────────────────────────────────────────────────────────────
 
-  return GoRouter(
+class _RouterNotifier extends ChangeNotifier {
+  final Ref _ref;
+  late bool _isLoggedIn;
+
+  _RouterNotifier(this._ref) {
+    _isLoggedIn = _ref.read(isAuthenticatedProvider);
+    _ref.listen<bool>(isAuthenticatedProvider, (_, next) {
+      _isLoggedIn = next;
+      notifyListeners();
+    });
+  }
+
+  String? redirect(GoRouterState state) {
+    final isLogin = state.matchedLocation == '/login';
+    if (!_isLoggedIn && !isLogin) return '/login';
+    if (_isLoggedIn && isLogin) return '/dashboard';
+    return null;
+  }
+}
+
+final routerProvider = Provider<GoRouter>((ref) {
+  final notifier = _RouterNotifier(ref);
+
+  final router = GoRouter(
     initialLocation: '/dashboard',
-    redirect: (context, state) {
-      final isLoggedIn = authState.valueOrNull != null;
-      final isAuth = state.matchedLocation == '/login';
-      if (!isLoggedIn && !isAuth) return '/login';
-      if (isLoggedIn && isAuth) return '/dashboard';
-      return null;
-    },
+    refreshListenable: notifier,
+    redirect: (_, state) => notifier.redirect(state),
     routes: [
       GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
       ShellRoute(
         builder: (context, state, child) => _AdminShell(child: child),
         routes: [
           GoRoute(path: '/dashboard', builder: (_, __) => const DashboardScreen()),
-          GoRoute(path: '/users', builder: (_, __) => const UsersScreen()),
-          GoRoute(path: '/books', builder: (_, __) => const BooksScreen()),
-          GoRoute(path: '/genres', builder: (_, __) => const GenresScreen()),
-          GoRoute(path: '/reports', builder: (_, __) => const ReportsScreen()),
+          GoRoute(path: '/users',     builder: (_, __) => const UsersScreen()),
+          GoRoute(path: '/books',     builder: (_, __) => const BooksScreen()),
+          GoRoute(path: '/genres',    builder: (_, __) => const GenresScreen()),
+          GoRoute(path: '/reports',   builder: (_, __) => const ReportsScreen()),
         ],
       ),
     ],
   );
+
+  ref.onDispose(router.dispose);
+  return router;
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Admin shell — side navigation rail
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _AdminShell extends StatelessWidget {
   final Widget child;
@@ -83,9 +109,9 @@ class _AdminShell extends StatelessWidget {
 
   int _selectedIndex(BuildContext context) {
     final loc = GoRouterState.of(context).matchedLocation;
-    if (loc.startsWith('/users')) return 1;
-    if (loc.startsWith('/books')) return 2;
-    if (loc.startsWith('/genres')) return 3;
+    if (loc.startsWith('/users'))   return 1;
+    if (loc.startsWith('/books'))   return 2;
+    if (loc.startsWith('/genres'))  return 3;
     if (loc.startsWith('/reports')) return 4;
     return 0;
   }

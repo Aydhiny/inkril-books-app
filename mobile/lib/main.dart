@@ -34,11 +34,13 @@ void main() async {
   const storage = FlutterSecureStorage();
 
   String? userId;
+  String? userRole;
   bool hasSeenWelcome = false;
   String? savedThemeRaw;
 
   try {
     userId          = await storage.read(key: 'user_id');
+    userRole        = await storage.read(key: 'user_role');
     hasSeenWelcome  = await storage.read(key: 'has_seen_welcome') == 'true';
     savedThemeRaw   = await storage.read(key: 'app_theme_mode');
   } catch (e) {
@@ -47,6 +49,7 @@ void main() async {
     debugPrint('[Storage] SecureStorage read failed, clearing corrupt data: $e');
     try { await storage.deleteAll(); } catch (_) {}
     userId          = null;
+    userRole        = null;
     hasSeenWelcome  = false;
     savedThemeRaw   = null;
   }
@@ -60,6 +63,7 @@ void main() async {
   runApp(ProviderScope(
     overrides: [
       isAuthenticatedProvider.overrideWith((ref) => userId != null),
+      userRoleProvider.overrideWith((ref) => userRole ?? 'mobile'),
       // Eagerly provide the welcome flag so the router redirect can use it
       // synchronously on the first frame without waiting for an async load.
       hasSeenWelcomeProvider.overrideWith((ref) async => hasSeenWelcome),

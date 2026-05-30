@@ -28,8 +28,11 @@ public class StripePaymentService : IPaymentService
         UserManager<ApplicationUser> userManager,
         InkrilDbContext context)
     {
-        var secretKey = config["Stripe:SecretKey"]
-            ?? throw new InvalidOperationException("Stripe:SecretKey not configured.");
+        var secretKey = config["Stripe:SecretKey"];
+        if (string.IsNullOrWhiteSpace(secretKey))
+            throw new InvalidOperationException(
+                "Stripe:SecretKey is not configured. " +
+                "Add it to appsettings.local.json under Stripe:SecretKey (sk_test_…).");
         StripeConfiguration.ApiKey = secretKey;
 
         _userManager = userManager;

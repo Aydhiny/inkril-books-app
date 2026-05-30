@@ -14,18 +14,21 @@ class AuthResponse {
   final String userId;
   final String userName;
   final String email;
+  final String role;
   const AuthResponse({
     required this.accessToken,
     required this.refreshToken,
     required this.userId,
     required this.userName,
     required this.email,
+    required this.role,
   });
   factory AuthResponse.fromJson(Map<String, dynamic> j) => AuthResponse(
-        accessToken: j['accessToken'] as String,
+        accessToken:  j['accessToken']  as String,
         refreshToken: j['refreshToken'] as String,
-        userId: j['userId'] as String,
-        userName: j['userName'] as String,
-        email: j['email'] as String,
+        userId:       j['userId']       as String,
+        userName:     j['userName']     as String,
+        email:        j['email']        as String,
+        role:         j['role']         as String? ?? 'mobile',
       );
 }

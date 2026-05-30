@@ -5,7 +5,7 @@ final secureStorageProvider = Provider<FlutterSecureStorage>(
   (_) => const FlutterSecureStorage(),
 );
 
-final authStateProvider = FutureProvider<String?>((ref) async {
-  final storage = ref.read(secureStorageProvider);
-  return storage.read(key: 'user_id');
-});
+/// Single source of truth for auth state.
+/// Initialized from secure storage in main() via ProviderScope override.
+/// Updated synchronously by LoginScreen after login.
+final isAuthenticatedProvider = StateProvider<bool>((_) => false);

@@ -40,10 +40,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final data = response.data as Map<String, dynamic>;
       final storage = ref.read(secureStorageProvider);
       await storage.write(key: 'access_token', value: data['accessToken'] as String);
-      await storage.write(key: 'user_id', value: data['userId'] as String);
-      await storage.write(key: 'username', value: _usernameCtrl.text.trim());
+      await storage.write(key: 'user_id',      value: data['userId']       as String);
+      await storage.write(key: 'username',     value: _usernameCtrl.text.trim());
 
-      if (mounted) context.go('/dashboard');
+      // Update provider — the _RouterNotifier listening to this will redirect
+      // to /dashboard automatically via refreshListenable.
+      ref.read(isAuthenticatedProvider.notifier).state = true;
     } on DioException catch (e) {
       setState(() => _error = e.response?.data?['errors']?.first ?? 'Login failed. Check credentials.');
     } finally {

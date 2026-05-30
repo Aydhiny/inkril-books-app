@@ -1,10 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'core/providers/auth_provider.dart';
 
-void main() {
-  runApp(const ProviderScope(child: InkrilAdminApp()));
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  const storage = FlutterSecureStorage();
+  String? userId;
+  try {
+    userId = await storage.read(key: 'user_id');
+  } catch (e) {
+    try { await storage.deleteAll(); } catch (_) {}
+    userId = null;
+  }
+
+  runApp(ProviderScope(
+    overrides: [
+      isAuthenticatedProvider.overrideWith((ref) => userId != null),
+    ],
+    child: const InkrilAdminApp(),
+  ));
 }
 
 class InkrilAdminApp extends ConsumerWidget {

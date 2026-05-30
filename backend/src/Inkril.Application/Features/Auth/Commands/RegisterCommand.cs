@@ -17,7 +17,7 @@ public record RegisterCommand(
     string Password
 ) : IRequest<Result<AuthResponse>>;
 
-public record AuthResponse(string AccessToken, string RefreshToken, Guid UserId, string UserName, string Email);
+public record AuthResponse(string AccessToken, string RefreshToken, Guid UserId, string UserName, string Email, string Role);
 
 public class RegisterCommandValidator : AbstractValidator<RegisterCommand>
 {
@@ -100,7 +100,8 @@ public class RegisterCommandHandler(
         }
 
         var (access, refresh) = await tokenService.GenerateTokensAsync(user);
-        return Result<AuthResponse>.Success(new AuthResponse(access, refresh, user.Id, user.UserName!, user.Email!));
+        // New users always get the "mobile" role
+        return Result<AuthResponse>.Success(new AuthResponse(access, refresh, user.Id, user.UserName!, user.Email!, "mobile"));
     }
 }
 

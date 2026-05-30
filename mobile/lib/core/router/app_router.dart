@@ -23,6 +23,7 @@ import '../../features/settings/presentation/screens/legal_screen.dart';
 import '../../features/settings/presentation/screens/account_settings_screen.dart';
 import '../../features/welcome/presentation/screens/welcome_screen.dart';
 import '../providers/auth_provider.dart';
+import '../../features/auth/presentation/providers/auth_notifier.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../../features/reading/presentation/screens/reading_stats_screen.dart';
@@ -44,26 +45,36 @@ final hasSeenWelcomeProvider = FutureProvider<bool>((ref) async {
 class _RouterNotifier extends ChangeNotifier {
   final Ref _ref;
   late bool _isLoggedIn;
+  late String _role;
 
   _RouterNotifier(this._ref) {
     _isLoggedIn = _ref.read(isAuthenticatedProvider);
+    _role       = _ref.read(userRoleProvider);
     _ref.listen<bool>(isAuthenticatedProvider, (_, next) {
       _isLoggedIn = next;
+      notifyListeners();
+    });
+    _ref.listen<String>(userRoleProvider, (_, next) {
+      _role = next;
       notifyListeners();
     });
   }
 
   String? redirect(GoRouterState state) {
-    final loc = state.matchedLocation;
+    final loc         = state.matchedLocation;
     final isAuthRoute = loc.startsWith('/auth');
     final isWelcome   = loc == '/welcome';
-
-    // Redirect to welcome on very first launch (flag check is async; skip if
-    // already on welcome or auth routes so we don't loop).
-    // The flag is checked synchronously via the provider's cached value.
+    final isAdminLock = loc == '/admin-access';
 
     if (!_isLoggedIn && !isAuthRoute && !isWelcome) return '/auth/login';
-    if (_isLoggedIn && (isAuthRoute || isWelcome))  return '/library';
+
+    if (_isLoggedIn) {
+      // Desktop/admin accounts must not use the mobile app.
+      if (_role == 'desktop') {
+        return isAdminLock ? null : '/admin-access';
+      }
+      if (isAuthRoute || isWelcome) return '/library';
+    }
     return null;
   }
 }
@@ -124,6 +135,7 @@ final routerProvider = Provider.family<GoRouter, String>((ref, initialLocation) 
     refreshListenable: notifier,
     redirect: (_, state) => notifier.redirect(state),
     routes: [
+      GoRoute(path: '/admin-access',  pageBuilder: (_, s) => _fade(s, const _AdminAccessScreen())),
       GoRoute(path: '/welcome',       pageBuilder: (_, s) => _fade(s, const WelcomeScreen())),
       GoRoute(path: '/auth/login',    pageBuilder: (_, s) => _fade(s, const LoginScreen())),
       GoRoute(path: '/auth/register', pageBuilder: (_, s) => _fade(s, const RegisterScreen())),
@@ -422,6 +434,75 @@ class _NavItem extends StatelessWidget {
               size: isSelected ? 30 : 26,
               color: isSelected ? color : context.textHint,
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Admin-access block screen — shown when a desktop/admin account logs into
+// the mobile app. Admins must use the Inkril Admin desktop application.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _AdminAccessScreen extends ConsumerWidget {
+  const _AdminAccessScreen();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Scaffold(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 96,
+                height: 96,
+                decoration: BoxDecoration(
+                  color: AppTheme.primary.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.admin_panel_settings_outlined,
+                  size: 48,
+                  color: AppTheme.primary,
+                ),
+              ),
+              const SizedBox(height: 28),
+              Text(
+                'Admin account',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
+                    ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'This account is for administrators only. '
+                'Please use the Inkril Admin desktop application to manage the platform.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.6),
+                      height: 1.5,
+                    ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 36),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () =>
+                      ref.read(authNotifierProvider.notifier).logout(),
+                  child: const Text('Sign out'),
+                ),
+              ),
+            ],
           ),
         ),
       ),

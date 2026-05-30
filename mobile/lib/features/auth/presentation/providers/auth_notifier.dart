@@ -15,11 +15,13 @@ class AuthNotifier extends StateNotifier<AsyncValue<void>> {
 
   Future<void> login(String userNameOrEmail, String password) async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(
-      () => _repo.login(userNameOrEmail, password),
-    );
-    if (!state.hasError) {
+    try {
+      final auth = await _repo.login(userNameOrEmail, password);
       _ref.read(isAuthenticatedProvider.notifier).state = true;
+      _ref.read(userRoleProvider.notifier).state = auth.role;
+      state = const AsyncData(null);
+    } catch (e, st) {
+      state = AsyncError(e, st);
     }
   }
 
@@ -49,12 +51,13 @@ class AuthNotifier extends StateNotifier<AsyncValue<void>> {
     required String otp,
   }) async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(
-      () => _repo.verifyEmail(email: email, otp: otp),
-    );
-    // Backend returns fresh auth tokens on success — authenticate now.
-    if (!state.hasError) {
+    try {
+      final auth = await _repo.verifyEmail(email: email, otp: otp);
       _ref.read(isAuthenticatedProvider.notifier).state = true;
+      _ref.read(userRoleProvider.notifier).state = auth.role;
+      state = const AsyncData(null);
+    } catch (e, st) {
+      state = AsyncError(e, st);
     }
   }
 
@@ -84,6 +87,7 @@ class AuthNotifier extends StateNotifier<AsyncValue<void>> {
   Future<void> logout() async {
     await _repo.logout();
     _ref.read(isAuthenticatedProvider.notifier).state = false;
+    _ref.read(userRoleProvider.notifier).state = 'mobile';
     state = const AsyncData(null);
   }
 }
