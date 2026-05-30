@@ -20,26 +20,31 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.inkril_mobile"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = 21 // flutter_stripe payment sheet requires API 21+
+        minSdk = flutter.minSdkVersion // flutter_secure_storage v9 needs EncryptedSharedPreferences (API 23+)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        // flutter_pdfview ships only ARM pdfium binaries. Without abiFilters the
-        // x86_64 emulator tries to load a missing .so and crashes the process.
-        // Restricting to ARM libs lets x86_64 emulators run them via translation.
-        ndk {
-            abiFilters += listOf("armeabi-v7a", "arm64-v8a")
-        }
     }
 
     buildTypes {
+        // ── Debug ─────────────────────────────────────────────────────────────
+        // Include x86_64 for emulator support. All plugins including flutter_pdfview
+        // ship x86_64 native libs (libjniPdfium, libmodpdfium, etc. are all present
+        // in the merged x86_64 lib dir). API 37 emulators have no Houdini ARM
+        // translation so ARM-only APKs crash; x86_64 native libs are required.
+        getByName("debug") {
+            ndk {
+                abiFilters += listOf("armeabi-v7a", "arm64-v8a", "x86_64")
+            }
+        }
+
+        // ── Release ───────────────────────────────────────────────────────────
+        // ARM-only for real devices — all Android phones are ARM, keeps APK slim.
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
+            ndk {
+                abiFilters += listOf("armeabi-v7a", "arm64-v8a")
+            }
             signingConfig = signingConfigs.getByName("debug")
         }
     }
