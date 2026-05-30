@@ -13,6 +13,13 @@ using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ── Local secrets override (gitignored) ───────────────────────────────────────
+// appsettings.local.json is loaded last so it overrides appsettings.json and
+// appsettings.Development.json without ever being committed to git.
+// Create it once locally and put your real SMTP/Stripe/DB keys there.
+// See .env.example for the list of all required values.
+builder.Configuration.AddJsonFile("appsettings.local.json", optional: true, reloadOnChange: true);
+
 // ── Structured logging (Serilog) ──────────────────────────────────────────────
 // Reads sink/level configuration from appsettings.json under "Serilog" key.
 // Structured properties (UserId, CommandType, DurationMs) are emitted by
@@ -22,8 +29,11 @@ builder.Host.UseSerilog((ctx, lc) => lc
     .Enrich.FromLogContext()
     .Enrich.WithProperty("Application", "Inkril.API"));
 
-// ── Configuration is loaded from appsettings.json + environment variables ────
-// No secrets are hardcoded. See .env.example for required env vars.
+// ── Configuration priority (highest → lowest) ─────────────────────────────────
+// 1. Environment variables (Docker / CI)
+// 2. appsettings.local.json  (local machine, gitignored)
+// 3. appsettings.{Environment}.json  (appsettings.Development.json etc.)
+// 4. appsettings.json  (committed defaults — all values are empty strings)
 
 builder.Services.AddControllers();
 // Enables the RFC 7807 ProblemDetails format for ValidationProblem() / Problem()

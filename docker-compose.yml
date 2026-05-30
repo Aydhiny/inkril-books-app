@@ -93,6 +93,9 @@ services:
       Smtp__UseSsl: ${SMTP_USE_SSL:-true}
       Smtp__FromName: ${SMTP_FROM_NAME:-Inkril}
       Smtp__FromEmail: ${SMTP_FROM_EMAIL}
+      Stripe__SecretKey: ${STRIPE_SECRET_KEY}
+      Stripe__PublishableKey: ${STRIPE_PUBLISHABLE_KEY}
+      Stripe__WebhookSecret: ${STRIPE_WEBHOOK_SECRET}
       Redis__ConnectionString: "redis:6379,password=${REDIS_PASSWORD}"
     depends_on:
       postgres:
