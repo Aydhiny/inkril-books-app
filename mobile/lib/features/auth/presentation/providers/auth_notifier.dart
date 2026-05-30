@@ -40,9 +40,29 @@ class AuthNotifier extends StateNotifier<AsyncValue<void>> {
         password: password,
       ),
     );
+    // Do NOT authenticate yet — the user must verify their email first.
+    // The register screen navigates to the verification screen on success.
+  }
+
+  Future<void> verifyEmail({
+    required String email,
+    required String otp,
+  }) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(
+      () => _repo.verifyEmail(email: email, otp: otp),
+    );
+    // Backend returns fresh auth tokens on success — authenticate now.
     if (!state.hasError) {
       _ref.read(isAuthenticatedProvider.notifier).state = true;
     }
+  }
+
+  Future<void> resendVerification(String email) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() => _repo.resendVerification(email));
+    // Don't leave in loading — reset to idle so UI isn't blocked
+    if (!state.hasError) state = const AsyncData(null);
   }
 
   Future<void> forgotPassword(String email) async {

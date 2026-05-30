@@ -50,8 +50,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(state.error.toString()), backgroundColor: Theme.of(context).colorScheme.error),
       );
+      return;
     }
-    // On success the router navigates automatically via refreshListenable.
+
+    // Navigate to email verification — user must confirm email before accessing the app.
+    // The email is passed so the verify-email screen can display it and call resend.
+    context.push('/auth/verify-email', extra: _emailCtrl.text.trim());
   }
 
   @override

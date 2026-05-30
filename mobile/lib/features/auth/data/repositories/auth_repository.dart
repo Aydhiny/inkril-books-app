@@ -47,6 +47,24 @@ class AuthRepository {
     return auth;
   }
 
+  Future<void> verifyEmail({
+    required String email,
+    required String otp,
+  }) async {
+    // Backend returns a full AuthResponse on success — store tokens so the
+    // user is immediately logged in after verifying their email.
+    final response = await _dio.post(
+      '/api/auth/verify-email',
+      data: {'email': email, 'otp': otp},
+    );
+    final auth = AuthResponse.fromJson(response.data as Map<String, dynamic>);
+    await _persistTokens(auth);
+  }
+
+  Future<void> resendVerification(String email) async {
+    await _dio.post('/api/auth/resend-verification', data: {'email': email});
+  }
+
   Future<void> forgotPassword(String email) async {
     await _dio.post('/api/auth/forgot-password', data: {'email': email});
   }

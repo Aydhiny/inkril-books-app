@@ -7,6 +7,7 @@ import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/reset_password_screen.dart';
+import '../../features/auth/presentation/screens/verify_email_screen.dart';
 import '../../features/library/presentation/screens/library_screen.dart';
 import '../../features/library/presentation/screens/book_detail_screen.dart';
 import '../../features/reader/presentation/screens/reader_screen.dart';
@@ -130,6 +131,10 @@ final routerProvider = Provider.family<GoRouter, String>((ref, initialLocation) 
       GoRoute(
         path: '/auth/reset-password',
         pageBuilder: (_, s) => _slide(s, ResetPasswordScreen(email: s.extra as String? ?? '')),
+      ),
+      GoRoute(
+        path: '/auth/verify-email',
+        pageBuilder: (_, s) => _slide(s, VerifyEmailScreen(email: s.extra as String? ?? '')),
       ),
 
       ShellRoute(
