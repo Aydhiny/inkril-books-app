@@ -112,42 +112,45 @@ public class PaymentsController(IMediator mediator, ICurrentUserService currentU
         return ToResult(result, Ok());
     }
 
-    // ── Refunds ───────────────────────────────────────────────────────────────
+    // ── Refunds (admin-only) ──────────────────────────────────────────────────
+    //
+    // Refunds are intentionally restricted to the desktop (admin) role.
+    // Allowing users to self-refund would let them bypass Stripe's own
+    // dispute/chargeback process and would make purchase records inconsistent
+    // without any approval trail.  Admins review the purchase via the desktop
+    // app and issue refunds there.
 
     /// <summary>
-    /// Issues a full refund for the caller's own purchase.
-    /// Transitions the purchase: Succeeded|PartiallyRefunded → Refunded.
+    /// Admin: issues a full refund for any purchase.
+    /// Transitions: Succeeded|PartiallyRefunded → Refunded.
+    /// The purchase is identified by PaymentIntentId; UserId scopes it to one user.
     /// </summary>
     [HttpPost("refund")]
+    [Authorize(Roles = "desktop")]
     public async Task<IActionResult> Refund(
         [FromBody] RefundRequest request, CancellationToken ct)
     {
-        if (currentUser.UserId is null)
-            return Unauthorized();
-
         var result = await mediator.Send(
-            new RefundPurchaseCommand(request.PaymentIntentId, currentUser.UserId.Value), ct);
+            new RefundPurchaseCommand(request.PaymentIntentId, request.UserId), ct);
 
         return ToResult(result, Ok());
     }
 
     /// <summary>
-    /// Issues a partial refund for the caller's own purchase.
-    /// Transitions the purchase: Succeeded → PartiallyRefunded, or
-    /// PartiallyRefunded → PartiallyRefunded | Refunded depending on coverage.
+    /// Admin: issues a partial refund for a purchase.
+    /// Transitions: Succeeded → PartiallyRefunded, or PartiallyRefunded → PartiallyRefunded|Refunded.
+    /// AmountCents is validated server-side against the remaining refundable balance.
     /// </summary>
     [HttpPost("partial-refund")]
+    [Authorize(Roles = "desktop")]
     public async Task<IActionResult> PartialRefund(
         [FromBody] PartialRefundRequest request, CancellationToken ct)
     {
-        if (currentUser.UserId is null)
-            return Unauthorized();
-
         var result = await mediator.Send(
             new PartialRefundPurchaseCommand(
                 request.PaymentIntentId,
                 request.AmountCents,
-                currentUser.UserId.Value), ct);
+                request.UserId), ct);
 
         return ToResult(result, dto => Ok(dto));
     }
@@ -157,5 +160,6 @@ public class PaymentsController(IMediator mediator, ICurrentUserService currentU
 
 public record CreateIntentRequest(Guid BookId);
 public record ConfirmRequest(string PaymentIntentId);
-public record RefundRequest(string PaymentIntentId);
-public record PartialRefundRequest(string PaymentIntentId, long AmountCents);
+// Admin refund DTOs — both require the target UserId so admins can refund any user's purchase
+public record RefundRequest(string PaymentIntentId, Guid UserId);
+public record PartialRefundRequest(string PaymentIntentId, Guid UserId, long AmountCents);
