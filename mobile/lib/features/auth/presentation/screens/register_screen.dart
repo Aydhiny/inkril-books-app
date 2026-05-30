@@ -20,16 +20,43 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _emailCtrl     = TextEditingController();
   final _usernameCtrl  = TextEditingController();
   final _passwordCtrl  = TextEditingController();
-  bool _obscurePass    = true;
+  bool  _obscurePass   = true;
   String? _errorMessage;
+
+  // ── Password requirement flags — updated on every keystroke ────────────────
+  bool _hasMinLen    = false;
+  bool _hasUppercase = false;
+  bool _hasDigit     = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _passwordCtrl.addListener(_onPasswordChanged);
+  }
+
+  void _onPasswordChanged() {
+    final v = _passwordCtrl.text;
+    setState(() {
+      _hasMinLen    = v.length >= 8;
+      _hasUppercase = v.contains(RegExp(r'[A-Z]'));
+      _hasDigit     = v.contains(RegExp(r'[0-9]'));
+    });
+  }
 
   @override
   void dispose() {
-    for (final c in [_firstNameCtrl, _lastNameCtrl, _emailCtrl, _usernameCtrl, _passwordCtrl]) {
+    for (final c in [
+      _firstNameCtrl, _lastNameCtrl, _emailCtrl,
+      _usernameCtrl, _passwordCtrl,
+    ]) {
       c.dispose();
     }
     super.dispose();
   }
+
+  int get _strengthScore => [_hasMinLen, _hasUppercase, _hasDigit]
+      .where((b) => b)
+      .length; // 0..3
 
   Future<void> _submit() async {
     if (_errorMessage != null) setState(() => _errorMessage = null);
@@ -77,29 +104,29 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Create account',
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.w900,
-                    color: Color(0xFF1F2937),
+                    color: context.textPrimary,
                     letterSpacing: -0.5,
                   ),
                 ),
                 const SizedBox(height: 6),
-                const Text(
+                Text(
                   'Join Inkril and start your reading journey.',
-                  style: TextStyle(fontSize: 15, color: Color(0xFF6B7280), height: 1.5),
+                  style: TextStyle(fontSize: 15, color: context.textSecondary, height: 1.5),
                 ),
                 const SizedBox(height: 28),
 
-                // ── Inline error ────────────────────────────────────────────
+                // ── Inline server error ────────────────────────────────────────
                 if (_errorMessage != null) ...[
                   _ErrorBox(_errorMessage!),
                   const SizedBox(height: 20),
                 ],
 
-                // ── Name row ────────────────────────────────────────────────
+                // ── Name row ───────────────────────────────────────────────────
                 Row(children: [
                   Expanded(child: _field(
                     label: 'First name',
@@ -121,7 +148,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ]),
                 const SizedBox(height: 16),
 
-                // ── Email ────────────────────────────────────────────────────
+                // ── Email ──────────────────────────────────────────────────────
                 _field(
                   label: 'Email address',
                   ctrl: _emailCtrl,
@@ -138,7 +165,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // ── Username ─────────────────────────────────────────────────
+                // ── Username ───────────────────────────────────────────────────
                 _field(
                   label: 'Username',
                   ctrl: _usernameCtrl,
@@ -153,7 +180,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // ── Password ─────────────────────────────────────────────────
+                // ── Password ───────────────────────────────────────────────────
                 _Label('Password'),
                 const SizedBox(height: 8),
                 TextFormField(
@@ -161,11 +188,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   obscureText: _obscurePass,
                   textInputAction: TextInputAction.done,
                   onFieldSubmitted: (_) => _submit(),
-                  decoration: _dec(hint: 'At least 8 characters', icon: Icons.lock_outline_rounded)
-                      .copyWith(
+                  decoration: _dec(
+                    hint: 'Min. 8 chars, 1 uppercase, 1 number',
+                    icon: Icons.lock_outline_rounded,
+                  ).copyWith(
                     suffixIcon: IconButton(
                       icon: Icon(
-                        _obscurePass ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                        _obscurePass
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
                         color: const Color(0xFF9CA3AF),
                       ),
                       onPressed: () => setState(() => _obscurePass = !_obscurePass),
@@ -173,13 +204,27 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   ),
                   validator: (v) {
                     if (v == null || v.isEmpty) return 'Password is required.';
-                    if (v.length < 8) return 'Must be at least 8 characters.';
+                    if (v.length < 8)                      return 'Must be at least 8 characters.';
+                    if (!v.contains(RegExp(r'[A-Z]')))     return 'Must contain an uppercase letter.';
+                    if (!v.contains(RegExp(r'[0-9]')))     return 'Must contain a number.';
                     return null;
                   },
                 ),
+
+                // ── Strength bar + checklist (shown while typing) ─────────────
+                if (_passwordCtrl.text.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  _PasswordStrengthBar(score: _strengthScore),
+                  const SizedBox(height: 10),
+                  _PasswordChecklist(
+                    hasMinLen:    _hasMinLen,
+                    hasUppercase: _hasUppercase,
+                    hasDigit:     _hasDigit,
+                  ),
+                ],
                 const SizedBox(height: 28),
 
-                // ── Submit ───────────────────────────────────────────────────
+                // ── Submit ─────────────────────────────────────────────────────
                 SizedBox(
                   width: double.infinity,
                   height: 52,
@@ -204,7 +249,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // ── Login link ───────────────────────────────────────────────
+                // ── Login link ─────────────────────────────────────────────────
                 Center(
                   child: TextButton(
                     onPressed: () => context.pop(),
@@ -249,19 +294,19 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   InputDecoration _dec({required String hint, required IconData icon}) =>
       InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: Color(0xFFD1D5DB), fontSize: 14),
-        prefixIcon: Icon(icon, color: const Color(0xFF9CA3AF)),
+        hintStyle: TextStyle(color: context.textHint, fontSize: 14),
+        prefixIcon: Icon(icon, color: context.textHint),
         filled: true,
-        fillColor: const Color(0xFFF9FAFB),
+        fillColor: context.inputBg,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+          borderSide: BorderSide(color: context.borderGray),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+          borderSide: BorderSide(color: context.borderGray),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
@@ -278,6 +323,105 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Password strength bar — 3-segment (weak / fair / strong)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _PasswordStrengthBar extends StatelessWidget {
+  final int score; // 0..3
+  const _PasswordStrengthBar({required this.score});
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, color) = switch (score) {
+      0 || 1 => ('Weak', const Color(0xFFEF4444)),
+      2      => ('Fair', const Color(0xFFF59E0B)),
+      _      => ('Strong', const Color(0xFF22C55E)),
+    };
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: score / 3,
+              minHeight: 6,
+              backgroundColor: const Color(0xFFE5E7EB),
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: color,
+          ),
+        ),
+      ]),
+    ]);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Password requirements checklist
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _PasswordChecklist extends StatelessWidget {
+  final bool hasMinLen;
+  final bool hasUppercase;
+  final bool hasDigit;
+  const _PasswordChecklist({
+    required this.hasMinLen,
+    required this.hasUppercase,
+    required this.hasDigit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _CheckRow(met: hasMinLen,    label: 'At least 8 characters'),
+        const SizedBox(height: 4),
+        _CheckRow(met: hasUppercase, label: 'One uppercase letter (A–Z)'),
+        const SizedBox(height: 4),
+        _CheckRow(met: hasDigit,     label: 'One number (0–9)'),
+      ],
+    );
+  }
+}
+
+class _CheckRow extends StatelessWidget {
+  final bool met;
+  final String label;
+  const _CheckRow({required this.met, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = met ? const Color(0xFF22C55E) : const Color(0xFF9CA3AF);
+    return Row(children: [
+      Icon(
+        met ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+        size: 15,
+        color: color,
+      ),
+      const SizedBox(width: 6),
+      Text(
+        label,
+        style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w500),
+      ),
+    ]);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
 class _Label extends StatelessWidget {
   final String text;
   const _Label(this.text);
@@ -285,10 +429,10 @@ class _Label extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Text(
         text,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w600,
-          color: Color(0xFF374151),
+          color: context.textPrimary,
         ),
       );
 }
@@ -299,8 +443,7 @@ class _ErrorBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           color: const Color(0xFFFEF2F2),
           border: Border.all(color: const Color(0xFFFCA5A5)),
@@ -314,10 +457,9 @@ class _ErrorBox extends StatelessWidget {
             child: Text(
               message,
               style: const TextStyle(
-                color: Color(0xFFB91C1C),
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
+                  color: Color(0xFFB91C1C),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500),
             ),
           ),
         ]),

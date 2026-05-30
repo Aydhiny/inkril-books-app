@@ -32,9 +32,9 @@ public static class DependencyInjection
         services.AddIdentityCore<ApplicationUser>(opt =>
         {
             opt.Password.RequireNonAlphanumeric = false;
-            opt.Password.RequireUppercase = false;
-            opt.Password.RequireDigit = false;
-            opt.Password.RequiredLength = 4; // allows professor-required "test" credentials
+            opt.Password.RequireUppercase = true;
+            opt.Password.RequireDigit = true;
+            opt.Password.RequiredLength = 8;
             opt.User.RequireUniqueEmail = true;
         })
         .AddRoles<IdentityRole<Guid>>()

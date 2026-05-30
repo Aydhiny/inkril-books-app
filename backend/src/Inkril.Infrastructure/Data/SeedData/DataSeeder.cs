@@ -63,14 +63,24 @@ public class DataSeeder(
                 EmailConfirmed = true
             };
 
-            var result = await userManager.CreateAsync(user, u.Password);
-            if (!result.Succeeded)
+            // Create the user account without a password so Identity's password
+            // policy is not applied. Seed credentials are intentionally simple
+            // (professor requirement: "test") and must never change the production
+            // policy that real users experience.
+            var createResult = await userManager.CreateAsync(user);
+            if (!createResult.Succeeded)
             {
-                // Log the actual errors so silent failures are immediately visible in the console.
-                var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+                var errors = string.Join(", ", createResult.Errors.Select(e => e.Description));
                 logger.LogError("Failed to seed user '{UserName}': {Errors}", u.UserName, errors);
                 continue;
             }
+
+            // Directly hash and assign the password, bypassing validation.
+            // This is the standard pattern for seeding accounts that intentionally
+            // do not conform to the production password policy.
+            var hasher = new PasswordHasher<ApplicationUser>();
+            user.PasswordHash = hasher.HashPassword(user, u.Password);
+            await userManager.UpdateAsync(user);
 
             await userManager.AddToRoleAsync(user, u.Role);
             await context.UserSettings.AddAsync(new UserSettings { UserId = user.Id });
