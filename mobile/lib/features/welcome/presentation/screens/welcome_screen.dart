@@ -20,24 +20,27 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       title: 'Welcome to Inkril',
       subtitle:
           'Your gamified reading companion. Build habits, track progress, and discover great books.',
-      bg: Color(0xFFF5F0FF),
-      accent: AppTheme.primary,
+      lightBg: Color(0xFFF5F0FF),
+      darkBg:  Color(0xFF1A0A2E),
+      accent:  AppTheme.primary,
     ),
     _Slide(
       emoji: '🏆',
       title: 'Compete & Grow',
       subtitle:
           'Climb the leaderboard, maintain your daily streak, and challenge friends to read more.',
-      bg: Color(0xFFFFF7ED),
-      accent: Color(0xFFF59E0B),
+      lightBg: Color(0xFFFFF7ED),
+      darkBg:  Color(0xFF1C1200),
+      accent:  Color(0xFFF59E0B),
     ),
     _Slide(
       emoji: '🔖',
       title: 'Bookmark Moments',
       subtitle:
           'Highlight passages that move you. Review your saved quotes anytime in your Reading Hub.',
-      bg: Color(0xFFF0FDF4),
-      accent: Color(0xFF16A34A),
+      lightBg: Color(0xFFF0FDF4),
+      darkBg:  Color(0xFF071A0B),
+      accent:  Color(0xFF16A34A),
     ),
   ];
 
@@ -66,10 +69,12 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final slide = _slides[_page];
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final slide  = _slides[_page];
+    final bg     = isDark ? slide.darkBg : slide.lightBg;
 
     return Scaffold(
-      backgroundColor: slide.bg,
+      backgroundColor: bg,
       body: SafeArea(
         child: Column(
           children: [
@@ -81,7 +86,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 child: Text(
                   'Skip',
                   style: TextStyle(
-                    color: slide.accent.withValues(alpha: 0.6),
+                    color: slide.accent.withValues(alpha: isDark ? 0.8 : 0.6),
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -94,7 +99,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 controller: _pageCtrl,
                 onPageChanged: (i) => setState(() => _page = i),
                 itemCount: _slides.length,
-                itemBuilder: (_, i) => _SlidePage(slide: _slides[i]),
+                itemBuilder: (_, i) => _SlidePage(slide: _slides[i], isDark: isDark),
               ),
             ),
 
@@ -116,7 +121,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                         decoration: BoxDecoration(
                           color: active
                               ? slide.accent
-                              : slide.accent.withValues(alpha: 0.25),
+                              : slide.accent.withValues(alpha: 0.3),
                           borderRadius: BorderRadius.circular(4),
                         ),
                       );
@@ -164,10 +169,16 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
 class _SlidePage extends StatelessWidget {
   final _Slide slide;
-  const _SlidePage({required this.slide});
+  final bool isDark;
+  const _SlidePage({required this.slide, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
+    // Emoji container: white card in light mode, slightly lighter than bg in dark mode
+    final cardColor = isDark
+        ? Color.lerp(isDark ? slide.darkBg : slide.lightBg, Colors.white, 0.08)!
+        : Colors.white;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 32),
       child: Column(
@@ -178,15 +189,15 @@ class _SlidePage extends StatelessWidget {
             width: 140,
             height: 140,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: cardColor,
               borderRadius: BorderRadius.circular(36),
               border: Border.all(
-                color: slide.accent.withValues(alpha: 0.3),
+                color: slide.accent.withValues(alpha: isDark ? 0.5 : 0.3),
                 width: 3,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: slide.accent.withValues(alpha: 0.15),
+                  color: slide.accent.withValues(alpha: isDark ? 0.25 : 0.15),
                   blurRadius: 32,
                   offset: const Offset(0, 10),
                 ),
@@ -206,7 +217,10 @@ class _SlidePage extends StatelessWidget {
             style: TextStyle(
               fontSize: 32,
               fontWeight: FontWeight.w900,
-              color: slide.accent,
+              // In dark mode, lighten the accent so it's legible on a dark bg
+              color: isDark
+                  ? Color.lerp(slide.accent, Colors.white, 0.35)
+                  : slide.accent,
               letterSpacing: -0.5,
               height: 1.15,
             ),
@@ -217,7 +231,9 @@ class _SlidePage extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 16,
-              color: slide.accent.withValues(alpha: 0.7),
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.65)
+                  : slide.accent.withValues(alpha: 0.7),
               height: 1.6,
             ),
           ),
@@ -231,13 +247,15 @@ class _Slide {
   final String emoji;
   final String title;
   final String subtitle;
-  final Color bg;
+  final Color lightBg;
+  final Color darkBg;
   final Color accent;
   const _Slide({
     required this.emoji,
     required this.title,
     required this.subtitle,
-    required this.bg,
+    required this.lightBg,
+    required this.darkBg,
     required this.accent,
   });
 }
