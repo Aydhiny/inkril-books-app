@@ -57,6 +57,29 @@ public class AuthController(IMediator mediator) : ApiControllerBase
     }
 
     /// <summary>
+    /// Validates the 6-digit OTP sent during registration, marks the account as
+    /// email-confirmed, and returns fresh auth tokens so the client is logged in
+    /// immediately — no separate login step required after verification.
+    /// </summary>
+    [HttpPost("verify-email")]
+    public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailCommand cmd, CancellationToken ct)
+    {
+        var result = await mediator.Send(cmd, ct);
+        return result.Succeeded ? Ok(result.Value) : ToResult(result, Ok);
+    }
+
+    /// <summary>
+    /// Resends a fresh 6-digit verification OTP to the given email.
+    /// Always returns 200 to prevent email enumeration.
+    /// </summary>
+    [HttpPost("resend-verification")]
+    public async Task<IActionResult> ResendVerification([FromBody] ResendVerificationCommand cmd, CancellationToken ct)
+    {
+        var result = await mediator.Send(cmd, ct);
+        return ToResult(result, msg => Ok(new { message = msg }));
+    }
+
+    /// <summary>
     /// Revokes the refresh token on the server so it cannot be used to issue new access tokens.
     /// The client must also clear its local token storage (§5 — server-side logout required).
     /// </summary>

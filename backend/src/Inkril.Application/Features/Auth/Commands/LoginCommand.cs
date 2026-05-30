@@ -39,6 +39,14 @@ public class LoginCommandHandler(
         if (!await userManager.CheckPasswordAsync(user, cmd.Password))
             return Result<AuthResponse>.Failure(InvalidMsg);
 
+        // Require email verification before granting access.
+        // This check intentionally comes AFTER the password check so we don't
+        // leak whether an account exists to unauthenticated callers.
+        if (!user.EmailConfirmed)
+            return Result<AuthResponse>.Failure(
+                "Please verify your email before logging in. " +
+                "Check your inbox for a 6-digit code, or use POST /api/auth/resend-verification.");
+
         var (access, refresh) = await tokenService.GenerateTokensAsync(user);
         return Result<AuthResponse>.Success(new AuthResponse(access, refresh, user.Id, user.UserName!, user.Email!));
     }
