@@ -26,6 +26,10 @@ public class GetBookReadUrlQueryHandler(IUnitOfWork uow)
         if (book is null)
             return Result<string>.Failure("Book not found.");
 
+        // Guard: a book exists in the DB but may not have an uploaded PDF yet
+        if (string.IsNullOrWhiteSpace(book.FilePath))
+            return Result<string>.Failure("No PDF is available for this book yet.");
+
         // Admins (desktop role) can access any book's file for management purposes
         if (q.IsAdmin)
             return Result<string>.Success(book.FilePath);

@@ -45,7 +45,7 @@ public class GetBookByIdQueryHandler(IUnitOfWork uow)
             book.TotalPages, book.PublishedDate, book.ISBN,
             book.Publisher, book.Language, book.AverageRating,
             book.RatingCount,
-            book.BookGenres.Select(bg => bg.Genre.Name),
+            book.BookGenres.Where(bg => bg.Genre is not null).Select(bg => bg.Genre.Name),
             book.IsPremium, book.Price, isPurchased));
     }
 }

@@ -31,10 +31,13 @@ public class ExportBookmarksCommandHandler(
         if (bookmarks.Count == 0)
             return Result<string>.Failure("No bookmarks found for this book.");
 
+        if (string.IsNullOrEmpty(user.Email))
+            return Result<string>.Failure("No email address is associated with your account.");
+
         var html = BuildHtml(book.Title, book.Author, user.UserName!, bookmarks);
         var subject = $"Your highlights from \"{book.Title}\" — Inkril";
 
-        await emailService.SendAsync(user.Email!, subject, html, ct);
+        await emailService.SendAsync(user.Email, subject, html, ct);
 
         return Result<string>.Success($"Your {bookmarks.Count} highlights have been emailed to {user.Email}.");
     }

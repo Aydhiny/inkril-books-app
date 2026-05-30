@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import '../../../../core/api/api_client.dart';
@@ -30,7 +31,7 @@ class SetupState {
 }
 
 class SetupNotifier extends StateNotifier<SetupState> {
-  final _dio;
+  final Dio _dio;
   final Ref _ref;
 
   SetupNotifier(this._dio, this._ref) : super(const SetupState());
