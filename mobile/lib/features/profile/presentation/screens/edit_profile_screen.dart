@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/api/api_client.dart';
+import '../../../../core/utils/error_utils.dart';
 import '../providers/profile_provider.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
@@ -124,7 +125,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       if (mounted) context.pop();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(parseError(e)),
+          behavior: SnackBarBehavior.floating,
+        ));
       }
     } finally {
       if (mounted) setState(() => _loading = false);

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/error_utils.dart';
 import '../../../../core/widgets/shimmer_loading.dart';
 import '../providers/notifications_provider.dart';
 
@@ -153,9 +154,10 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       ref.invalidate(notificationsProvider);
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not mark all as read: $e')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(parseError(e)),
+          behavior: SnackBarBehavior.floating,
+        ));
       }
     }
   }
@@ -194,9 +196,10 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(parseError(e)),
+          behavior: SnackBarBehavior.floating,
+        ));
       }
     }
   }

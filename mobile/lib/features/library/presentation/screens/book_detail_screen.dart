@@ -7,6 +7,7 @@ import '../../../../core/api/api_client.dart';
 import '../../../../core/config/app_config.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/error_utils.dart';
 import '../../../payments/presentation/providers/payment_provider.dart';
 import '../providers/library_provider.dart';
 
@@ -534,8 +535,12 @@ class _BookBody extends StatelessWidget {
             }
           } catch (e) {
             if (sheetCtx.mounted) {
-              ScaffoldMessenger.of(sheetCtx)
-                  .showSnackBar(SnackBar(content: Text('Error: $e')));
+              ScaffoldMessenger.of(sheetCtx).showSnackBar(SnackBar(
+                content: Text(parseError(e)),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ));
             }
           }
         },
@@ -924,12 +929,12 @@ class _BookmarksSectionState extends State<_BookmarksSection> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ));
       }
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Failed to send email. Try again.'),
-          backgroundColor: Colors.red,
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(parseError(e)),
           behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ));
       }
     } finally {
@@ -1081,8 +1086,10 @@ class _BookmarksSectionState extends State<_BookmarksSection> {
       widget.ref.invalidate(bookBookmarksProvider(widget.bookId));
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(parseError(e)),
+          behavior: SnackBarBehavior.floating,
+        ));
       }
     }
   }

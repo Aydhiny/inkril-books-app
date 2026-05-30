@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../config/app_config.dart';
 import '../providers/auth_provider.dart';
 import 'interceptors/auth_interceptor.dart';
+import 'interceptors/error_interceptor.dart';
 
 final dioProvider = Provider<Dio>((ref) {
   final dio = Dio(BaseOptions(
@@ -14,6 +15,7 @@ final dioProvider = Provider<Dio>((ref) {
   ));
 
   dio.interceptors.addAll([
+    ErrorInterceptor(),
     AuthInterceptor(
       storage: const FlutterSecureStorage(),
       baseUrl: AppConfig.apiBaseUrl,

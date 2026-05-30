@@ -14,8 +14,16 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialise Stripe with the publishable key injected at build time.
-  // Uses test key by default — replace via --dart-define=STRIPE_PUBLISHABLE_KEY=…
-  Stripe.publishableKey = AppConfig.stripePublishableKey;
+  // The publishable key is NOT secret — it's safe in source code.
+  // Override for production: --dart-define=STRIPE_PUBLISHABLE_KEY=pk_live_…
+  try {
+    Stripe.publishableKey = AppConfig.stripePublishableKey;
+    await Stripe.instance.applySettings();
+  } catch (e) {
+    // Stripe init failure must not crash the app — payments simply won't work
+    // until a valid key is provided. All other screens remain functional.
+    debugPrint('[Stripe] init failed: $e');
+  }
 
   // Read storage once at startup so the router guard has the correct
   // initial state before the first frame renders.

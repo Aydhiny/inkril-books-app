@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
 import '../../../../core/api/api_client.dart';
+import '../../../../core/utils/error_utils.dart';
 import '../../../../core/config/app_config.dart';
 import '../../../../core/providers/connectivity_provider.dart';
 import '../../../../core/services/dictionary_service.dart';
@@ -421,8 +422,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         onPageChanged: (page, _) => _onPageChanged(page ?? _currentPage),
         onError: (e) {
           if (mounted) {
-            ScaffoldMessenger.of(context)
-                .showSnackBar(SnackBar(content: Text('PDF error: $e')));
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text('Could not render PDF. ${parseError(e)}'),
+              behavior: SnackBarBehavior.floating,
+            ));
           }
         },
       );

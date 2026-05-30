@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/error_utils.dart';
 import '../providers/auth_notifier.dart';
 
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
@@ -12,8 +13,9 @@ class ForgotPasswordScreen extends ConsumerStatefulWidget {
 }
 
 class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
-  final _formKey  = GlobalKey<FormState>();
+  final _formKey   = GlobalKey<FormState>();
   final _emailCtrl = TextEditingController();
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -22,6 +24,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   }
 
   Future<void> _submit() async {
+    if (_errorMessage != null) setState(() => _errorMessage = null);
     if (!_formKey.currentState!.validate()) return;
 
     await ref.read(authNotifierProvider.notifier).forgotPassword(_emailCtrl.text.trim());
@@ -30,17 +33,11 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 
     final state = ref.read(authNotifierProvider);
     if (state.hasError) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(state.error.toString()),
-          backgroundColor: const Color(0xFFEF4444),
-        ),
-      );
+      setState(() => _errorMessage = parseError(state.error));
       return;
     }
 
-    // Navigate to OTP entry regardless of whether the email was found —
-    // the blind response prevents enumeration.
+    // Navigate to OTP entry regardless — blind response prevents enumeration.
     context.push('/auth/reset-password', extra: _emailCtrl.text.trim());
   }
 
@@ -100,7 +97,13 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                     height: 1.5,
                   ),
                 ),
-                const SizedBox(height: 36),
+                const SizedBox(height: 24),
+
+                // ── Inline error ────────────────────────────────────────
+                if (_errorMessage != null) ...[
+                  _ErrorBox(_errorMessage!),
+                  const SizedBox(height: 16),
+                ],
 
                 // ── Email field ─────────────────────────────────────────
                 const Text(
@@ -205,4 +208,34 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       ),
     );
   }
+}
+
+class _ErrorBox extends StatelessWidget {
+  final String message;
+  const _ErrorBox(this.message);
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFEF2F2),
+          border: Border.all(color: const Color(0xFFFCA5A5)),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(children: [
+          const Icon(Icons.error_outline_rounded,
+              color: Color(0xFFEF4444), size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: Color(0xFFB91C1C),
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ]),
+      );
 }

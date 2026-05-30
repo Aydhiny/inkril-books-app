@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/error_utils.dart';
 import '../providers/auth_notifier.dart';
 
 class ResetPasswordScreen extends ConsumerStatefulWidget {
@@ -19,9 +20,10 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
   final _otpCtrl       = TextEditingController();
   final _passwordCtrl  = TextEditingController();
   final _confirmCtrl   = TextEditingController();
-  bool _obscureNew     = true;
-  bool _obscureConfirm = true;
-  bool _success        = false;
+  bool    _obscureNew     = true;
+  bool    _obscureConfirm = true;
+  bool    _success        = false;
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -32,6 +34,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
   }
 
   Future<void> _submit() async {
+    if (_errorMessage != null) setState(() => _errorMessage = null);
     if (!_formKey.currentState!.validate()) return;
 
     await ref.read(authNotifierProvider.notifier).resetPassword(
@@ -44,15 +47,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
 
     final state = ref.read(authNotifierProvider);
     if (state.hasError) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(state.error.toString()),
-          backgroundColor: const Color(0xFFEF4444),
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+      setState(() => _errorMessage = parseError(state.error));
       return;
     }
 
@@ -86,6 +81,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
           obscureNew: _obscureNew,
           obscureConfirm: _obscureConfirm,
           isLoading: isLoading,
+          errorMessage: _errorMessage,
           onToggleNew: () => setState(() => _obscureNew = !_obscureNew),
           onToggleConfirm: () => setState(() => _obscureConfirm = !_obscureConfirm),
           onSubmit: _submit,
@@ -109,6 +105,7 @@ class _FormView extends StatelessWidget {
   final bool obscureNew;
   final bool obscureConfirm;
   final bool isLoading;
+  final String? errorMessage;
   final VoidCallback onToggleNew;
   final VoidCallback onToggleConfirm;
   final VoidCallback onSubmit;
@@ -123,6 +120,7 @@ class _FormView extends StatelessWidget {
     required this.obscureNew,
     required this.obscureConfirm,
     required this.isLoading,
+    this.errorMessage,
     required this.onToggleNew,
     required this.onToggleConfirm,
     required this.onSubmit,
@@ -179,7 +177,32 @@ class _FormView extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 20),
+
+            // ── Inline error ──────────────────────────────────────────
+            if (errorMessage != null) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  border: Border.all(color: const Color(0xFFFCA5A5)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(children: [
+                  const Icon(Icons.error_outline_rounded,
+                      color: Color(0xFFEF4444), size: 18),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text(
+                    errorMessage!,
+                    style: const TextStyle(
+                        color: Color(0xFFB91C1C),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500),
+                  )),
+                ]),
+              ),
+              const SizedBox(height: 16),
+            ],
 
             // ── OTP field ─────────────────────────────────────────────
             _Label('Reset code'),
