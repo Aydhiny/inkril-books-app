@@ -5,6 +5,7 @@ using Inkril.Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
+using UserSettingsEntity = Inkril.Domain.Entities.UserSettings;
 
 namespace Inkril.Application.Features.Auth.Commands;
 
@@ -64,7 +65,7 @@ public class RegisterCommandHandler(
         await userManager.AddToRoleAsync(user, "mobile");
 
         // Create default settings for new user
-        await uow.UserSettings.AddAsync(new UserSettings { UserId = user.Id }, ct);
+        await uow.UserSettings.AddAsync(new UserSettingsEntity { UserId = user.Id }, ct);
         await uow.SaveChangesAsync(ct);
 
         // Send email verification OTP — fire-and-forget with error swallowing

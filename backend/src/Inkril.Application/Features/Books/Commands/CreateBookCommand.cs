@@ -28,7 +28,9 @@ public class CreateBookCommandValidator : AbstractValidator<CreateBookCommand>
     {
         RuleFor(x => x.Title).NotEmpty().MaximumLength(300);
         RuleFor(x => x.Author).NotEmpty().MaximumLength(200);
-        RuleFor(x => x.FilePath).NotEmpty();
+        // FilePath may be empty on creation when the user uploads the PDF separately
+        // via POST /api/books/{id}/upload-pdf after the book record is created.
+        RuleFor(x => x.FilePath).MaximumLength(500);
         RuleFor(x => x.TotalPages).GreaterThanOrEqualTo(0);
         RuleFor(x => x.PublishedDate).LessThanOrEqualTo(DateTime.UtcNow);
     }

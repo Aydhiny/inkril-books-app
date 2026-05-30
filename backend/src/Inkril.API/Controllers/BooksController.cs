@@ -61,9 +61,17 @@ public class BooksController(IMediator mediator, ICurrentUserService currentUser
     }
 
     [HttpPost]
-    [Authorize(Roles = "desktop")]
     public async Task<IActionResult> Create([FromBody] CreateBookCommand cmd, CancellationToken ct)
     {
+        // Desktop (admin) users can create public or private books freely.
+        // Mobile users may only upload personal/private books (IsPublic = false).
+        // This prevents mobile users from publishing books to the shared library.
+        if (!currentUser.IsInRole("desktop") && cmd.IsPublic)
+            return Problem(
+                detail: "Mobile users can only upload private books. Set isPublic to false.",
+                statusCode: StatusCodes.Status403Forbidden,
+                title: "Forbidden");
+
         var result = await mediator.Send(cmd, ct);
         return ToResult(result, id => CreatedAtAction(nameof(GetById), new { id }, new { id }));
     }
@@ -89,7 +97,6 @@ public class BooksController(IMediator mediator, ICurrentUserService currentUser
     }
 
     [HttpPost("{id:guid}/upload-cover")]
-    [Authorize(Roles = "desktop")]
     [RequestSizeLimit(5 * 1024 * 1024)]
     public async Task<IActionResult> UploadCover(Guid id, IFormFile file, CancellationToken ct)
     {
@@ -105,6 +112,11 @@ public class BooksController(IMediator mediator, ICurrentUserService currentUser
 
         var book = await uow.Books.GetByIdAsync(id, ct);
         if (book is null) return NotFound();
+
+        // Mobile users may only modify books they created (private books).
+        // Desktop admins can modify any book.
+        if (!currentUser.IsInRole("desktop") && book.CreatedBy != currentUser.UserName)
+            return Forbid();
 
         var uploadsDir = Path.Combine(env.WebRootPath, "uploads", "covers");
         Directory.CreateDirectory(uploadsDir);
@@ -124,7 +136,6 @@ public class BooksController(IMediator mediator, ICurrentUserService currentUser
     }
 
     [HttpPost("{id:guid}/upload-pdf")]
-    [Authorize(Roles = "desktop")]
     [RequestSizeLimit(50 * 1024 * 1024)]
     public async Task<IActionResult> UploadPdf(Guid id, IFormFile file, CancellationToken ct)
     {
@@ -140,6 +151,11 @@ public class BooksController(IMediator mediator, ICurrentUserService currentUser
 
         var book = await uow.Books.GetByIdAsync(id, ct);
         if (book is null) return NotFound();
+
+        // Mobile users may only upload PDFs to books they created (private books).
+        // Desktop admins can upload to any book.
+        if (!currentUser.IsInRole("desktop") && book.CreatedBy != currentUser.UserName)
+            return Forbid();
 
         var uploadsDir = Path.Combine(env.WebRootPath, "uploads", "books");
         Directory.CreateDirectory(uploadsDir);

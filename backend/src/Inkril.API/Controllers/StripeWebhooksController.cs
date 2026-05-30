@@ -73,7 +73,7 @@ public class StripeWebhooksController(
                 if (stripeEvent.Data.Object is not PaymentIntent pi) break;
 
                 var result = await mediator.Send(
-                    new ConfirmPurchaseCommand(pi.Id, userId: null), ct);
+                    new ConfirmPurchaseCommand(pi.Id, UserId: null), ct);
 
                 if (!result.Succeeded)
                     logger.LogWarning(

@@ -137,6 +137,15 @@ final routerProvider = Provider.family<GoRouter, String>((ref, initialLocation) 
         pageBuilder: (_, s) => _slide(s, VerifyEmailScreen(email: s.extra as String? ?? '')),
       ),
 
+      // Reader lives outside the ShellRoute so the bottom nav bar is not
+      // rendered while reading. This also prevents the "Incorrect use of
+      // ParentDataWidget" errors caused by the reader's Positioned widgets
+      // conflicting with the shell Scaffold's bottomNavigationBar.
+      GoRoute(
+        path: '/reader/:bookId',
+        pageBuilder: (_, s) => _slideUp(s, ReaderScreen(bookId: s.pathParameters['bookId']!)),
+      ),
+
       ShellRoute(
         pageBuilder: (context, state, child) => _fade(state, _AppShell(child: child)),
         routes: [
@@ -145,10 +154,6 @@ final routerProvider = Provider.family<GoRouter, String>((ref, initialLocation) 
           GoRoute(
             path: '/books/:id',
             pageBuilder: (_, s) => _slide(s, BookDetailScreen(bookId: s.pathParameters['id']!)),
-          ),
-          GoRoute(
-            path: '/reader/:bookId',
-            pageBuilder: (_, s) => _slideUp(s, ReaderScreen(bookId: s.pathParameters['bookId']!)),
           ),
           GoRoute(path: '/leaderboard', pageBuilder: (_, s) => _fade(s, const LeaderboardScreen())),
           GoRoute(path: '/profile',     pageBuilder: (_, s) => _slide(s, const ProfileScreen())),

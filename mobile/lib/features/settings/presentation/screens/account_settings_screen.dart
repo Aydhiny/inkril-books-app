@@ -59,6 +59,10 @@ class AccountSettingsScreen extends ConsumerWidget {
                     _PaymentMethodsCard(methodsAsync: methodsAsync),
                     const SizedBox(height: 12),
 
+                    // Email verification banner — only shown when unverified
+                    _EmailVerificationCard(profileAsync: profileAsync),
+                    const SizedBox(height: 12),
+
                     // Quick links card
                     _AccountCard(children: [
                       _NavRow(
@@ -521,6 +525,70 @@ class _NavRow extends StatelessWidget {
           ),
           Icon(Icons.chevron_right_rounded,
               size: 20, color: context.textSecondary),
+        ]),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Email verification banner — visible only when EmailConfirmed is false
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _EmailVerificationCard extends StatelessWidget {
+  final AsyncValue profileAsync;
+  const _EmailVerificationCard({required this.profileAsync});
+
+  @override
+  Widget build(BuildContext context) {
+    final profile = profileAsync.valueOrNull as Map<String, dynamic>?;
+    final emailConfirmed = profile?['emailConfirmed'] as bool? ?? true;
+    final email          = profile?['email']          as String? ?? '';
+
+    if (emailConfirmed) return const SizedBox.shrink();
+
+    return GestureDetector(
+      onTap: () => context.push('/auth/verify-email', extra: email),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFFBEB),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFF59E0B), width: 1.5),
+        ),
+        child: Row(children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFEF3C7),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.mark_email_unread_rounded,
+                color: Color(0xFFD97706), size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text(
+                'Verify your email',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF92400E),
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Tap to complete verification for $email',
+                style: const TextStyle(fontSize: 12, color: Color(0xFFB45309)),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ]),
+          ),
+          const Icon(Icons.chevron_right_rounded,
+              size: 20, color: Color(0xFFD97706)),
         ]),
       ),
     );

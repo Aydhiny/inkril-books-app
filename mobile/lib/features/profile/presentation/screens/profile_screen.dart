@@ -1056,8 +1056,45 @@ class _TrophyTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final locked = !badge.unlocked;
-    return Tooltip(
-      message: badge.hint,
+    return GestureDetector(
+      onTap: () => showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(badge.emoji,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 40)),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text(
+              badge.label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: locked ? const Color(0xFF6B7280) : AppTheme.primary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              badge.comingSoon
+                  ? 'Coming soon!'
+                  : locked
+                      ? 'Requirement: ${badge.hint}'
+                      : '✅ Unlocked! ${badge.hint}',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+            ),
+          ]),
+          actionsAlignment: MainAxisAlignment.center,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Got it',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      ),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
         decoration: BoxDecoration(
@@ -1248,79 +1285,82 @@ class _HeatmapGrid extends StatelessWidget {
     final totalMinutes = days.fold(0, (s, d) => s + d.minutesRead);
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      // ── Month labels ──────────────────────────────────────────────────
-      Row(children: [
-        const SizedBox(width: 16),
-        SizedBox(
-          height: 14,
-          width: totalWeeks * _stride,
-          child: CustomPaint(
-            painter: _MonthLabelPainter(
-              year: year,
-              gridStart: gridStart,
-              totalWeeks: totalWeeks,
-              stride: _stride,
-              color: labelColor,
-            ),
-          ),
-        ),
-      ]),
-      const SizedBox(height: 4),
-
-      // ── Scrollable grid ───────────────────────────────────────────────
+      // ── Month labels + grid — both in the same scroll view so they move
+      //    together. Previously month labels were outside the ScrollView and
+      //    overflowed the card on narrow screens.
       SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Day-of-week column
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: _dayLabels.map((label) => SizedBox(
-              width: 14,
-              height: _stride,
-              child: Text(
-                label,
-                style: TextStyle(fontSize: 8, color: labelColor),
-                textAlign: TextAlign.right,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Month labels
+            Row(children: [
+              const SizedBox(width: 16),
+              SizedBox(
+                height: 14,
+                width: totalWeeks * _stride,
+                child: CustomPaint(
+                  painter: _MonthLabelPainter(
+                    year: year,
+                    gridStart: gridStart,
+                    totalWeeks: totalWeeks,
+                    stride: _stride,
+                    color: labelColor,
+                  ),
+                ),
               ),
-            )).toList(),
-          ),
-          const SizedBox(width: 2),
+            ]),
+            const SizedBox(height: 4),
 
-          // Week columns
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: List.generate(totalWeeks, (w) {
-              return Column(
-                children: List.generate(7, (d) {
-                  final date = gridStart.add(Duration(days: w * 7 + d));
-                  final inYear = date.year == year;
-                  final mins   = minuteMap[_key(date)] ?? 0;
-                  final bucket = inYear ? _ReadingHeatmap._bucket(mins) : -1;
+            // Day-of-week column + week columns
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: _dayLabels.map((label) => SizedBox(
+                  width: 14,
+                  height: _stride,
+                  child: Text(
+                    label,
+                    style: TextStyle(fontSize: 8, color: labelColor),
+                    textAlign: TextAlign.right,
+                  ),
+                )).toList(),
+              ),
+              const SizedBox(width: 2),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: List.generate(totalWeeks, (w) {
+                  return Column(
+                    children: List.generate(7, (d) {
+                      final date = gridStart.add(Duration(days: w * 7 + d));
+                      final inYear = date.year == year;
+                      final mins   = minuteMap[_key(date)] ?? 0;
+                      final bucket = inYear ? _ReadingHeatmap._bucket(mins) : -1;
 
-                  return Tooltip(
-                    message: inYear && mins > 0
-                        ? '${_fmtDate(date)}: $mins min'
-                        : inYear
-                            ? _fmtDate(date)
-                            : '',
-                    preferBelow: false,
-                    child: Container(
-                      width: _cellSize,
-                      height: _cellSize,
-                      margin: const EdgeInsets.all(_cellGap / 2),
-                      decoration: BoxDecoration(
-                        color: bucket < 0
-                            ? Colors.transparent
-                            : _colors[bucket],
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
+                      return Tooltip(
+                        message: inYear && mins > 0
+                            ? '${_fmtDate(date)}: $mins min'
+                            : inYear ? _fmtDate(date) : '',
+                        preferBelow: false,
+                        child: Container(
+                          width: _cellSize,
+                          height: _cellSize,
+                          margin: const EdgeInsets.all(_cellGap / 2),
+                          decoration: BoxDecoration(
+                            color: bucket < 0
+                                ? Colors.transparent
+                                : _colors[bucket],
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      );
+                    }),
                   );
                 }),
-              );
-            }),
-          ),
-        ]),
+              ),
+            ]),
+          ],
+        ),
       ),
 
       const SizedBox(height: 10),

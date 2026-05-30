@@ -87,6 +87,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   // ── Focus mode — dims page outside a reading band ─────────────────────────
   bool _focusMode = false;
 
+  // ── Private book flag ─────────────────────────────────────────────────────
+  // When true (book.isPublic == false), reading sessions are not created so
+  // the book does not affect streaks, daily stats, leaderboard, or friends.
+  // Progress (current page) and bookmarks still work normally.
+  bool _isPrivateBook = false;
+
   // ── Dictionary ────────────────────────────────────────────────────────────
   // Long-press on the PDF area opens the lookup sheet.
   // _lastLongPressWord is pre-populated when the user copied a word before
@@ -282,6 +288,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       final bookDetail =
           await ref.read(bookDetailProvider(widget.bookId).future);
       _bookTitle = bookDetail['title'] as String? ?? '';
+      _isPrivateBook = !(bookDetail['isPublic'] as bool? ?? true);
 
       // FilePath is no longer returned by the public GET /api/books/{id} endpoint —
       // it must be fetched through the ownership-gated GET /api/books/{id}/read-url.
@@ -311,7 +318,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       }
 
       final startPage = (bookDetail['lastReadPage'] as int?) ?? 0;
-      await _startSession(startPage);
+      if (!_isPrivateBook) await _startSession(startPage);
 
       setState(() {
         _localPdfPath = localFile.path;
@@ -320,8 +327,21 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       });
       _startTimer(); // begin counting reading time
     } catch (e) {
+      // Map technical errors to user-friendly messages.
+      // DioException / HTTP 403 → user hasn't purchased the book or lacks access.
+      String friendly;
+      final raw = e.toString().toLowerCase();
+      if (raw.contains('403') || raw.contains('permission') || raw.contains('forbidden')) {
+        friendly = 'You don\'t have access to this book. Purchase it first to read it.';
+      } else if (raw.contains('404') || raw.contains('not found')) {
+        friendly = 'This book\'s file is not available yet.';
+      } else if (raw.contains('connect') || raw.contains('socket') || raw.contains('network')) {
+        friendly = 'No internet connection. Check your network and try again.';
+      } else {
+        friendly = 'Could not open this book. Please try again later.';
+      }
       setState(() {
-        _error = 'Failed to load book: $e';
+        _error = friendly;
         _downloading = false;
       });
     }
@@ -339,7 +359,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   }
 
   Future<void> _endSession() async {
-    if (_sessionId == null) return;
+    if (_isPrivateBook || _sessionId == null) return;
     final sid = _sessionId!;
     _sessionId = null; // prevent double-call from dispose + _closeReader
     try {
@@ -416,7 +436,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         autoSpacing: false,
         pageFling: true,
         defaultPage: _currentPage,
-        backgroundColor: Colors.white,
+        backgroundColor: effectiveTheme.isDark ? const Color(0xFF1A1230) : Colors.white,
         onRender: (pages) => setState(() => _totalPages = pages ?? 0),
         onViewCreated: (ctrl) => _pdfController = ctrl,
         onPageChanged: (page, _) => _onPageChanged(page ?? _currentPage),
@@ -828,6 +848,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         },
         focusMode: _focusMode,
         onFocusModeToggle: (v) {
+          // Close the settings sheet first so the overlay is immediately visible.
+          Navigator.pop(context);
           setState(() => _focusMode = v);
         },
       ),

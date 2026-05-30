@@ -13,24 +13,49 @@ import 'features/reader/presentation/providers/reader_settings_provider.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialise Stripe with the publishable key injected at build time.
-  // The publishable key is NOT secret — it's safe in source code.
-  // Override for production: --dart-define=STRIPE_PUBLISHABLE_KEY=pk_live_…
+  // Set the publishable key synchronously — this is just a field assignment.
+  // applySettings() (the MethodChannel call that hits the Android main thread)
+  // is deferred to the first post-frame callback so it never blocks startup
+  // rendering and avoids the "Skipped N frames" ANR on cold launch.
+  Stripe.publishableKey = AppConfig.stripePublishableKey;
+  WidgetsBinding.instance.addPostFrameCallback((_) async {
+    try {
+      await Stripe.instance.applySettings();
+    } catch (e) {
+      debugPrint('[Stripe] init failed: $e');
+    }
+  });
+
+  // Use the default FlutterSecureStorage options (no encryptedSharedPreferences
+  // override) so this reads from the same Android backend as every other place
+  // in the app that constructs FlutterSecureStorage().
+  // Mixing AndroidOptions across instances splits the data into two separate
+  // backing stores and causes KeyStoreException / AEADBadTagException on read.
+  const storage = FlutterSecureStorage();
+
+  String? userId;
+  bool hasSeenWelcome = false;
+  String? savedThemeRaw;
+
   try {
-    Stripe.publishableKey = AppConfig.stripePublishableKey;
-    await Stripe.instance.applySettings();
+    userId          = await storage.read(key: 'user_id');
+    hasSeenWelcome  = await storage.read(key: 'has_seen_welcome') == 'true';
+    savedThemeRaw   = await storage.read(key: 'app_theme_mode');
   } catch (e) {
-    // Stripe init failure must not crash the app — payments simply won't work
-    // until a valid key is provided. All other screens remain functional.
-    debugPrint('[Stripe] init failed: $e');
+    // Corrupted keystore entry — wipe and treat user as logged-out.
+    // They will need to log in again; that write regenerates clean entries.
+    debugPrint('[Storage] SecureStorage read failed, clearing corrupt data: $e');
+    try { await storage.deleteAll(); } catch (_) {}
+    userId          = null;
+    hasSeenWelcome  = false;
+    savedThemeRaw   = null;
   }
 
-  // Read storage once at startup so the router guard has the correct
-  // initial state before the first frame renders.
-  const storage = FlutterSecureStorage();
-  final userId          = await storage.read(key: 'user_id');
-  final hasSeenWelcome  = await storage.read(key: 'has_seen_welcome') == 'true';
-  final prefs           = await SharedPreferences.getInstance();
+  final prefs = await SharedPreferences.getInstance();
+
+  // Parse the saved theme before runApp so the first frame renders with the
+  // correct ThemeMode — avoids the system→saved flash on every cold start.
+  final initialTheme = ThemeNotifier.themeFromString(savedThemeRaw);
 
   runApp(ProviderScope(
     overrides: [
@@ -38,6 +63,9 @@ void main() async {
       // Eagerly provide the welcome flag so the router redirect can use it
       // synchronously on the first frame without waiting for an async load.
       hasSeenWelcomeProvider.overrideWith((ref) async => hasSeenWelcome),
+      // Inject the pre-loaded theme so ThemeNotifier skips its async _load()
+      // and returns the correct mode on the very first build.
+      themeProvider.overrideWith(() => ThemeNotifier(initialTheme)),
       // Reader settings backed by SharedPreferences — injected once at startup
       // so the StateNotifier can read/write preferences synchronously.
       sharedPreferencesProvider.overrideWithValue(prefs),

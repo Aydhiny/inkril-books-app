@@ -69,7 +69,19 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        automaticallyImplyLeading: false,
+        automaticallyImplyLeading: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: AppTheme.primary),
+          onPressed: () {
+            // Allow the user to skip verification for now and enter the app.
+            // They can verify later from the profile/settings screen.
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/library');
+            }
+          },
+        ),
       ),
       body: SafeArea(
         child: _success

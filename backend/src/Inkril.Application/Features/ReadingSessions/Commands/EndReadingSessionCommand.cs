@@ -47,6 +47,13 @@ public class EndReadingSessionCommandHandler(
         // (catch on unique constraint) doesn't need to roll back session data.
         await uow.SaveChangesAsync(ct);
 
+        // Private books (IsPublic = false) are personal uploads — they should
+        // not affect streaks, daily stats, leaderboard, or friends' feeds.
+        // Progress tracking (UserBook.LastReadPage) is still saved above.
+        var book = await uow.Books.GetByIdAsync(session.BookId, ct);
+        if (book is not null && !book.IsPublic)
+            return Result.Success();
+
         var streakDays = await UpsertDailyStatAsync(session, ct);
 
         var milestones = new[] { 30, 60, 120 };

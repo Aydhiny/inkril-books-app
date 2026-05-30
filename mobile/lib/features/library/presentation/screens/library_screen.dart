@@ -78,10 +78,18 @@ class LibraryScreen extends ConsumerWidget {
                 child: _MyLibraryScroll(userLibraryAsync: userLibraryAsync),
               ),
               SliverToBoxAdapter(
-                child: _SectionTitle(title: 'Public library'),
+                child: _SectionTitle(title: 'Free to Read'),
               ),
               SliverToBoxAdapter(
-                child: _PublicLibraryScroll(publicBooksAsync: publicBooksAsync),
+                child: _PublicLibraryScroll(
+                    publicBooksAsync: publicBooksAsync, premiumOnly: false),
+              ),
+              SliverToBoxAdapter(
+                child: _SectionTitle(title: 'Premium Books'),
+              ),
+              SliverToBoxAdapter(
+                child: _PublicLibraryScroll(
+                    publicBooksAsync: publicBooksAsync, premiumOnly: true),
               ),
               SliverToBoxAdapter(child: _TodaysQuoteSection()),
               const SliverToBoxAdapter(child: SizedBox(height: 24)),
@@ -331,7 +339,7 @@ class _SearchUploadRow extends StatelessWidget {
               'title': titleCtrl.text.trim(),
               'author': authorCtrl.text.trim(),
               'totalPages': 0,
-              'isPublic': true,
+              'isPublic': false, // private — only visible to the uploader
             });
             ref.invalidate(publicBooksProvider);
             if (context.mounted) {
@@ -415,7 +423,7 @@ class _UploadBookSheet extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'Add a new book to the public library',
+            'Add a private book — visible only to you',
             style: TextStyle(fontSize: 14, color: context.textSecondary),
           ),
           const SizedBox(height: 24),
@@ -755,7 +763,11 @@ class _MyLibraryScroll extends StatelessWidget {
 
 class _PublicLibraryScroll extends StatelessWidget {
   final AsyncValue<List<Map<String, dynamic>>> publicBooksAsync;
-  const _PublicLibraryScroll({required this.publicBooksAsync});
+  final bool premiumOnly;
+  const _PublicLibraryScroll({
+    required this.publicBooksAsync,
+    required this.premiumOnly,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -766,16 +778,29 @@ class _PublicLibraryScroll extends StatelessWidget {
       child: publicBooksAsync.when(
         loading: () => const ShimmerBookScroll(),
         error: (e, _) => Center(
-            child: Text('Failed to load: $e',
+            child: Text('Failed to load books',
                 style: TextStyle(color: context.textSecondary))),
-        data: (books) => ListView.separated(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          scrollDirection: Axis.horizontal,
-          itemCount: books.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 12),
-          itemBuilder: (context, i) =>
-              _LibraryBookCard(book: books[i], showProgress: false),
-        ),
+        data: (all) {
+          final books = all
+              .where((b) => (b['isPremium'] as bool? ?? false) == premiumOnly)
+              .toList();
+          if (books.isEmpty) {
+            return Center(
+              child: Text(
+                premiumOnly ? 'No premium books yet' : 'No free books yet',
+                style: TextStyle(color: context.textSecondary, fontSize: 13),
+              ),
+            );
+          }
+          return ListView.separated(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            scrollDirection: Axis.horizontal,
+            itemCount: books.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (context, i) =>
+                _LibraryBookCard(book: books[i], showProgress: false),
+          );
+        },
       ),
     );
   }
@@ -796,10 +821,15 @@ class _LibraryBookCard extends StatelessWidget {
     final progress  = (book['readingProgressPercent'] as num? ?? 0).toDouble();
     final coverUrl  = book['coverImageUrl'] as String?;
     final avgRating = (book['averageRating'] as num? ?? 0).toDouble();
+    final isPremium = book['isPremium'] as bool? ?? false;
+    final price     = (book['price'] as num?)?.toDouble();
 
     return GestureDetector(
       onTap: () => context.push('/books/$bookId'),
-      child: Container(
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+        Container(
         width: 165,
         decoration: BoxDecoration(
           color: context.cardBg,
@@ -814,22 +844,23 @@ class _LibraryBookCard extends StatelessWidget {
           ],
         ),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(
-              child: SizedBox(
-                width: double.infinity,
-                child: coverUrl != null
-                    ? CachedNetworkImage(
-                        imageUrl: coverUrl,
-                        fit: BoxFit.cover,
-                        // 330 px = 2× the 165 px card width — saves GPU memory
-                        // without sacrificing visible quality.
-                        memCacheWidth: 330,
-                        placeholder: (_, __) => _CoverPlaceholder(),
-                        errorWidget: (_, __, ___) => _CoverPlaceholder(),
-                      )
-                    : _CoverPlaceholder(),
-              ),
+            // Fixed-height cover — Expanded can't be used here because the card
+            // sits inside a SliverList column with unbounded height constraints.
+            SizedBox(
+              height: 210,
+              child: coverUrl != null
+                  ? CachedNetworkImage(
+                      imageUrl: coverUrl,
+                      fit: BoxFit.cover,
+                      // 330 px = 2× the 165 px card width — saves GPU memory
+                      // without sacrificing visible quality.
+                      memCacheWidth: 330,
+                      placeholder: (_, __) => _CoverPlaceholder(),
+                      errorWidget: (_, __, ___) => _CoverPlaceholder(),
+                    )
+                  : _CoverPlaceholder(),
             ),
             Container(
               color: context.cardBg,
@@ -893,7 +924,37 @@ class _LibraryBookCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
+      ),  // Container
+      // ── Premium price sticker ──────────────────────────────────────────
+      if (isPremium)
+        Positioned(
+          top: 8,
+          right: 8,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF59E0B),
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.25),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Text(
+              price != null ? '\$${price.toStringAsFixed(2)}' : '💲',
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
+      ],  // Stack children
+      ),  // Stack
     );
   }
 }
