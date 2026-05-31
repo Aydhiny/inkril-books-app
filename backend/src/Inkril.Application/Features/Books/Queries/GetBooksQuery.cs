@@ -39,10 +39,18 @@ public class GetBooksQueryHandler(IUnitOfWork uow) : IRequestHandler<GetBooksQue
             query = query.Where(b => b.BookGenres.Any(bg => bg.GenreId == q.GenreId));
 
         if (q.PublishedFrom.HasValue)
-            query = query.Where(b => b.PublishedDate >= q.PublishedFrom);
+        {
+            // Npgsql requires DateTimeKind.Utc for timestamptz columns.
+            // ASP.NET model binding produces Kind=Unspecified when no timezone is in the query string.
+            var utcFrom = DateTime.SpecifyKind(q.PublishedFrom.Value, DateTimeKind.Utc);
+            query = query.Where(b => b.PublishedDate >= utcFrom);
+        }
 
         if (q.PublishedTo.HasValue)
-            query = query.Where(b => b.PublishedDate <= q.PublishedTo);
+        {
+            var utcTo = DateTime.SpecifyKind(q.PublishedTo.Value, DateTimeKind.Utc);
+            query = query.Where(b => b.PublishedDate <= utcTo);
+        }
 
         // Count on the raw entity query before projecting — EF Core cannot translate
         // CountAsync on an IQueryable<BookDto> that contains a nested IEnumerable<string>.

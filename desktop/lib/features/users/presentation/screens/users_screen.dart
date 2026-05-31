@@ -249,6 +249,12 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
 // Single coloured table row
 // ─────────────────────────────────────────────────────────────────────────────
 
+String _labelForRole(String role) => switch (role) {
+  'desktop' => 'Admin',
+  'mobile'  => 'User',
+  _         => role,
+};
+
 class _UserRow extends StatelessWidget {
   final Map user;
   final VoidCallback onEdit;
@@ -304,7 +310,7 @@ class _UserRow extends StatelessWidget {
           // Roles
           Expanded(
             child: Text(
-              roles.join(', '),
+              roles.map(_labelForRole).join(', '),
               style: const TextStyle(color: Colors.white, fontSize: 13),
             ),
           ),

@@ -64,7 +64,9 @@ Future<String> createBook({
     if (publishedDate != null) 'publishedDate': publishedDate.toIso8601String(),
   });
   final data = response.data;
-  if (data is Map) return (data['value'] ?? '') as String;
+  // The API returns 201 CreatedAtAction with body { id: "..." }.
+  // Older code expected Result<Guid> shape { value: "..." } — handle both.
+  if (data is Map) return (data['id'] ?? data['value'] ?? '') as String;
   return '';
 }
 
@@ -119,10 +121,12 @@ Future<PlatformFile?> pickPdfFile() async {
   return file.bytes != null ? file : null;
 }
 
-// Opens file picker and returns the chosen image without uploading.
+// Opens file picker restricted to backend-accepted formats (JPG, PNG, WebP).
+// FileType.image allows BMP/GIF/etc. on Windows which the backend rejects with 400.
 Future<PlatformFile?> pickImageFile() async {
   final result = await FilePicker.platform.pickFiles(
-    type: FileType.image,
+    type: FileType.custom,
+    allowedExtensions: ['jpg', 'jpeg', 'png', 'webp'],
     allowMultiple: false,
     withData: true,
   );

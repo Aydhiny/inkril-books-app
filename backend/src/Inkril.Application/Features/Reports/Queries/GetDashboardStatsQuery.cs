@@ -125,14 +125,28 @@ public class GetDashboardStatsQueryHandler(IUnitOfWork uow)
             .ToList();
 
         // ── Genre distribution ────────────────────────────────────────────────────────
-        var genreDistribution = await uow.Books.Query()
+        // Two-step: fetch FK IDs server-side (EF can translate scalar selects), then
+        // join with genre names in memory. Server-side GroupBy on a navigation property
+        // (bg.Genre.Name) fails because EF Core can't produce the implicit JOIN in
+        // a GroupBy projection without an explicit Include.
+        var bookGenreIds = await uow.Books.Query()
             .Where(b => !b.IsDeleted)
-            .SelectMany(b => b.BookGenres)
-            .GroupBy(bg => bg.Genre.Name)
-            .Select(g => new GenreCountDto(g.Key, g.Count()))
-            .OrderByDescending(g => g.Count)
-            .Take(8)
+            .SelectMany(b => b.BookGenres.Select(bg => bg.GenreId))
             .ToListAsync(ct);
+
+        var allGenres = await uow.Genres.Query()
+            .Select(g => new { g.Id, g.Name })
+            .ToListAsync(ct);
+
+        var genreDistribution = bookGenreIds
+            .GroupBy(id => id)
+            .Select(g => new GenreCountDto(
+                allGenres.FirstOrDefault(ag => ag.Id == g.Key)?.Name ?? "Unknown",
+                g.Count()))
+            .Where(x => x.Name != "Unknown")
+            .OrderByDescending(x => x.Count)
+            .Take(8)
+            .ToList();
 
         return new DashboardStatsDto(
             totalUsers, activeUsers, avgHours, totalBooksRead, totalBooks,
