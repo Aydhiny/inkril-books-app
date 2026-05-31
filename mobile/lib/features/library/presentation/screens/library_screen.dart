@@ -971,6 +971,7 @@ class _LibraryBookCard extends StatelessWidget {
         children: [
         Container(
         width: 165,
+        clipBehavior: Clip.hardEdge,
         decoration: BoxDecoration(
           color: context.cardBg,
           borderRadius: BorderRadius.circular(6),

@@ -35,7 +35,7 @@ class InkrilAdminApp extends ConsumerWidget {
       title: 'Inkril Admin',
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
-      themeMode: ThemeMode.system,
+      themeMode: ThemeMode.light,
       routerConfig: router,
       debugShowCheckedModeBanner: false,
     );
