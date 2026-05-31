@@ -1,4 +1,5 @@
 import 'dart:math' show pi;
+import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -638,8 +639,22 @@ class _BookUploadDialogState extends ConsumerState<_BookUploadDialog> {
       widget.onClose();
     } catch (e) {
       if (mounted) {
+        // Extract the actual backend error message when Dio returns a 4xx/5xx,
+        // otherwise fall back to the raw exception string.
+        String message;
+        if (e is DioException && e.response?.data is Map) {
+          final data = e.response!.data as Map;
+          final errors = data['errors'];
+          if (errors is List && errors.isNotEmpty) {
+            message = errors.join('\n');
+          } else {
+            message = data['title']?.toString() ?? e.toString();
+          }
+        } else {
+          message = e.toString();
+        }
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error: $e')));
+            .showSnackBar(SnackBar(content: Text('Error: $message')));
       }
     } finally {
       if (mounted) setState(() => _loading = false);

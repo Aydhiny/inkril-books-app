@@ -118,11 +118,15 @@ Future<PlatformFile?> pickPdfFile() async {
   );
   if (result == null || result.files.isEmpty) return null;
   final file = result.files.first;
-  return file.bytes != null ? file : null;
+  // On desktop, path is always available and is the reliable channel for upload.
+  if (file.path == null) return null;
+  if (file.bytes == null || file.bytes!.isEmpty) return null;
+  return file;
 }
 
 // Opens file picker restricted to backend-accepted formats (JPG, PNG, WebP).
 // FileType.image allows BMP/GIF/etc. on Windows which the backend rejects with 400.
+// withData: true is required so bytes are available for the cover preview widget.
 Future<PlatformFile?> pickImageFile() async {
   final result = await FilePicker.platform.pickFiles(
     type: FileType.custom,
@@ -132,7 +136,12 @@ Future<PlatformFile?> pickImageFile() async {
   );
   if (result == null || result.files.isEmpty) return null;
   final file = result.files.first;
-  return file.bytes != null ? file : null;
+  // On desktop, file.path is always available and file.bytes may be empty
+  // even with withData: true in some Windows configurations — require both
+  // so the preview (bytes) and upload (path) both work.
+  if (file.path == null) return null;
+  if (file.bytes == null || file.bytes!.isEmpty) return null;
+  return file;
 }
 
 // Uploads a pre-picked PDF to an existing book.
@@ -143,13 +152,16 @@ Future<void> uploadPlatformPdf(String bookId, PlatformFile file) async {
     baseUrl: AppConfig.apiBaseUrl,
     headers: {'Authorization': 'Bearer $token'},
   ));
-  final formData = FormData.fromMap({
-    'file': MultipartFile.fromBytes(file.bytes!, filename: file.name),
-  });
+  final multipartFile = file.path != null
+      ? await MultipartFile.fromFile(file.path!, filename: file.name)
+      : MultipartFile.fromBytes(file.bytes!, filename: file.name);
+  final formData = FormData.fromMap({'file': multipartFile});
   await dio.post('/api/books/$bookId/upload-pdf', data: formData);
 }
 
 // Uploads a pre-picked cover image to an existing book.
+// Uses fromFile (path) on desktop — more reliable than fromBytes, which can
+// deliver a zero-length body on Windows when withData buffering races the OS.
 Future<void> uploadPlatformCover(String bookId, PlatformFile file) async {
   const storage = FlutterSecureStorage();
   final token = await storage.read(key: 'access_token');
@@ -157,9 +169,10 @@ Future<void> uploadPlatformCover(String bookId, PlatformFile file) async {
     baseUrl: AppConfig.apiBaseUrl,
     headers: {'Authorization': 'Bearer $token'},
   ));
-  final formData = FormData.fromMap({
-    'file': MultipartFile.fromBytes(file.bytes!, filename: file.name),
-  });
+  final multipartFile = file.path != null
+      ? await MultipartFile.fromFile(file.path!, filename: file.name)
+      : MultipartFile.fromBytes(file.bytes!, filename: file.name);
+  final formData = FormData.fromMap({'file': multipartFile});
   await dio.post('/api/books/$bookId/upload-cover', data: formData);
 }
 
