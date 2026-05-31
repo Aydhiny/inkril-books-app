@@ -1,6 +1,8 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,6 +19,12 @@ import '../providers/library_provider.dart';
 import '../providers/recommendations_provider.dart';
 import '../../../notifications/presentation/providers/notifications_provider.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
+
+/// Turns a cover URL into a fully-qualified URL.
+/// Uploaded covers are stored as relative server paths (/uploads/covers/…).
+/// External covers (OpenLibrary, etc.) start with https:// and pass through.
+String _resolveCoverUrl(String raw) =>
+    raw.startsWith('http') ? raw : '${AppConfig.apiBaseUrl}$raw';
 
 class LibraryScreen extends ConsumerWidget {
   const LibraryScreen({super.key});
@@ -421,6 +429,8 @@ class _ImportLocalBookSheetState
   final _authorCtrl = TextEditingController();
 
   String? _pickedPath;   // absolute path from file_picker
+  String? _coverPath;    // absolute path of the chosen cover image
+  Uint8List? _coverPreview; // in-memory bytes for the preview widget
   String? _pickedName;   // filename for display
   bool    _loading = false;
   String? _error;
@@ -430,6 +440,22 @@ class _ImportLocalBookSheetState
     _titleCtrl.dispose();
     _authorCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickCover() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['jpg', 'jpeg', 'png', 'webp'],
+      allowMultiple: false,
+      withData: true, // need bytes for the preview widget
+    );
+    if (result == null || result.files.isEmpty) return;
+    final file = result.files.first;
+    if (file.path == null) return;
+    setState(() {
+      _coverPath    = file.path;
+      _coverPreview = file.bytes;
+    });
   }
 
   Future<void> _pickFile() async {
@@ -482,7 +508,7 @@ class _ImportLocalBookSheetState
 
       // ② Create the backend record (isLocal=true, path = stable device path)
       final dio = ref.read(dioProvider);
-      await dio.post('/api/books', data: {
+      final createResponse = await dio.post('/api/books', data: {
         'title':    title,
         'author':   _authorCtrl.text.trim().isEmpty
                         ? 'Unknown'
@@ -491,6 +517,22 @@ class _ImportLocalBookSheetState
         'isLocal':  true,
         'isPublic': false,
       });
+
+      // ③ Upload cover image if one was chosen
+      final bookId = (createResponse.data as Map?)?['id'] as String?;
+      if (bookId != null && _coverPath != null) {
+        try {
+          final formData = FormData.fromMap({
+            'file': await MultipartFile.fromFile(
+              _coverPath!,
+              filename: _coverPath!.split('/').last,
+            ),
+          });
+          await dio.post('/api/books/$bookId/upload-cover', data: formData);
+        } catch (_) {
+          // Cover upload failing is non-fatal — book still imported.
+        }
+      }
 
       ref.invalidate(userLibraryProvider);
 
@@ -604,6 +646,81 @@ class _ImportLocalBookSheetState
                 if (_pickedPath != null)
                   const Icon(Icons.check_circle_rounded,
                       color: AppTheme.progressGreen, size: 20),
+              ]),
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          // ── Cover image picker (optional) ─────────────────────────
+          GestureDetector(
+            onTap: _loading ? null : _pickCover,
+            child: Container(
+              height: 72,
+              decoration: BoxDecoration(
+                color: _coverPath != null
+                    ? AppTheme.primarySurface
+                    : context.cardBg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: _coverPath != null
+                      ? AppTheme.primary
+                      : context.borderGray,
+                  width: 1.5,
+                ),
+              ),
+              child: Row(children: [
+                const SizedBox(width: 14),
+                // Preview thumbnail or placeholder icon
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: _coverPreview != null
+                      ? Image.memory(
+                          _coverPreview!,
+                          width: 44,
+                          height: 56,
+                          fit: BoxFit.cover,
+                        )
+                      : Container(
+                          width: 44,
+                          height: 56,
+                          color: context.primarySurface,
+                          child: const Icon(Icons.image_outlined,
+                              color: AppTheme.primary, size: 22),
+                        ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    _coverPath != null
+                        ? _coverPath!.split('/').last
+                        : 'Add cover image (optional)',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: _coverPath != null
+                          ? context.textPrimary
+                          : context.textSecondary,
+                      fontWeight: _coverPath != null
+                          ? FontWeight.w600
+                          : FontWeight.normal,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (_coverPath != null)
+                  IconButton(
+                    icon: Icon(Icons.close_rounded,
+                        size: 18, color: context.textSecondary),
+                    onPressed: () =>
+                        setState(() { _coverPath = null; _coverPreview = null; }),
+                    padding: const EdgeInsets.only(right: 8),
+                    constraints: const BoxConstraints(),
+                  )
+                else
+                  const Padding(
+                    padding: EdgeInsets.only(right: 14),
+                    child: Icon(Icons.add_photo_alternate_outlined,
+                        color: AppTheme.primary, size: 20),
+                  ),
               ]),
             ),
           ),
@@ -800,10 +917,8 @@ class _CurrentlyReadingCard extends StatelessWidget {
               height: 90,
               child: coverUrl != null
                   ? CachedNetworkImage(
-                      imageUrl: coverUrl,
+                      imageUrl: _resolveCoverUrl(coverUrl),
                       fit: BoxFit.cover,
-                      // 128 px = 2× the 64 px logical display size — avoids
-                      // decoding the full source image into GPU memory.
                       memCacheWidth: 128,
                       placeholder: (_, __) => _MiniCoverPlaceholder(),
                       errorWidget: (_, __, ___) => _MiniCoverPlaceholder(),
@@ -1057,7 +1172,7 @@ class _LibraryBookCard extends StatelessWidget {
               height: 195,
               child: coverUrl != null
                   ? CachedNetworkImage(
-                      imageUrl: coverUrl,
+                      imageUrl: _resolveCoverUrl(coverUrl),
                       fit: BoxFit.cover,
                       memCacheWidth: 330,
                       placeholder: (_, __) => _CoverPlaceholder(),
@@ -1725,7 +1840,7 @@ class _SearchResults extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(8),
                     child: cover != null && cover.isNotEmpty
                         ? CachedNetworkImage(
-                            imageUrl: cover,
+                            imageUrl: _resolveCoverUrl(cover),
                             width: 52,
                             height: 72,
                             fit: BoxFit.cover,

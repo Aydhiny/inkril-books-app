@@ -2,9 +2,13 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/config/app_config.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../library/presentation/providers/library_provider.dart';
+
+String _resolveCoverUrl(String raw) =>
+    raw.startsWith('http') ? raw : '${AppConfig.apiBaseUrl}$raw';
 
 // ── Screen ─────────────────────────────────────────────────────────────────
 
@@ -246,7 +250,7 @@ class _BookCover extends StatelessWidget {
       ),
       child: coverUrl != null && coverUrl!.isNotEmpty
           ? CachedNetworkImage(
-              imageUrl: coverUrl!,
+              imageUrl: _resolveCoverUrl(coverUrl!),
               fit: BoxFit.cover,
               memCacheWidth: 176,
               errorWidget: (_, __, ___) => _CoverFallback(title: title),
@@ -589,7 +593,7 @@ class _ActivityItem extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           child: coverUrl != null && coverUrl.isNotEmpty
               ? CachedNetworkImage(
-                  imageUrl: coverUrl,
+                  imageUrl: _resolveCoverUrl(coverUrl),
                   width: 44,
                   height: 60,
                   fit: BoxFit.cover,
