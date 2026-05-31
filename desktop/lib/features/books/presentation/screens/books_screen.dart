@@ -1,7 +1,13 @@
-import 'package:dio/dio.dart';
+import 'dart:math' show pi;
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/config/app_config.dart';
 import '../providers/books_provider.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Library (Books) screen — grid view matching the admin dashboard spec.
+// ─────────────────────────────────────────────────────────────────────────────
 
 class BooksScreen extends ConsumerStatefulWidget {
   const BooksScreen({super.key});
@@ -24,409 +30,535 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
             publishedTo: _publishedTo,
           );
 
+  void _refresh() => ref.invalidate(adminBooksProvider(_params));
+
+  void _showUploadDialog(BuildContext context, Map? book) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) => _BookUploadDialog(
+        book: book,
+        onSaved: _refresh,
+        onClose: () => Navigator.pop(dialogCtx),
+      ),
+    );
+  }
+
+  Future<void> _confirmDelete(BuildContext context, String bookId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('Delete Book'),
+        content: const Text('This action cannot be undone. Are you sure?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dialogCtx, false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+    try {
+      await deleteBook(bookId);
+      _refresh();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final booksAsync = ref.watch(adminBooksProvider(_params));
     final genresAsync = ref.watch(adminGenresProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Books'),
-        actions: [
-          FilledButton.icon(
-            icon: const Icon(Icons.add),
-            label: const Text('Add Book'),
-            onPressed: () => _showBookDialog(context, ref, null),
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Page title ────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(28, 24, 28, 0),
+            child: Row(children: [
+              const Text('📚', style: TextStyle(fontSize: 26)),
+              const SizedBox(width: 10),
+              Text(
+                'Library',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      color: const Color(0xFF5B6AD0),
+                    ),
+              ),
+            ]),
           ),
-          const SizedBox(width: 16),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(112),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Column(
+          const SizedBox(height: 16),
+
+          // ── Filter row ────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(28, 0, 28, 16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                // Row 1: text search
-                TextField(
-                  decoration: const InputDecoration(
-                    hintText: 'Search by title, author...',
-                    prefixIcon: Icon(Icons.search),
-                    isDense: true,
-                  ),
-                  onChanged: (v) => setState(() => _searchTerm = v),
-                ),
-                const SizedBox(height: 8),
-                // Row 2: genre + date filters
-                Row(children: [
-                  // Genre filter
-                  genresAsync.when(
-                    loading: () => const SizedBox(width: 140, child: LinearProgressIndicator()),
-                    error: (_, __) => const SizedBox.shrink(),
-                    data: (genres) => SizedBox(
-                      width: 160,
-                      child: DropdownButtonFormField<String?>(
-                        value: _selectedGenreId,
-                        decoration: const InputDecoration(
-                          labelText: 'Genre',
-                          isDense: true,
+                // Search
+                _FilterColumn(
+                  label: 'Search books',
+                  child: SizedBox(
+                    width: 220,
+                    child: TextField(
+                      decoration: InputDecoration(
+                        hintText: 'Search...',
+                        prefixIcon: Icon(
+                          Icons.search,
+                          size: 18,
+                          color: Colors.grey.shade500,
                         ),
-                        items: [
-                          const DropdownMenuItem(value: null, child: Text('All genres')),
-                          ...genres.map((g) {
-                            final gMap = g as Map;
-                            return DropdownMenuItem(
-                              value: gMap['id'] as String,
-                              child: Text(gMap['name'] as String),
-                            );
-                          }),
-                        ],
-                        onChanged: (v) => setState(() => _selectedGenreId = v),
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                            vertical: 10, horizontal: 12),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8)),
                       ),
+                      onChanged: (v) => setState(() => _searchTerm = v),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  // Published from
-                  _DateFilterChip(
-                    label: _publishedFrom == null
-                        ? 'From date'
-                        : 'From: ${_publishedFrom!.year}-${_publishedFrom!.month.toString().padLeft(2, '0')}-${_publishedFrom!.day.toString().padLeft(2, '0')}',
-                    onTap: () async {
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: _publishedFrom ?? DateTime(2000),
-                        firstDate: DateTime(1900),
-                        lastDate: DateTime.now(),
-                      );
-                      if (picked != null) setState(() => _publishedFrom = picked);
-                    },
-                    onClear: _publishedFrom == null
-                        ? null
-                        : () => setState(() => _publishedFrom = null),
-                  ),
-                  const SizedBox(width: 8),
-                  // Published to
-                  _DateFilterChip(
-                    label: _publishedTo == null
-                        ? 'To date'
-                        : 'To: ${_publishedTo!.year}-${_publishedTo!.month.toString().padLeft(2, '0')}-${_publishedTo!.day.toString().padLeft(2, '0')}',
-                    onTap: () async {
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: _publishedTo ?? DateTime.now(),
-                        firstDate: DateTime(1900),
-                        lastDate: DateTime.now(),
-                      );
-                      if (picked != null) setState(() => _publishedTo = picked);
-                    },
-                    onClear: _publishedTo == null
-                        ? null
-                        : () => setState(() => _publishedTo = null),
-                  ),
-                  const Spacer(),
-                  // Clear all filters
-                  if (_selectedGenreId != null ||
-                      _publishedFrom != null ||
-                      _publishedTo != null)
-                    TextButton.icon(
-                      icon: const Icon(Icons.clear_all, size: 16),
-                      label: const Text('Clear filters'),
-                      onPressed: () => setState(() {
-                        _selectedGenreId = null;
-                        _publishedFrom = null;
-                        _publishedTo = null;
-                      }),
+                ),
+                const SizedBox(width: 16),
+
+                // Genre
+                _FilterColumn(
+                  label: 'Genre',
+                  child: genresAsync.when(
+                    loading: () => const SizedBox(
+                        width: 120, child: LinearProgressIndicator()),
+                    error: (_, __) => const SizedBox(width: 120),
+                    data: (genres) => _GenreDropdown(
+                      genres: genres,
+                      value: _selectedGenreId,
+                      onChanged: (v) => setState(() => _selectedGenreId = v),
                     ),
-                ]),
+                  ),
+                ),
+                const SizedBox(width: 16),
+
+                // From date
+                _FilterColumn(
+                  label: 'From Date:',
+                  child: _DateButton(
+                    value: _publishedFrom,
+                    onPicked: (d) => setState(() => _publishedFrom = d),
+                    onCleared: () => setState(() => _publishedFrom = null),
+                  ),
+                ),
+                const SizedBox(width: 16),
+
+                // To date
+                _FilterColumn(
+                  label: 'To Date:',
+                  child: _DateButton(
+                    value: _publishedTo,
+                    onPicked: (d) => setState(() => _publishedTo = d),
+                    onCleared: () => setState(() => _publishedTo = null),
+                  ),
+                ),
+
+                const Spacer(),
+
+                // Upload Book button — aligned to bottom of filter row
+                FilledButton.icon(
+                  icon: const Icon(Icons.upload_sharp, size: 18),
+                  label: const Text('Upload Book'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF5B6AD0),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () => _showUploadDialog(context, null),
+                ),
               ],
             ),
           ),
-        ),
-      ),
-      body: booksAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
-        data: (data) {
-          final books = data['items'] as List? ?? [];
-          if (books.isEmpty) {
-            return const Center(child: Text('No books found.'));
-          }
-          return SingleChildScrollView(
-            scrollDirection: Axis.vertical,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                columns: const [
-                  DataColumn(label: Text('Cover')),
-                  DataColumn(label: Text('Title')),
-                  DataColumn(label: Text('Author')),
-                  DataColumn(label: Text('Genre')),
-                  DataColumn(label: Text('Published')),
-                  DataColumn(label: Text('Rating')),
-                  DataColumn(label: Text('Actions')),
-                ],
-                rows: books.map((b) {
-                  final book = b as Map;
-                  final published = book['publishedDate'] as String? ?? '';
-                  final publishedShort = published.length >= 10
-                      ? published.substring(0, 10)
-                      : published;
-                  return DataRow(cells: [
-                    DataCell(book['coverImageUrl'] != null
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: Image.network(
-                              book['coverImageUrl'] as String,
-                              width: 40,
-                              height: 50,
-                              fit: BoxFit.cover,
-                            ),
-                          )
-                        : const SizedBox(
-                            width: 40,
-                            height: 50,
-                            child: Icon(Icons.book, size: 32),
-                          )),
-                    DataCell(SizedBox(
-                      width: 200,
-                      child: Text(book['title'] as String,
-                          maxLines: 2, overflow: TextOverflow.ellipsis),
-                    )),
-                    DataCell(Text(book['author'] as String? ?? '')),
-                    DataCell(Text(
-                        (book['genres'] as List? ?? []).join(', '))),
-                    DataCell(Text(publishedShort)),
-                    DataCell(Row(children: [
-                      const Icon(Icons.star, size: 16, color: Colors.amber),
-                      Text(
-                          ' ${(book['averageRating'] as num?)?.toStringAsFixed(1) ?? '0'}'),
-                    ])),
-                    DataCell(Row(mainAxisSize: MainAxisSize.min, children: [
-                      IconButton(
-                        icon: const Icon(Icons.upload_file_outlined),
-                        tooltip: 'Upload PDF',
-                        onPressed: () =>
-                            _uploadPdf(context, ref, book['id'] as String),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.image_outlined),
-                        tooltip: 'Upload Cover',
-                        onPressed: () =>
-                            _uploadCover(context, ref, book['id'] as String),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.edit_outlined),
-                        tooltip: 'Edit',
-                        onPressed: () =>
-                            _showBookDialog(context, ref, book),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline,
-                            color: Colors.red),
-                        tooltip: 'Delete',
-                        onPressed: () =>
-                            _confirmDelete(context, ref, book['id'] as String),
-                      ),
-                    ])),
-                  ]);
-                }).toList(),
-              ),
+
+          const Divider(height: 1),
+
+          // ── Book grid ─────────────────────────────────────────────────
+          Expanded(
+            child: booksAsync.when(
+              loading: () =>
+                  const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(child: Text('Error: $e')),
+              data: (data) {
+                final books = data['items'] as List? ?? [];
+                if (books.isEmpty) {
+                  return const Center(
+                      child: Text('No books found.',
+                          style: TextStyle(color: Colors.grey)));
+                }
+                return GridView.builder(
+                  padding: const EdgeInsets.all(28),
+                  gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 5,
+                    childAspectRatio: 0.62,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                  ),
+                  itemCount: books.length,
+                  itemBuilder: (ctx, i) {
+                    final book = books[i] as Map;
+                    return _BookCard(
+                      book: book,
+                      onEdit: () => _showUploadDialog(context, book),
+                      onDelete: () => _confirmDelete(
+                          context, book['id'] as String),
+                    );
+                  },
+                );
+              },
             ),
-          );
-        },
-      ),
-    );
-  }
-
-  void _showBookDialog(BuildContext context, WidgetRef ref, Map? book) {
-    showDialog(
-      context: context,
-      builder: (_) => _BookFormDialog(
-        book: book,
-        onSaved: () => ref.invalidate(adminBooksProvider(_params)),
-      ),
-    );
-  }
-
-  Future<void> _confirmDelete(
-      BuildContext context, WidgetRef ref, String bookId) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Delete Book'),
-        content: const Text('This action cannot be undone. Are you sure?'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete',
-                style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
     );
-    if (confirm != true) return;
-    try {
-      await deleteBook(bookId);
-      ref.invalidate(adminBooksProvider(_params));
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error: $e')));
-      }
-    }
-  }
-
-  Future<void> _uploadPdf(
-      BuildContext context, WidgetRef ref, String bookId) async {
-    try {
-      await uploadBookPdf(bookId);
-      ref.invalidate(adminBooksProvider(_params));
-      if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('PDF uploaded.')));
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error: $e')));
-      }
-    }
-  }
-
-  Future<void> _uploadCover(
-      BuildContext context, WidgetRef ref, String bookId) async {
-    try {
-      await uploadBookCover(bookId);
-      ref.invalidate(adminBooksProvider(_params));
-      if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Cover uploaded.')));
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error: $e')));
-      }
-    }
   }
 }
 
-/// Small chip-style button for date range selection.
-class _DateFilterChip extends StatelessWidget {
+// ─────────────────────────────────────────────────────────────────────────────
+// Small helper: label + child stacked vertically
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _FilterColumn extends StatelessWidget {
   final String label;
-  final VoidCallback onTap;
-  final VoidCallback? onClear;
-  const _DateFilterChip(
-      {required this.label, required this.onTap, this.onClear});
+  final Widget child;
+  const _FilterColumn({required this.label, required this.child});
 
   @override
   Widget build(BuildContext context) {
-    return InputChip(
-      label: Text(label, style: const TextStyle(fontSize: 12)),
-      avatar: const Icon(Icons.calendar_today, size: 14),
-      deleteIcon: onClear != null
-          ? const Icon(Icons.close, size: 14)
-          : null,
-      onDeleted: onClear,
-      onPressed: onTap,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade600,
+                )),
+        const SizedBox(height: 4),
+        child,
+      ],
     );
   }
 }
 
-class _BookFormDialog extends ConsumerStatefulWidget {
-  final Map? book;
-  final VoidCallback onSaved;
-  const _BookFormDialog({required this.book, required this.onSaved});
+// ─────────────────────────────────────────────────────────────────────────────
+// Genre dropdown — styled with primary colour background
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _GenreDropdown extends StatelessWidget {
+  final List genres;
+  final String? value;
+  final ValueChanged<String?> onChanged;
+  const _GenreDropdown(
+      {required this.genres, required this.value, required this.onChanged});
 
   @override
-  ConsumerState<_BookFormDialog> createState() => _BookFormDialogState();
+  Widget build(BuildContext context) {
+    return Container(
+      height: 38,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF5B6AD0),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String?>(
+          value: value,
+          icon: const Icon(Icons.keyboard_arrow_down,
+              color: Colors.white, size: 20),
+          style: const TextStyle(
+              color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
+          dropdownColor: const Color(0xFF5B6AD0),
+          isDense: true,
+          onChanged: onChanged,
+          items: [
+            const DropdownMenuItem(
+                value: null,
+                child: Text('All genres',
+                    style: TextStyle(color: Colors.white))),
+            ...genres.map((g) {
+              final gMap = g as Map;
+              return DropdownMenuItem<String>(
+                value: gMap['id'] as String,
+                child: Text(gMap['name'] as String,
+                    style: const TextStyle(color: Colors.white)),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
-class _BookFormDialogState extends ConsumerState<_BookFormDialog> {
-  final _formKey = GlobalKey<FormState>();
+// ─────────────────────────────────────────────────────────────────────────────
+// Styled date button — opens DatePicker on tap
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _DateButton extends StatelessWidget {
+  final DateTime? value;
+  final ValueChanged<DateTime> onPicked;
+  final VoidCallback onCleared;
+  const _DateButton(
+      {required this.value,
+      required this.onPicked,
+      required this.onCleared});
+
+  String _fmt(DateTime d) =>
+      '${d.month}/${d.day}/${d.year}';
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () async {
+        final picked = await showDatePicker(
+          context: context,
+          initialDate: value ?? DateTime(2000),
+          firstDate: DateTime(1900),
+          lastDate: DateTime.now(),
+        );
+        if (picked != null) onPicked(picked);
+      },
+      child: Container(
+        height: 38,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade400),
+          borderRadius: BorderRadius.circular(8),
+          color: Colors.white,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              value != null ? _fmt(value!) : 'Select...',
+              style: TextStyle(
+                  fontSize: 14,
+                  color: value != null
+                      ? Colors.black87
+                      : Colors.grey.shade500),
+            ),
+            const SizedBox(width: 8),
+            if (value != null)
+              GestureDetector(
+                onTap: onCleared,
+                child:
+                    Icon(Icons.close, size: 14, color: Colors.grey.shade600),
+              )
+            else
+              Icon(Icons.calendar_today,
+                  size: 16, color: Colors.grey.shade600),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Book card — lavender background, cover image, hover actions
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _BookCard extends StatefulWidget {
+  final Map book;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+  const _BookCard(
+      {required this.book, required this.onEdit, required this.onDelete});
+
+  @override
+  State<_BookCard> createState() => _BookCardState();
+}
+
+class _BookCardState extends State<_BookCard> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final book = widget.book;
+    final title = book['title'] as String? ?? '';
+    final author = book['author'] as String? ?? '';
+    final published = book['publishedDate'] as String? ?? '';
+    final year =
+        published.length >= 4 ? published.substring(0, 4) : published;
+    final rawCover = book['coverImageUrl'] as String?;
+    final coverUrl = rawCover == null
+        ? null
+        : rawCover.startsWith('http')
+            ? rawCover
+            : '${AppConfig.apiBaseUrl}$rawCover';
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: Card(
+        margin: EdgeInsets.zero,
+        color: const Color(0xFFEBE8F8),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        clipBehavior: Clip.hardEdge,
+        elevation: _hovered ? 4 : 1,
+        child: Stack(
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Cover image
+                Expanded(
+                  flex: 3,
+                  child: coverUrl != null
+                      ? Image.network(
+                          coverUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            color: Colors.grey.shade300,
+                            child: const Icon(Icons.book,
+                                size: 48, color: Colors.grey),
+                          ),
+                        )
+                      : Container(
+                          color: Colors.grey.shade300,
+                          child: const Icon(Icons.book,
+                              size: 48, color: Colors.grey),
+                        ),
+                ),
+                // Text info
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _infoLine('Title: ', title),
+                      _infoLine('Release Date: ', year),
+                      _infoLine('Author: ', author),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            // Hover action overlay
+            if (_hovered)
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black.withValues(alpha: 0.45),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _ActionIcon(
+                        icon: Icons.edit,
+                        tooltip: 'Edit',
+                        onPressed: widget.onEdit,
+                      ),
+                      const SizedBox(width: 12),
+                      _ActionIcon(
+                        icon: Icons.delete_outline,
+                        tooltip: 'Delete',
+                        color: Colors.red.shade300,
+                        onPressed: widget.onDelete,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _infoLine(String label, String value) => Padding(
+        padding: const EdgeInsets.only(bottom: 2),
+        child: RichText(
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          text: TextSpan(
+            style:
+                const TextStyle(fontSize: 11, color: Colors.black87),
+            children: [
+              TextSpan(
+                  text: label,
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
+              TextSpan(text: value),
+            ],
+          ),
+        ),
+      );
+}
+
+class _ActionIcon extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final Color? color;
+  final VoidCallback onPressed;
+  const _ActionIcon(
+      {required this.icon,
+      required this.tooltip,
+      required this.onPressed,
+      this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(6),
+        child: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Icon(icon, color: color ?? Colors.white, size: 22),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Upload / Edit book dialog — 3-panel layout matching the spec
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _BookUploadDialog extends ConsumerStatefulWidget {
+  final Map? book;
+  final VoidCallback onSaved;
+  final VoidCallback onClose;
+  const _BookUploadDialog(
+      {required this.book, required this.onSaved, required this.onClose});
+
+  @override
+  ConsumerState<_BookUploadDialog> createState() =>
+      _BookUploadDialogState();
+}
+
+class _BookUploadDialogState extends ConsumerState<_BookUploadDialog> {
   final _titleCtrl = TextEditingController();
   final _authorCtrl = TextEditingController();
-  final _descCtrl = TextEditingController();
-  final _isbnCtrl = TextEditingController();
-  bool _isPublic = true;
+  String? _selectedGenreId;
+  DateTime? _releaseDate;
+  PlatformFile? _pdfFile;
+  PlatformFile? _coverFile;
   bool _loading = false;
-  bool _isbnLooking = false;
-  String? _isbnError;
-  List<String> _selectedGenreIds = [];
 
   bool get _isEditing => widget.book != null;
-
-  /// Calls the free Open Library Books API to auto-fill title, author, and
-  /// description from a 10- or 13-digit ISBN.
-  ///
-  /// Endpoint: https://openlibrary.org/api/books?bibkeys=ISBN:{isbn}&format=json&jscmd=data
-  /// No API key, no rate limits at human speed.
-  Future<void> _lookupIsbn(String isbn) async {
-    final cleaned = isbn.replaceAll(RegExp(r'[\s\-]'), '');
-    if (cleaned.length != 10 && cleaned.length != 13) return;
-    // Don't overwrite fields that the user already filled in edit mode
-    if (_isEditing && _titleCtrl.text.isNotEmpty) return;
-
-    setState(() {
-      _isbnLooking = true;
-      _isbnError = null;
-    });
-
-    try {
-      final dio = Dio(BaseOptions(
-        connectTimeout: const Duration(seconds: 6),
-        receiveTimeout: const Duration(seconds: 8),
-        validateStatus: (s) => s != null && s < 500,
-      ));
-      final response = await dio.get(
-        'https://openlibrary.org/api/books',
-        queryParameters: {
-          'bibkeys': 'ISBN:$cleaned',
-          'format': 'json',
-          'jscmd': 'data',
-        },
-      );
-
-      final data = response.data as Map<String, dynamic>?;
-      final book = data?['ISBN:$cleaned'] as Map<String, dynamic>?;
-
-      if (book == null) {
-        setState(() => _isbnError = 'No book found for this ISBN.');
-        return;
-      }
-
-      final title = book['title'] as String? ?? '';
-      final authors = (book['authors'] as List?)
-              ?.map((a) => (a as Map)['name'] as String? ?? '')
-              .where((s) => s.isNotEmpty)
-              .join(', ') ??
-          '';
-      final desc = (book['excerpts'] as List?)
-              ?.map((e) => (e as Map)['text'] as String? ?? '')
-              .where((s) => s.isNotEmpty)
-              .firstOrNull ??
-          '';
-
-      setState(() {
-        if (title.isNotEmpty && _titleCtrl.text.isEmpty) {
-          _titleCtrl.text = title;
-        }
-        if (authors.isNotEmpty && _authorCtrl.text.isEmpty) {
-          _authorCtrl.text = authors;
-        }
-        if (desc.isNotEmpty && _descCtrl.text.isEmpty) {
-          _descCtrl.text = desc;
-        }
-      });
-    } catch (_) {
-      setState(() => _isbnError = 'Could not reach Open Library. Check connection.');
-    } finally {
-      if (mounted) setState(() => _isbnLooking = false);
-    }
-  }
 
   @override
   void initState() {
@@ -434,50 +566,76 @@ class _BookFormDialogState extends ConsumerState<_BookFormDialog> {
     if (_isEditing) {
       _titleCtrl.text = widget.book!['title'] as String? ?? '';
       _authorCtrl.text = widget.book!['author'] as String? ?? '';
-      _descCtrl.text = widget.book!['description'] as String? ?? '';
-      _isbnCtrl.text = widget.book!['isbn'] as String? ?? '';
-      _isPublic = widget.book!['isPublic'] as bool? ?? true;
+      // Pre-select genre if exactly one
+      final genres = widget.book!['genres'] as List? ?? [];
+      if (genres.isNotEmpty) _selectedGenreId = null; // resolved below
+      // Parse published date if present
+      final pub = widget.book!['publishedDate'] as String?;
+      if (pub != null && pub.isNotEmpty) {
+        _releaseDate = DateTime.tryParse(pub);
+      }
     }
   }
 
   @override
   void dispose() {
-    for (final c in [_titleCtrl, _authorCtrl, _descCtrl, _isbnCtrl]) {
-      c.dispose();
-    }
+    _titleCtrl.dispose();
+    _authorCtrl.dispose();
     super.dispose();
   }
 
+  Future<void> _pickPdf() async {
+    final file = await pickPdfFile();
+    if (file != null) setState(() => _pdfFile = file);
+  }
+
+  Future<void> _pickImage() async {
+    final file = await pickImageFile();
+    if (file != null) setState(() => _coverFile = file);
+  }
+
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (_titleCtrl.text.trim().isEmpty || _authorCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Title and Author are required.')));
+      return;
+    }
     setState(() => _loading = true);
     try {
+      final genreIds =
+          _selectedGenreId != null ? [_selectedGenreId!] : <String>[];
+
       if (_isEditing) {
+        final id = widget.book!['id'] as String;
         await updateBook(
-          id: widget.book!['id'] as String,
+          id: id,
           title: _titleCtrl.text.trim(),
           author: _authorCtrl.text.trim(),
-          description: _descCtrl.text.trim().isEmpty
-              ? null
-              : _descCtrl.text.trim(),
-          isbn: _isbnCtrl.text.trim().isEmpty ? null : _isbnCtrl.text.trim(),
-          isPublic: _isPublic,
-          genreIds: _selectedGenreIds,
+          description: null,
+          isbn: null,
+          isPublic: true,
+          genreIds: genreIds,
+          publishedDate: _releaseDate,
         );
+        if (_pdfFile != null) await uploadPlatformPdf(id, _pdfFile!);
+        if (_coverFile != null) await uploadPlatformCover(id, _coverFile!);
       } else {
-        await createBook(
+        final id = await createBook(
           title: _titleCtrl.text.trim(),
           author: _authorCtrl.text.trim(),
-          description: _descCtrl.text.trim().isEmpty
-              ? null
-              : _descCtrl.text.trim(),
-          isbn: _isbnCtrl.text.trim().isEmpty ? null : _isbnCtrl.text.trim(),
-          isPublic: _isPublic,
-          genreIds: _selectedGenreIds,
+          description: null,
+          isbn: null,
+          isPublic: true,
+          genreIds: genreIds,
+          publishedDate: _releaseDate,
         );
+        if (id.isNotEmpty) {
+          if (_pdfFile != null) await uploadPlatformPdf(id, _pdfFile!);
+          if (_coverFile != null) await uploadPlatformCover(id, _coverFile!);
+        }
       }
       widget.onSaved();
-      if (mounted) Navigator.pop(context);
+      widget.onClose();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
@@ -492,115 +650,538 @@ class _BookFormDialogState extends ConsumerState<_BookFormDialog> {
   Widget build(BuildContext context) {
     final genresAsync = ref.watch(adminGenresProvider);
 
-    return AlertDialog(
-      title: Text(_isEditing ? 'Edit Book' : 'Add New Book'),
-      content: SizedBox(
-        width: 500,
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              TextFormField(
-                controller: _titleCtrl,
-                decoration: const InputDecoration(labelText: 'Title *'),
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Title is required.' : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _authorCtrl,
-                decoration: const InputDecoration(labelText: 'Author *'),
-                validator: (v) => (v == null || v.trim().isEmpty)
-                    ? 'Author is required.'
-                    : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _descCtrl,
-                decoration: const InputDecoration(labelText: 'Description'),
-                maxLines: 3,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _isbnCtrl,
-                decoration: InputDecoration(
-                  labelText: 'ISBN',
-                  helperText: 'Enter ISBN-10 or ISBN-13 to auto-fill details',
-                  errorText: _isbnError,
-                  suffixIcon: _isbnLooking
-                      ? const Padding(
-                          padding: EdgeInsets.all(12),
-                          child: SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: SizedBox(
+        width: 900,
+        height: 540,
+        child: Stack(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // ── Left: form ─────────────────────────────────────
+                  SizedBox(
+                    width: 300,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(28, 32, 24, 24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Title
+                          Row(children: [
+                            const Text('📚',
+                                style: TextStyle(fontSize: 22)),
+                            const SizedBox(width: 8),
+                            Text(
+                              _isEditing ? 'Edit Book' : 'Upload Book',
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ]),
+                          const SizedBox(height: 20),
+
+                          // Book Title
+                          _FieldLabel('Book Title'),
+                          const SizedBox(height: 4),
+                          _FormField(
+                            controller: _titleCtrl,
+                            hint: 'Title here...',
                           ),
-                        )
-                      : IconButton(
-                          icon: const Icon(Icons.search),
-                          tooltip: 'Look up on Open Library',
-                          onPressed: () => _lookupIsbn(_isbnCtrl.text),
-                        ),
-                ),
-                onEditingComplete: () => _lookupIsbn(_isbnCtrl.text),
-              ),
-              const SizedBox(height: 12),
-              SwitchListTile(
-                title: const Text('Public (visible in shared library)'),
-                value: _isPublic,
-                onChanged: (v) => setState(() => _isPublic = v),
-                contentPadding: EdgeInsets.zero,
-              ),
-              const SizedBox(height: 12),
-              genresAsync.when(
-                loading: () => const LinearProgressIndicator(),
-                error: (_, __) => const Text('Could not load genres.'),
-                data: (genres) => Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Genres',
-                        style: TextStyle(fontWeight: FontWeight.w500)),
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 6,
-                      children: genres.map((g) {
-                        final gMap = g as Map;
-                        final id = gMap['id'] as String;
-                        final selected = _selectedGenreIds.contains(id);
-                        return FilterChip(
-                          label: Text(gMap['name'] as String),
-                          selected: selected,
-                          onSelected: (v) => setState(() {
-                            if (v) {
-                              _selectedGenreIds.add(id);
-                            } else {
-                              _selectedGenreIds.remove(id);
-                            }
-                          }),
-                        );
-                      }).toList(),
+                          const SizedBox(height: 14),
+
+                          // Author
+                          _FieldLabel('Author Name'),
+                          const SizedBox(height: 4),
+                          _FormField(
+                            controller: _authorCtrl,
+                            hint: 'Author name here...',
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Genre
+                          _FieldLabel('Genre'),
+                          const SizedBox(height: 4),
+                          genresAsync.when(
+                            loading: () =>
+                                const LinearProgressIndicator(),
+                            error: (_, __) =>
+                                const Text('Could not load genres'),
+                            data: (genres) => Container(
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                    color: Colors.grey.shade300),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<String?>(
+                                  value: _selectedGenreId,
+                                  isExpanded: true,
+                                  isDense: true,
+                                  style: const TextStyle(
+                                    color: Color(0xFF5B6AD0),
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
+                                  icon: const Icon(
+                                      Icons.keyboard_arrow_down,
+                                      color: Color(0xFF5B6AD0)),
+                                  items: [
+                                    const DropdownMenuItem(
+                                        value: null,
+                                        child: Text('Select genre...',
+                                            style: TextStyle(
+                                                color: Colors.grey))),
+                                    ...genres.map((g) {
+                                      final gMap = g as Map;
+                                      return DropdownMenuItem<String>(
+                                        value: gMap['id'] as String,
+                                        child: Text(
+                                            gMap['name'] as String),
+                                      );
+                                    }),
+                                  ],
+                                  onChanged: (v) => setState(
+                                      () => _selectedGenreId = v),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Release Date
+                          _FieldLabel('Release Date'),
+                          const SizedBox(height: 4),
+                          GestureDetector(
+                            onTap: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate:
+                                    _releaseDate ?? DateTime(2000),
+                                firstDate: DateTime(1800),
+                                lastDate: DateTime.now(),
+                              );
+                              if (picked != null) {
+                                setState(() => _releaseDate = picked);
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 11),
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                    color: Colors.grey.shade300),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(children: [
+                                Expanded(
+                                  child: Text(
+                                    _releaseDate != null
+                                        ? '${_releaseDate!.month}/${_releaseDate!.day}/${_releaseDate!.year}'
+                                        : 'Select date...',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: _releaseDate != null
+                                          ? Colors.black87
+                                          : Colors.grey.shade400,
+                                    ),
+                                  ),
+                                ),
+                                Icon(Icons.calendar_today,
+                                    size: 16,
+                                    color: Colors.grey.shade500),
+                              ]),
+                            ),
+                          ),
+
+                          const Spacer(),
+
+                          // Buttons
+                          Row(children: [
+                            Expanded(
+                              child: FilledButton.icon(
+                                icon: _loading
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white))
+                                    : const Icon(Icons.upload_sharp,
+                                        size: 16),
+                                label: Text(
+                                    _loading ? 'Saving...' : 'Submit'),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor:
+                                      const Color(0xFF4A5DC8),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(8)),
+                                ),
+                                onPressed: _loading ? null : _submit,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: OutlinedButton(
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.white,
+                                  backgroundColor:
+                                      const Color(0xFFE53935),
+                                  side: BorderSide.none,
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(8)),
+                                ),
+                                onPressed:
+                                    _loading ? null : widget.onClose,
+                                child: const Text('Cancel'),
+                              ),
+                            ),
+                          ]),
+                        ],
+                      ),
                     ),
-                  ],
-                ),
+                  ),
+
+                  const VerticalDivider(width: 1, thickness: 1),
+
+                  // ── Middle: PDF upload ──────────────────────────────
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'PDF Upload',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Drop zone
+                          GestureDetector(
+                            onTap: _pickPdf,
+                            child: Container(
+                              height: 180,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFDAE8F5),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                    color: const Color(0xFF9BB5D0)),
+                              ),
+                              child: Column(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.download_outlined,
+                                      size: 36,
+                                      color: const Color(0xFF7BA8C8)),
+                                  const SizedBox(height: 10),
+                                  RichText(
+                                    text: const TextSpan(
+                                      style: TextStyle(fontSize: 13),
+                                      children: [
+                                        TextSpan(
+                                          text: 'Choose a file ',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF4A5DC8),
+                                          ),
+                                        ),
+                                        TextSpan(
+                                          text: 'or drag it here.',
+                                          style: TextStyle(
+                                              color: Colors.grey),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Selected PDF chip
+                          if (_pdfFile != null)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF1F8E9),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                    color: Colors.green.shade200),
+                              ),
+                              child: Row(children: [
+                                Icon(Icons.picture_as_pdf,
+                                    color: Colors.red.shade400, size: 22),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _pdfFile!.name,
+                                        style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      LinearProgressIndicator(
+                                        value: 1.0,
+                                        color: Colors.green.shade500,
+                                        backgroundColor:
+                                            Colors.green.shade100,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.close, size: 18),
+                                  onPressed: () =>
+                                      setState(() => _pdfFile = null),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                ),
+                              ]),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const VerticalDivider(width: 1, thickness: 1),
+
+                  // ── Right: image upload ─────────────────────────────
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Image Upload',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Dashed image drop zone
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: _pickImage,
+                              child: CustomPaint(
+                                painter: _DashedBorderPainter(),
+                                child: Container(
+                                  width: double.infinity,
+                                  alignment: Alignment.center,
+                                  child: _coverFile != null
+                                      ? ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(4),
+                                          child: Image.memory(
+                                            _coverFile!.bytes!,
+                                            fit: BoxFit.contain,
+                                          ),
+                                        )
+                                      : Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Text(
+                                              'Insert Image Here',
+                                              style: TextStyle(
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.w500,
+                                                color:
+                                                    Colors.grey.shade500,
+                                              ),
+                                              textAlign: TextAlign.center,
+                                            ),
+                                            if (_coverFile == null) ...[
+                                              const SizedBox(height: 8),
+                                              Text(
+                                                'Tap to choose',
+                                                style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: Colors
+                                                        .grey.shade400),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (_coverFile != null) ...[
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(_coverFile!.name,
+                                    style: const TextStyle(fontSize: 12),
+                                    overflow: TextOverflow.ellipsis),
+                                const SizedBox(width: 6),
+                                InkWell(
+                                  onTap: () =>
+                                      setState(() => _coverFile = null),
+                                  child: Icon(Icons.close,
+                                      size: 14,
+                                      color: Colors.grey.shade600),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ]),
-          ),
+            ),
+
+            // ── Close (×) button ──────────────────────────────────────
+            Positioned(
+              top: 8,
+              right: 8,
+              child: IconButton(
+                icon: const Icon(Icons.close, size: 20),
+                onPressed: widget.onClose,
+                tooltip: 'Close',
+              ),
+            ),
+          ],
         ),
       ),
-      actions: [
-        TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel')),
-        ElevatedButton(
-          onPressed: _loading ? null : _submit,
-          child: _loading
-              ? const SizedBox(
-                  height: 18,
-                  width: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2))
-              : Text(_isEditing ? 'Save Changes' : 'Add Book'),
-        ),
-      ],
     );
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Small form helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _FieldLabel extends StatelessWidget {
+  final String text;
+  const _FieldLabel(this.text);
+
+  @override
+  Widget build(BuildContext context) => Text(
+        text,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: Colors.black87,
+        ),
+      );
+}
+
+class _FormField extends StatelessWidget {
+  final TextEditingController controller;
+  final String hint;
+  const _FormField({required this.controller, required this.hint});
+
+  @override
+  Widget build(BuildContext context) => TextField(
+        controller: controller,
+        style: const TextStyle(fontSize: 14),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+          isDense: true,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: Colors.grey.shade300),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: Colors.grey.shade300),
+          ),
+        ),
+      );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Dashed-border painter for the image drop zone
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _DashedBorderPainter extends CustomPainter {
+  const _DashedBorderPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.grey.shade400
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+
+    const dash = 6.0;
+    const gap = 4.0;
+    const r = 8.0;
+
+    void line(Offset a, Offset b) {
+      final total = (b - a).distance;
+      final dir = (b - a) / total;
+      var d = 0.0;
+      while (d < total) {
+        final end = (d + dash).clamp(0.0, total);
+        canvas.drawLine(a + dir * d, a + dir * end, paint);
+        d += dash + gap;
+      }
+    }
+
+    line(Offset(r, 0), Offset(size.width - r, 0));
+    line(Offset(size.width, r), Offset(size.width, size.height - r));
+    line(Offset(size.width - r, size.height), Offset(r, size.height));
+    line(Offset(0, size.height - r), Offset(0, r));
+
+    final arc = Paint()
+      ..color = Colors.grey.shade400
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+    canvas.drawArc(
+        Rect.fromLTWH(0, 0, r * 2, r * 2), pi, pi / 2, false, arc);
+    canvas.drawArc(
+        Rect.fromLTWH(size.width - r * 2, 0, r * 2, r * 2),
+        -pi / 2,
+        pi / 2,
+        false,
+        arc);
+    canvas.drawArc(
+        Rect.fromLTWH(
+            size.width - r * 2, size.height - r * 2, r * 2, r * 2),
+        0,
+        pi / 2,
+        false,
+        arc);
+    canvas.drawArc(
+        Rect.fromLTWH(0, size.height - r * 2, r * 2, r * 2),
+        pi / 2,
+        pi / 2,
+        false,
+        arc);
+  }
+
+  @override
+  bool shouldRepaint(_) => false;
 }

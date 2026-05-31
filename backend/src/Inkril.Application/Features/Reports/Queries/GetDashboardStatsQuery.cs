@@ -45,8 +45,14 @@ public class GetDashboardStatsQueryHandler(IUnitOfWork uow)
         var inProgressBooks = await uow.UserBooks.CountAsync(
             b => !b.IsDeleted && !b.IsCompleted && b.ReadingProgressPercent > 0, ct);
 
-        var activityWindow = await uow.DailyReadingStats.Query()
+        // Fetch minimal columns then group in-memory: EF Core/Npgsql cannot translate
+        // Distinct().Count() inside a GroupBy projection to SQL reliably.
+        var rawActivity = await uow.DailyReadingStats.Query()
             .Where(s => s.Date >= chartCutoff)
+            .Select(s => new { s.Date, s.UserId, s.MinutesRead })
+            .ToListAsync(ct);
+
+        var activityWindow = rawActivity
             .GroupBy(s => s.Date)
             .Select(g => new DailyActivityDto(
                 g.Key,
@@ -54,7 +60,7 @@ public class GetDashboardStatsQueryHandler(IUnitOfWork uow)
                 g.Count(),
                 g.Sum(s => s.MinutesRead)))
             .OrderBy(d => d.Date)
-            .ToListAsync(ct);
+            .ToList();
 
         return new DashboardStatsDto(totalUsers, activeUsers, avgHours,
             totalBooksRead, totalBooks, completedBooks, inProgressBooks, activityWindow);

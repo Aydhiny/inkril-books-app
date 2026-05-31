@@ -4,11 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../../core/config/app_config.dart';
 
-Dio _authDio() {
-  const storage = FlutterSecureStorage();
-  return Dio(BaseOptions(baseUrl: AppConfig.apiBaseUrl));
-}
-
 final adminBooksProvider = FutureProvider.family<
     Map<String, dynamic>,
     ({String searchTerm, String? genreId, DateTime? publishedFrom, DateTime? publishedTo})>(
@@ -43,13 +38,15 @@ final adminGenresProvider = FutureProvider<List<dynamic>>((ref) async {
   return response.data as List<dynamic>;
 });
 
-Future<void> createBook({
+// Returns the new book's GUID — needed to chain PDF/cover uploads right after create.
+Future<String> createBook({
   required String title,
   required String author,
   required String? description,
   required String? isbn,
   required bool isPublic,
   required List<String> genreIds,
+  DateTime? publishedDate,
 }) async {
   const storage = FlutterSecureStorage();
   final token = await storage.read(key: 'access_token');
@@ -57,14 +54,18 @@ Future<void> createBook({
     baseUrl: AppConfig.apiBaseUrl,
     headers: {'Authorization': 'Bearer $token'},
   ));
-  await dio.post('/api/books', data: {
+  final response = await dio.post('/api/books', data: {
     'title': title,
     'author': author,
     'description': description,
     'isbn': isbn,
     'isPublic': isPublic,
     'genreIds': genreIds,
+    if (publishedDate != null) 'publishedDate': publishedDate.toIso8601String(),
   });
+  final data = response.data;
+  if (data is Map) return (data['value'] ?? '') as String;
+  return '';
 }
 
 Future<void> updateBook({
@@ -75,6 +76,7 @@ Future<void> updateBook({
   required String? isbn,
   required bool isPublic,
   required List<String> genreIds,
+  DateTime? publishedDate,
 }) async {
   const storage = FlutterSecureStorage();
   final token = await storage.read(key: 'access_token');
@@ -90,6 +92,7 @@ Future<void> updateBook({
     'isbn': isbn,
     'isPublic': isPublic,
     'genreIds': genreIds,
+    if (publishedDate != null) 'publishedDate': publishedDate.toIso8601String(),
   });
 }
 
@@ -103,49 +106,68 @@ Future<void> deleteBook(String id) async {
   await dio.delete('/api/books/$id');
 }
 
-Future<void> uploadBookCover(String bookId) async {
-  final result = await FilePicker.platform.pickFiles(
-    type: FileType.image,
-    allowMultiple: false,
-    withData: true,
-  );
-  if (result == null || result.files.isEmpty) return;
-  final file = result.files.first;
-  if (file.bytes == null) return;
-
-  const storage = FlutterSecureStorage();
-  final token = await storage.read(key: 'access_token');
-  final dio = Dio(BaseOptions(
-    baseUrl: AppConfig.apiBaseUrl,
-    headers: {'Authorization': 'Bearer $token'},
-  ));
-
-  final formData = FormData.fromMap({
-    'file': MultipartFile.fromBytes(file.bytes!, filename: file.name),
-  });
-  await dio.post('/api/books/$bookId/upload-cover', data: formData);
-}
-
-Future<void> uploadBookPdf(String bookId) async {
+// Opens file picker and returns the chosen PDF without uploading.
+Future<PlatformFile?> pickPdfFile() async {
   final result = await FilePicker.platform.pickFiles(
     type: FileType.custom,
     allowedExtensions: ['pdf'],
     allowMultiple: false,
     withData: true,
   );
-  if (result == null || result.files.isEmpty) return;
+  if (result == null || result.files.isEmpty) return null;
   final file = result.files.first;
-  if (file.bytes == null) return;
+  return file.bytes != null ? file : null;
+}
 
+// Opens file picker and returns the chosen image without uploading.
+Future<PlatformFile?> pickImageFile() async {
+  final result = await FilePicker.platform.pickFiles(
+    type: FileType.image,
+    allowMultiple: false,
+    withData: true,
+  );
+  if (result == null || result.files.isEmpty) return null;
+  final file = result.files.first;
+  return file.bytes != null ? file : null;
+}
+
+// Uploads a pre-picked PDF to an existing book.
+Future<void> uploadPlatformPdf(String bookId, PlatformFile file) async {
   const storage = FlutterSecureStorage();
   final token = await storage.read(key: 'access_token');
   final dio = Dio(BaseOptions(
     baseUrl: AppConfig.apiBaseUrl,
     headers: {'Authorization': 'Bearer $token'},
   ));
-
   final formData = FormData.fromMap({
     'file': MultipartFile.fromBytes(file.bytes!, filename: file.name),
   });
   await dio.post('/api/books/$bookId/upload-pdf', data: formData);
+}
+
+// Uploads a pre-picked cover image to an existing book.
+Future<void> uploadPlatformCover(String bookId, PlatformFile file) async {
+  const storage = FlutterSecureStorage();
+  final token = await storage.read(key: 'access_token');
+  final dio = Dio(BaseOptions(
+    baseUrl: AppConfig.apiBaseUrl,
+    headers: {'Authorization': 'Bearer $token'},
+  ));
+  final formData = FormData.fromMap({
+    'file': MultipartFile.fromBytes(file.bytes!, filename: file.name),
+  });
+  await dio.post('/api/books/$bookId/upload-cover', data: formData);
+}
+
+// Legacy one-shot helpers (pick + upload) kept for compatibility.
+Future<void> uploadBookCover(String bookId) async {
+  final file = await pickImageFile();
+  if (file == null) return;
+  await uploadPlatformCover(bookId, file);
+}
+
+Future<void> uploadBookPdf(String bookId) async {
+  final file = await pickPdfFile();
+  if (file == null) return;
+  await uploadPlatformPdf(bookId, file);
 }

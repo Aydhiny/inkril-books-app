@@ -11,5 +11,8 @@ final dashboardStatsProvider = FutureProvider<Map<String, dynamic>>((ref) async 
     headers: {'Authorization': 'Bearer $token'},
   ));
   final response = await dio.get('/api/reports/dashboard');
-  return response.data as Map<String, dynamic>;
+  final data = Map<String, dynamic>.from(response.data as Map);
+  // The backend returns 'last14DaysActivity'; remap to the key the reports screen reads.
+  data['dailyReadingActivity'] ??= data['last14DaysActivity'] ?? [];
+  return data;
 });
