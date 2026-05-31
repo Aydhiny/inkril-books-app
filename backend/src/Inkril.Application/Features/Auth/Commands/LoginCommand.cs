@@ -44,8 +44,7 @@ public class LoginCommandHandler(
         // leak whether an account exists to unauthenticated callers.
         if (!user.EmailConfirmed)
             return Result<AuthResponse>.Failure(
-                "Please verify your email before logging in. " +
-                "Check your inbox for a 6-digit code, or use POST /api/auth/resend-verification.");
+                "Email not verified. Check your inbox for a 6-digit code.");
 
         var roles = await userManager.GetRolesAsync(user);
         var role  = roles.Contains("desktop") ? "desktop" : "mobile";

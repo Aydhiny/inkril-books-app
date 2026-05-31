@@ -69,13 +69,18 @@ final qotdProvider = FutureProvider<Map<String, dynamic>?>((ref) async {
   return res.data as Map<String, dynamic>;
 });
 
-/// Bookmarks for a specific book — used by the book detail screen.
+/// Bookmarks for a specific book — used by the book detail screen and reader panel.
+/// The API returns a PagedList envelope {items:[...], ...} not a bare List.
 final bookBookmarksProvider =
     FutureProvider.family<List<Map<String, dynamic>>, String>((ref, bookId) async {
   final dio = ref.read(dioProvider);
-  final response = await dio.get('/api/bookmarks', queryParameters: {'bookId': bookId});
+  final response = await dio.get('/api/bookmarks', queryParameters: {'bookId': bookId, 'pageSize': 100});
   final data = response.data;
   if (data is List) return data.cast<Map<String, dynamic>>();
+  if (data is Map) {
+    final items = (data as Map<String, dynamic>)['items'] as List? ?? [];
+    return items.cast<Map<String, dynamic>>();
+  }
   return [];
 });
 

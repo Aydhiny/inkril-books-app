@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/error_utils.dart';
 import '../providers/auth_notifier.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -41,11 +42,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     final state = ref.read(authNotifierProvider);
     if (state.hasError) {
-      // Extract the clean message set by ErrorInterceptor
-      final raw = state.error.toString();
-      // AsyncValue wraps errors as "Exception: <msg>" — strip the prefix
-      final msg = raw.startsWith('Exception: ') ? raw.substring(11) : raw;
-      setState(() => _errorMessage = msg);
+      setState(() => _errorMessage = parseError(state.error));
     }
     // On success the router navigates automatically via refreshListenable.
   }

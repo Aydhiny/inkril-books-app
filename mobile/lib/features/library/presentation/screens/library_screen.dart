@@ -63,6 +63,9 @@ class LibraryScreen extends ConsumerWidget {
                 child: _StatsTopBar(profileAsync: profileAsync),
               ),
               SliverToBoxAdapter(
+                child: _EmailVerificationBanner(profileAsync: profileAsync),
+              ),
+              SliverToBoxAdapter(
                 child: _SearchUploadRow(ref: ref),
               ),
               SliverToBoxAdapter(
@@ -272,6 +275,67 @@ class _TopBadge extends StatelessWidget {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Search bar + Upload Book button
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Email verification banner — shown when the logged-in user's email is unverified.
+// Non-blocking: app continues to work, but the user is nudged to verify.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _EmailVerificationBanner extends StatelessWidget {
+  final AsyncValue profileAsync;
+  const _EmailVerificationBanner({required this.profileAsync});
+
+  @override
+  Widget build(BuildContext context) {
+    final profile = profileAsync.valueOrNull as Map<String, dynamic>?;
+    if (profile == null) return const SizedBox.shrink();
+    final confirmed = profile['emailConfirmed'] as bool? ?? true;
+    if (confirmed) return const SizedBox.shrink();
+
+    final email = profile['email'] as String? ?? '';
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFBEB),
+        border: Border.all(color: const Color(0xFFFCD34D), width: 1.5),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(children: [
+        const Icon(Icons.mark_email_unread_outlined,
+            color: Color(0xFFD97706), size: 18),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            'Verify your email to unlock all features.',
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF92400E),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        GestureDetector(
+          onTap: () => context.push('/auth/verify-email', extra: email),
+          child: const Text(
+            'Verify',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFFD97706),
+              decoration: TextDecoration.underline,
+              decorationColor: Color(0xFFD97706),
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _SearchUploadRow extends StatelessWidget {
@@ -865,10 +929,8 @@ class _MyLibraryScroll extends StatelessWidget {
     // Proportional to screen height so the shelf feels right in both portrait
     // (tall) and landscape (shallow). Clamped so it never shrinks below 200 dp
     // or expands past 320 dp regardless of device size.
-    final listHeight =
-        (MediaQuery.sizeOf(context).height * 0.36).clamp(200.0, 320.0);
     return SizedBox(
-      height: listHeight,
+      height: 272.0,
       child: userLibraryAsync.when(
         loading: () => const ShimmerBookScroll(),
         error: (_, __) => Center(
@@ -910,10 +972,8 @@ class _PublicLibraryScroll extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final listHeight =
-        (MediaQuery.sizeOf(context).height * 0.36).clamp(200.0, 320.0);
     return SizedBox(
-      height: listHeight,
+      height: 272.0,
       child: publicBooksAsync.when(
         loading: () => const ShimmerBookScroll(),
         error: (e, _) => Center(
@@ -971,6 +1031,7 @@ class _LibraryBookCard extends StatelessWidget {
         children: [
         Container(
         width: 165,
+        height: 260,
         clipBehavior: Clip.hardEdge,
         decoration: BoxDecoration(
           color: context.cardBg,
@@ -987,16 +1048,13 @@ class _LibraryBookCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Fixed-height cover — Expanded can't be used here because the card
-            // sits inside a SliverList column with unbounded height constraints.
-            SizedBox(
-              height: 210,
+            // Expanded fills everything the text section below doesn't need.
+            // Works because the card has a fixed height: 260.
+            Expanded(
               child: coverUrl != null
                   ? CachedNetworkImage(
                       imageUrl: coverUrl,
                       fit: BoxFit.cover,
-                      // 330 px = 2× the 165 px card width — saves GPU memory
-                      // without sacrificing visible quality.
                       memCacheWidth: 330,
                       placeholder: (_, __) => _CoverPlaceholder(),
                       errorWidget: (_, __, ___) => _CoverPlaceholder(),
@@ -1516,7 +1574,7 @@ class _RecommendationsSection extends ConsumerWidget {
           ]),
         ),
         SizedBox(
-          height: (MediaQuery.sizeOf(context).height * 0.40).clamp(220.0, 345.0),
+          height: 300.0,
           child: ListView.separated(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             scrollDirection: Axis.horizontal,

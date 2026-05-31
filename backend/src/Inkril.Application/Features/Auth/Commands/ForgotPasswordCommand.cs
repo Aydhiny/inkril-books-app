@@ -4,6 +4,7 @@ using Inkril.Application.Common.Models;
 using Inkril.Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Logging;
 
 namespace Inkril.Application.Features.Auth.Commands;
 
@@ -19,7 +20,8 @@ public class ForgotPasswordCommandValidator : AbstractValidator<ForgotPasswordCo
 
 public class ForgotPasswordCommandHandler(
     UserManager<ApplicationUser> userManager,
-    IEmailService emailService
+    IEmailService emailService,
+    ILogger<ForgotPasswordCommandHandler> logger
 ) : IRequestHandler<ForgotPasswordCommand, Result<string>>
 {
     // Constant-time blind response — never reveal whether an email is registered.
@@ -56,7 +58,17 @@ public class ForgotPasswordCommandHandler(
                 </div>
                 """;
 
-            await emailService.SendAsync(cmd.Email, "Inkril — Your password reset code", html, ct);
+            // Wrap send in try-catch: a transient SMTP failure should not return 500
+            // to the client — the blind message still applies so the user can attempt
+            // to enter a code. The OTP is already persisted so a retry (resend) works.
+            try
+            {
+                await emailService.SendAsync(cmd.Email, "Inkril — Your password reset code", html, ct);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to send password-reset email to {Email}", cmd.Email);
+            }
         }
 
         return Result<string>.Success(BlindMessage);
