@@ -18,7 +18,7 @@ class AppConfig {
   /// --dart-define=STRIPE_PUBLISHABLE_KEY=pk_live_... at release build time.
   static const String stripePublishableKey = String.fromEnvironment(
     'STRIPE_PUBLISHABLE_KEY',
-    defaultValue: 'pk_test_51TcjRbChJpdX2GhTAnMzz8p2QKPNjVR5lG0Ywb2mX4TArMSPHQEPYVLGxp9cWMlOQDYQS3dlAqadvgiUeio3DTs009Wo0KGL9',
+    defaultValue: 'pk_test_51TcjRbChJpdX2GhTlWIFUH5cRrKp31KovOJoW8U6jVoyIVDtv106qSwkhiggBr5R42OTVGIp9vWHHs9hgyDOVgHx00jRwNU5Z3',
   );
 
   static const String appName = 'Inkril';

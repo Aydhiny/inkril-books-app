@@ -1,6 +1,8 @@
 using Inkril.Application.Common.Interfaces;
 using Inkril.Application.Common.Models;
+using Inkril.Domain.Entities;
 using MediatR;
+using Microsoft.AspNetCore.Identity;
 
 namespace Inkril.Application.Features.UserSettings.Commands;
 
@@ -16,7 +18,8 @@ public record UpdateUserSettingsCommand(
 
 public class UpdateUserSettingsCommandHandler(
     IUnitOfWork uow,
-    ICurrentUserService currentUser)
+    ICurrentUserService currentUser,
+    UserManager<ApplicationUser> userManager)
     : IRequestHandler<UpdateUserSettingsCommand, Result>
 {
     public async Task<Result> Handle(
@@ -24,6 +27,12 @@ public class UpdateUserSettingsCommandHandler(
     {
         var userId = currentUser.UserId
             ?? throw new UnauthorizedAccessException();
+
+        // Same guard as GetUserSettingsQuery: reject stale JWTs for deleted accounts
+        // before attempting any write so we never create orphaned FK rows.
+        var user = await userManager.FindByIdAsync(userId.ToString());
+        if (user is null || user.IsDeleted)
+            return Result.Failure("User not found.");
 
         var settings = await uow.UserSettings
             .FirstOrDefaultAsync(s => s.UserId == userId, cancellationToken);
