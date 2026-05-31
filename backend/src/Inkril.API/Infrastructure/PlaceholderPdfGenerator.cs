@@ -1189,6 +1189,308 @@ public static class PlaceholderPdfGenerator
                 "reason: he is the best friend I have in the world.\"",
             ]
         ),
+
+        new(
+            "1984.pdf",
+            "1984",
+            "George Orwell",
+            [
+                "PART ONE — Chapter 1\n\n" +
+                "It was a bright cold day in April, and the clocks were striking thirteen.\n" +
+                "Winston Smith, his chin nuzzled into his breast in an effort to escape the\n" +
+                "vile wind, slipped quickly through the glass doors of Victory Mansions,\n" +
+                "though not quickly enough to prevent a swirl of gritty dust from entering\n" +
+                "along with him.\n\n" +
+                "The hallway smelt of boiled cabbage and old rag mats. At one end of it a\n" +
+                "coloured poster, too large for the hall, had been tacked to the wall. It\n" +
+                "depicted simply an enormous face, more than a metre wide: the face of a\n" +
+                "man of about forty-five, with a heavy black moustache and ruggedly handsome\n" +
+                "features. Winston made for the stairs.",
+
+                "Chapter 2\n\n" +
+                "Winston was dreaming of his mother. He must, he thought, have been ten or\n" +
+                "eleven years old when his mother had disappeared. She was a tall, statuesque,\n" +
+                "rather silent woman with slow movements and magnificent fair hair. His father\n" +
+                "he remembered more vaguely as dark and thin, dressed always in neat dark\n" +
+                "clothes (Winston remembered especially the very thin soles of his father's\n" +
+                "shoes) and wearing spectacles.\n\n" +
+                "The two of them must evidently have been swallowed up in one of the first\n" +
+                "great purges of the fifties.",
+
+                "Chapter 3\n\n" +
+                "Winston had woken up with his eyes full of tears. Julia rolled sleepily\n" +
+                "against him, murmuring something that might have been \"what's the matter?\"\n\n" +
+                "\"I dreamt —\" he began, and stopped short. It was too complex to be put\n" +
+                "into words. There was the dream itself, and there was a memory connected\n" +
+                "with it that had swum into his mind in the few seconds after waking.\n\n" +
+                "He lay back with his eyes shut, still sodden in the atmosphere of the dream.\n" +
+                "It was a vast, luminous dream in which his whole life seemed to stretch out\n" +
+                "before him like a landscape on a summer evening after rain.",
+
+                "APPENDIX — The Principles of Newspeak\n\n" +
+                "Newspeak was the official language of Oceania and had been devised to meet\n" +
+                "the ideological needs of Ingsoc, or English Socialism. In the year 1984 there\n" +
+                "was not as yet anyone who used Newspeak as his sole means of communication,\n" +
+                "either in speech or writing. The leading articles in the Times were written\n" +
+                "in it, but this was a tour de force which could only be carried out by a\n" +
+                "specialist. It was expected that Newspeak would have finally superseded\n" +
+                "Oldspeak (or Standard English, as we should call it) by about the year 2050.",
+            ]
+        ),
+
+        new(
+            "atomic-habits.pdf",
+            "Atomic Habits",
+            "James Clear",
+            [
+                "INTRODUCTION\n\n" +
+                "The Surprising Power of Tiny Habits\n\n" +
+                "In 2010, the British Cycling team hired Dave Brailsford as its new performance\n" +
+                "director. At the time, professional cycling in Great Britain was in a dismal\n" +
+                "state. For 110 years, British cyclists had failed to win the Tour de France.\n" +
+                "In fact, the performance of British riders had been so underwhelming that one\n" +
+                "top bike manufacturer refused to sell bikes to the team for fear that it would\n" +
+                "hurt sales if other professionals saw Brits riding their gear.\n\n" +
+                "Brailsford had been hired to put a new strategy in place. His approach was\n" +
+                "simple: the aggregation of marginal gains. \"The whole principle came from\n" +
+                "the idea that if you broke down everything you could think of that goes into\n" +
+                "riding a bike, and then improved it by 1 percent, you will get a significant\n" +
+                "increase when you put them all together.\"",
+
+                "CHAPTER 1 — The Surprising Power of Atomic Habits\n\n" +
+                "It is so easy to overestimate the importance of one defining moment and\n" +
+                "underestimate the value of making small improvements on a daily basis.\n" +
+                "Too often, we convince ourselves that massive success requires massive action.\n\n" +
+                "Whether it is losing weight, building a business, writing a book, winning a\n" +
+                "championship, or achieving any other goal, we put pressure on ourselves to\n" +
+                "make some earth-shattering improvement that everyone will talk about.\n\n" +
+                "Meanwhile, improving by 1 percent isn't particularly notable — sometimes it\n" +
+                "isn't even noticeable — but it can be far more meaningful, especially in the\n" +
+                "long run. The difference a tiny improvement can make over time is astounding.",
+
+                "CHAPTER 2 — How Your Habits Shape Your Identity\n\n" +
+                "There are three layers of behavior change. The first layer is changing your\n" +
+                "outcomes. This level is concerned with changing your results: losing weight,\n" +
+                "publishing a book, winning a championship. Most of the goals you set are\n" +
+                "associated with this level of change.\n\n" +
+                "The second layer is changing your process. This level is concerned with\n" +
+                "changing your habits and systems: implementing a new routine at the gym,\n" +
+                "decluttering your desk for better workflow, developing a meditation practice.\n\n" +
+                "The third and deepest layer is changing your identity. This level is concerned\n" +
+                "with changing your beliefs: your worldview, your self-image, your judgments\n" +
+                "about yourself and others. Most of the beliefs, assumptions, and biases you\n" +
+                "hold are associated with this level.",
+
+                "CHAPTER 3 — How to Build Better Habits in 4 Simple Steps\n\n" +
+                "In 1898, Edward Thorndike conducted an experiment that would lay the\n" +
+                "foundation for our understanding of how habits form and the rules that guide\n" +
+                "behavior. Thorndike was interested in studying the behavior of animals, and\n" +
+                "he began by working with cats.\n\n" +
+                "He would place each cat inside a device known as a puzzle box. The box was\n" +
+                "designed so that the cat could escape through a door by pressing a lever.\n" +
+                "Once the cat escaped, it received a food reward. Thorndike placed each cat\n" +
+                "in the box, observed the behavior, and noted how long it took for the cat\n" +
+                "to escape. He then repeated the process many times.",
+            ]
+        ),
+
+        new(
+            "sapiens.pdf",
+            "Sapiens: A Brief History of Humankind",
+            "Yuval Noah Harari",
+            [
+                "PART ONE — The Cognitive Revolution\n\n" +
+                "About 13.5 billion years ago, matter, energy, time and space came into being\n" +
+                "in what is known as the Big Bang. The story of these fundamental features of\n" +
+                "our universe is called physics.\n\n" +
+                "About 300,000 years after their appearance, matter and energy started to\n" +
+                "coalesce into complex structures, called atoms, which then combined into\n" +
+                "molecules. The story of atoms, molecules and their interactions is called\n" +
+                "chemistry.\n\n" +
+                "About 3.8 billion years ago, on a planet called Earth, certain molecules\n" +
+                "combined to form particularly large and intricate structures called organisms.\n" +
+                "The story of organisms is called biology.",
+
+                "Chapter 2 — The Tree of Knowledge\n\n" +
+                "The most important thing to know about prehistoric humans is that they were\n" +
+                "insignificant animals with no more impact on their environment than gorillas,\n" +
+                "fireflies or jellyfish.\n\n" +
+                "Biologists classify organisms into species. Animals are said to belong to the\n" +
+                "same species if they tend to mate with each other, giving birth to fertile\n" +
+                "offspring. Horses and donkeys have a recent common ancestor, and share many\n" +
+                "physical traits. But they show little sexual interest in each other. They will\n" +
+                "mate if induced to do so — but their offspring, known as mules, are sterile.\n" +
+                "Mutations in donkey DNA can therefore never cross over to horses, or vice versa.",
+
+                "Chapter 3 — A Day in the Life of Adam and Eve\n\n" +
+                "To understand our nature, history and psychology, we must get inside the\n" +
+                "heads of our hunter-gatherer ancestors. For nearly the entire history of our\n" +
+                "species, Sapiens lived as foragers. The past 200 years, during which ever\n" +
+                "increasing numbers of Sapiens have obtained their daily bread as urban\n" +
+                "labourers and office workers, and the preceding 10,000 years, during which\n" +
+                "most Sapiens lived as farmers and herders, are the blink of an eye compared\n" +
+                "to the tens of thousands of years during which our ancestors hunted and\n" +
+                "gathered.",
+
+                "PART TWO — The Agricultural Revolution\n\n" +
+                "For 2.5 million years, humans fed themselves by gathering plants and hunting\n" +
+                "animals that lived and bred without their intervention. Homo erectus, Homo\n" +
+                "ergaster and the Neanderthals picked berries, dug up edible roots, tracked\n" +
+                "deer and chased wild boar — without planting a single wheat grain, without\n" +
+                "fencing off a single pasture, without feeding a single chicken.\n\n" +
+                "Then, beginning about 10,000 years ago, Sapiens began to devote almost all\n" +
+                "their time and effort to manipulating the lives of a few animal and plant\n" +
+                "species.",
+            ]
+        ),
+
+        new(
+            "psychology-of-money.pdf",
+            "The Psychology of Money",
+            "Morgan Housel",
+            [
+                "Introduction\n\n" +
+                "I once spent time with a guy in his 20s who liked to go to Vegas. He told\n" +
+                "me he liked gambling for the social experience and the cheap rooms. On one\n" +
+                "trip he won \\$14,000 playing blackjack. He then moved the winnings into a\n" +
+                "stock brokerage account. But he didn't invest it. He treated it like a bank\n" +
+                "account, adding and withdrawing as needed over the next few years until it\n" +
+                "was eventually depleted. He never considered that the \\$14,000 of stock\n" +
+                "market money had different value than the \\$14,000 of gambling money.\n\n" +
+                "This is a book about the strange ways people think about money. Money is\n" +
+                "everywhere, it affects all of us, and confuses most of us.",
+
+                "Chapter 1 — No One's Crazy\n\n" +
+                "Your personal experiences with money make up maybe 0.00000001% of what's\n" +
+                "happened in the world, but maybe 80% of how you think the world works.\n\n" +
+                "People do some crazy things with money. But no one is crazy.\n\n" +
+                "Here's the thing: People from different generations, raised by different\n" +
+                "parents who earned different incomes and held different values, in different\n" +
+                "parts of the world, born into different economies, experiencing different\n" +
+                "job markets with different incentives and different degrees of luck, learn\n" +
+                "very different lessons.",
+
+                "Chapter 2 — Luck and Risk\n\n" +
+                "Bill Gates went to one of the only high schools in the world that had a\n" +
+                "computer. The story of how Lakeside got a computer is remarkable.\n\n" +
+                "In 1968 the Lakeside School's Mothers' Club decided to use the proceeds from\n" +
+                "its annual rummage sale to buy a computer terminal for students. As Gates\n" +
+                "has noted, this was an extraordinary piece of luck. Most universities didn't\n" +
+                "have computing clubs in 1968. And Lakeside was a high school. Yet there Gates\n" +
+                "was, with nearly unlimited access to a machine that few adults anywhere in\n" +
+                "the world had encountered.",
+
+                "Chapter 3 — Never Enough\n\n" +
+                "At a party given by a billionaire on Shelter Island, Kurt Vonnegut informs\n" +
+                "his pal, Joseph Heller, that their host, a hedge fund manager, had made more\n" +
+                "money in a single day than Heller had earned from his wildly popular novel\n" +
+                "Catch-22 over its whole history.\n\n" +
+                "Heller responds, \"Yes, but I have something he will never have... enough.\"\n\n" +
+                "Enough. I was stunned by the wisdom in those words, and the rarity of\n" +
+                "actually being satisfied and not always craving more.",
+            ]
+        ),
+
+        new(
+            "deep-work.pdf",
+            "Deep Work",
+            "Cal Newport",
+            [
+                "Introduction\n\n" +
+                "In the foreword I'm about to share, Adam Grant — a Wharton professor I will\n" +
+                "discuss in more detail later in this book — offers a story that captures\n" +
+                "something important about the world we now inhabit.\n\n" +
+                "\"I have a confession to make. There are days when I turn on Freedom, a\n" +
+                "web-blocking application, and the first thing I do when it kicks in is Google\n" +
+                "information that I already know. I'm not looking for new insights. I'm just\n" +
+                "procrastinating. The distraction isn't interrupting my work. It's becoming\n" +
+                "my work.\"\n\n" +
+                "Deep Work: Professional activities performed in a state of distraction-free\n" +
+                "concentration that push your cognitive capabilities to their limit.",
+
+                "PART 1 — The Idea\n\n" +
+                "Chapter 1: Deep Work Is Valuable\n\n" +
+                "The economy is changing in two specific ways that reward depth. First, as\n" +
+                "the automation wave continues, the workers who will thrive are those who can\n" +
+                "use intelligent machines to get results that are beyond what those machines\n" +
+                "can do on their own. Second, the spread of digital communication networks\n" +
+                "means that talented people can now collaborate and sell their work globally.\n\n" +
+                "The key question becomes: how do you join the ranks of those who can work\n" +
+                "this way? The answer, I argue, requires focusing on two core abilities.",
+
+                "Chapter 2: Deep Work Is Rare\n\n" +
+                "Open offices remain trendy. Facebook, for example, recently built the world's\n" +
+                "largest open office, accommodating nearly three thousand people. These spaces\n" +
+                "are popular, in part, because they're cheap — packing more people into less\n" +
+                "square footage. But they're also promoted on the theory that they encourage\n" +
+                "collaboration and the type of serendipitous encounters that spark creativity.\n\n" +
+                "As Winifred Gallagher summarizes in her 2009 book Rapt: \"Who you are, what\n" +
+                "you think, feel, and do, what you love — is the sum of what you focus on.\"",
+
+                "PART 2 — The Rules\n\n" +
+                "Rule 1: Work Deeply\n\n" +
+                "You have a finite amount of willpower that becomes depleted as you use it.\n" +
+                "Your will, in other words, is not a manifestation of your character that you\n" +
+                "can deploy without limit; it's instead like a muscle that tires. This is why\n" +
+                "the value of routines and rituals is often underappreciated.\n\n" +
+                "The key to developing a deep work habit is to move beyond good intentions\n" +
+                "and add routines and rituals to your working life designed to minimize the\n" +
+                "amount of your limited willpower necessary to transition into and maintain\n" +
+                "a state of unbroken concentration.",
+            ]
+        ),
+
+        new(
+            "thinking-fast-and-slow.pdf",
+            "Thinking, Fast and Slow",
+            "Daniel Kahneman",
+            [
+                "Introduction\n\n" +
+                "This book presents my current understanding of judgment and decision making,\n" +
+                "which has been shaped by psychological research conducted over many decades.\n" +
+                "I have been studying cognitive biases since the early 1970s, and the field\n" +
+                "has grown enormously since Daniel Kahneman and Amos Tversky first identified\n" +
+                "the heuristics and biases program.\n\n" +
+                "The premise of this book is that it is easier to recognize other people's\n" +
+                "mistakes than our own. We will look at some aspects of thinking that tend\n" +
+                "to go wrong, and I hope to teach you how to be a better thinker.",
+
+                "Chapter 1 — The Characters of the Story\n\n" +
+                "To observe your mind in automatic mode, glance at the image below.\n" +
+                "Your experience as you look at the woman's face seamlessly combines what\n" +
+                "we normally call seeing and intuitive thinking.\n\n" +
+                "I describe mental life by the metaphor of two agents, called System 1 and\n" +
+                "System 2, which respectively produce fast and slow thinking.\n\n" +
+                "System 1 operates automatically and quickly, with little or no effort and\n" +
+                "no sense of voluntary control.\n\n" +
+                "System 2 allocates attention to the effortful mental activities that demand\n" +
+                "it, including complex computations. The operations of System 2 are often\n" +
+                "associated with the subjective experience of agency, choice, and concentration.",
+
+                "Chapter 2 — Attention and Effort\n\n" +
+                "Adam Smith, the great economist, had the intuition that labor is not the\n" +
+                "only resource people contribute to their work. Smith wrote about \"the\n" +
+                "attention and application of mind\" required to develop expert skills.\n\n" +
+                "A crucial feature of System 2 is that its operations are effortful, and the\n" +
+                "scarce resource that governs the level of activation is called attention.\n" +
+                "You can do several things at once, but only if they are easy and undemanding.\n" +
+                "You are probably able to walk and hold a conversation at the same time, but\n" +
+                "not if you are trying to calculate 23 x 78.",
+
+                "Chapter 3 — The Lazy Controller\n\n" +
+                "One of the main functions of System 2 is to monitor and control thoughts\n" +
+                "and actions \"suggested\" by System 1, allowing some to be expressed directly\n" +
+                "in behavior and suppressing or modifying others.\n\n" +
+                "For an example, here is a simple puzzle. Do not try to solve it, just\n" +
+                "listen to your intuition:\n\n" +
+                "A bat and a ball cost \\$1.10.\n" +
+                "The bat costs one dollar more than the ball.\n" +
+                "How much does the ball cost?\n\n" +
+                "A number came to your mind. The number, of course, is 10 cents. The\n" +
+                "distinctive mark of this easy puzzle is that it evokes an answer that is\n" +
+                "intuitive, appealing, and wrong.",
+            ]
+        ),
     ];
 
     // ── PDF builder ───────────────────────────────────────────────────────────

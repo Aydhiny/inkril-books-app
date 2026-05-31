@@ -13,7 +13,7 @@ public record UpdateBookCommand(
     string Author,
     string? Description,
     string? CoverImageUrl,
-    int TotalPages,
+    int? TotalPages,       // null = not provided → keep existing value
     DateTime PublishedDate,
     string? ISBN,
     string? Publisher,
@@ -28,7 +28,7 @@ public class UpdateBookCommandValidator : AbstractValidator<UpdateBookCommand>
         RuleFor(x => x.Id).NotEmpty();
         RuleFor(x => x.Title).NotEmpty().MaximumLength(300);
         RuleFor(x => x.Author).NotEmpty().MaximumLength(200);
-        RuleFor(x => x.TotalPages).GreaterThan(0);
+        RuleFor(x => x.TotalPages).GreaterThanOrEqualTo(0).When(x => x.TotalPages.HasValue);
     }
 }
 
@@ -61,7 +61,11 @@ public class UpdateBookCommandHandler(IUnitOfWork uow, ICurrentUserService curre
         book.Author = cmd.Author;
         book.Description = cmd.Description;
         book.CoverImageUrl = cmd.CoverImageUrl;
-        book.TotalPages = cmd.TotalPages;
+        // Only overwrite TotalPages when it was explicitly provided.
+        // The desktop edit dialog doesn't send TotalPages (null) — preserve the
+        // page count that was set by the PDF upload endpoint.
+        if (cmd.TotalPages.HasValue)
+            book.TotalPages = cmd.TotalPages.Value;
         book.PublishedDate = cmd.PublishedDate;
         book.ISBN = cmd.ISBN;
         book.Publisher = cmd.Publisher;

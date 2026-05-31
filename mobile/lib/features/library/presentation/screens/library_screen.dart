@@ -1048,9 +1048,13 @@ class _LibraryBookCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Expanded fills everything the text section below doesn't need.
-            // Works because the card has a fixed height: 260.
-            Expanded(
+            // Fixed-height cover: 195 dp out of the 260 dp card leaves 65 dp
+            // for the text/badge section below — enough for both showProgress
+            // and showProgress:false cases. Using SizedBox (not Expanded) avoids
+            // the "Incorrect use of ParentDataWidget" Flutter error that Expanded
+            // triggers when _LibraryBookCard is nested inside another Column.
+            SizedBox(
+              height: 195,
               child: coverUrl != null
                   ? CachedNetworkImage(
                       imageUrl: coverUrl,
