@@ -55,6 +55,7 @@ CLAUDE.md
 .env
 .env.*
 !.env.example
+!.env-tajne.zip
 *.pem
 *.key
 *.pfx
