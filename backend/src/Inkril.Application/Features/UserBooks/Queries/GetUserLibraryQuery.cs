@@ -62,20 +62,30 @@ public class GetUserLibraryQueryHandler(IUnitOfWork uow)
         // ── Step 2: aggregate reading speed per book from past sessions ────
         // Hits the (UserId, StartedAt) index added in AddHotPathIndexes migration.
         // Only completed sessions (EndedAt != null) with real duration are counted.
+        //
+        // NOTE: GroupBy + Sum is done in memory (not on the server) because EF Core /
+        // Npgsql cannot translate the correlated GroupBy shape to SQL when the key
+        // selector is a column that also appears in the WHERE clause (same issue as
+        // GetDashboardStatsQuery). We project the three columns we need first, then
+        // group in memory — identical technique to the dashboard fix.
         var bookIds = items.Select(x => x.BookId).ToList();
-        var speedRows = await uow.ReadingSessions.Query()
+        var rawSessions = await uow.ReadingSessions.Query()
             .Where(rs => rs.UserId == q.UserId
                       && bookIds.Contains(rs.BookId)
                       && rs.EndedAt != null
                       && rs.DurationMinutes > 0)
+            .Select(rs => new { rs.BookId, rs.PagesRead, rs.DurationMinutes })
+            .ToListAsync(ct);
+
+        var speedRows = rawSessions
             .GroupBy(rs => rs.BookId)
             .Select(g => new
             {
-                BookId      = g.Key,
-                TotalPages  = g.Sum(rs => rs.PagesRead),
-                TotalMins   = g.Sum(rs => rs.DurationMinutes)
+                BookId     = g.Key,
+                TotalPages = g.Sum(rs => rs.PagesRead),
+                TotalMins  = g.Sum(rs => rs.DurationMinutes)
             })
-            .ToListAsync(ct);
+            .ToList();
 
         var speedMap = speedRows.ToDictionary(
             s => s.BookId,
