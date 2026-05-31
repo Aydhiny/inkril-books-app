@@ -12,7 +12,12 @@ final dashboardStatsProvider = FutureProvider<Map<String, dynamic>>((ref) async 
   ));
   final response = await dio.get('/api/reports/dashboard');
   final data = Map<String, dynamic>.from(response.data as Map);
-  // The backend returns 'last14DaysActivity'; remap to the key the reports screen reads.
+  // Remap snake_case / camelCase backend field names to what the reports screen reads.
   data['dailyReadingActivity'] ??= data['last14DaysActivity'] ?? [];
+  data['totalReadingSessions'] ??= data['totalReadingSessions'] ?? 0;
+  data['averageSessionMinutes'] ??= data['averageSessionMinutes'] ?? 0;
+  data['topBooks'] ??= data['topBooks'] ?? [];
+  data['topReaders'] ??= data['topReaders'] ?? [];
+  data['genreDistribution'] ??= data['genreDistribution'] ?? [];
   return data;
 });

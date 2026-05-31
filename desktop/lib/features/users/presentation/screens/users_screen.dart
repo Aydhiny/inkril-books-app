@@ -473,7 +473,12 @@ class _UserEditDialogState extends State<_UserEditDialog> {
   late List<String> _roles;
   bool _loading = false;
 
-  static const _availableRoles = ['mobile', 'desktop'];
+  // Role names match the seeded ASP.NET Identity roles ('mobile' = regular user,
+  // 'desktop' = admin). Display labels are shown in the UI; actual values are sent to the API.
+  static const _roleEntries = [
+    (value: 'mobile',  label: 'User'),
+    (value: 'desktop', label: 'Admin'),
+  ];
 
   @override
   void initState() {
@@ -535,15 +540,15 @@ class _UserEditDialogState extends State<_UserEditDialog> {
                 style: TextStyle(
                     fontWeight: FontWeight.w700, fontSize: 13)),
             const SizedBox(height: 4),
-            ..._availableRoles.map((role) => CheckboxListTile(
+            ..._roleEntries.map((entry) => CheckboxListTile(
                   dense: true,
-                  title: Text(role),
-                  value: _roles.contains(role),
+                  title: Text(entry.label),
+                  value: _roles.contains(entry.value),
                   onChanged: (v) => setState(() {
                     if (v == true) {
-                      _roles.add(role);
+                      _roles.add(entry.value);
                     } else {
-                      _roles.remove(role);
+                      _roles.remove(entry.value);
                     }
                   }),
                 )),

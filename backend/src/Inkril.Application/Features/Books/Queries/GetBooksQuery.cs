@@ -44,13 +44,21 @@ public class GetBooksQueryHandler(IUnitOfWork uow) : IRequestHandler<GetBooksQue
         if (q.PublishedTo.HasValue)
             query = query.Where(b => b.PublishedDate <= q.PublishedTo);
 
-        var projected = query.Select(b => new BookDto(
-            b.Id, b.Title, b.Author, b.Description, b.CoverImageUrl,
-            b.FileSizeBytes, b.TotalPages, b.PublishedDate, b.IsPublic,
-            b.AverageRating, b.RatingCount,
-            b.BookGenres.Select(bg => bg.Genre.Name),
-            b.IsPremium, b.Price));
+        // Count on the raw entity query before projecting — EF Core cannot translate
+        // CountAsync on an IQueryable<BookDto> that contains a nested IEnumerable<string>.
+        var count = await query.CountAsync(ct);
 
-        return await PagedList<BookDto>.CreateAsync(projected, q.PageNumber, pageSize, ct);
+        var items = await query
+            .Skip((q.PageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .Select(b => new BookDto(
+                b.Id, b.Title, b.Author, b.Description, b.CoverImageUrl,
+                b.FileSizeBytes, b.TotalPages, b.PublishedDate, b.IsPublic,
+                b.AverageRating, b.RatingCount,
+                b.BookGenres.Select(bg => bg.Genre.Name),
+                b.IsPremium, b.Price))
+            .ToListAsync(ct);
+
+        return new PagedList<BookDto>(items, count, q.PageNumber, pageSize);
     }
 }
