@@ -40,6 +40,13 @@ public class Book : BaseEntity
 
     public int RatingCount { get; set; } = 0;
 
+    /// <summary>
+    /// When true the book was imported from the user's local device storage.
+    /// The FilePath holds the absolute device path (e.g. app-private documents dir).
+    /// Local books are always private and isolated from social features.
+    /// </summary>
+    public bool IsLocal { get; set; } = false;
+
     /// <summary>When true the book requires a one-time purchase before reading.</summary>
     public bool IsPremium { get; set; } = false;
 

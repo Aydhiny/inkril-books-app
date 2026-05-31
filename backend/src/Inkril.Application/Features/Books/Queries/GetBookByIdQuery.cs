@@ -17,7 +17,8 @@ public record BookDetailDto(
     int TotalPages, DateTime PublishedDate, string? ISBN,
     string? Publisher, string? Language, double AverageRating,
     int RatingCount, IEnumerable<string> Genres,
-    bool IsPremium, decimal? Price, bool IsPurchasedByUser);
+    bool IsPremium, decimal? Price, bool IsPurchasedByUser,
+    bool IsLocal);
 
 public record GetBookByIdQuery(Guid BookId, Guid? RequestingUserId) : IRequest<Result<BookDetailDto>>;
 
@@ -46,6 +47,7 @@ public class GetBookByIdQueryHandler(IUnitOfWork uow)
             book.Publisher, book.Language, book.AverageRating,
             book.RatingCount,
             book.BookGenres.Where(bg => bg.Genre is not null).Select(bg => bg.Genre.Name),
-            book.IsPremium, book.Price, isPurchased));
+            book.IsPremium, book.Price, isPurchased,
+            book.IsLocal));
     }
 }

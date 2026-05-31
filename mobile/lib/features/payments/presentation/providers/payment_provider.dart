@@ -109,9 +109,13 @@ class PaymentNotifier extends StateNotifier<PaymentState> {
       state = state.copyWith(status: PaymentStatus.failure, errorMessage: msg);
       return false;
     } catch (e) {
+      // Surface the real error so it can be diagnosed; StripeException and
+      // DioException are caught above — anything else here is a PlatformException
+      // or an unexpected runtime error (e.g. Stripe SDK initialisation failure).
+      final msg = e.toString().replaceFirst('Exception: ', '');
       state = state.copyWith(
         status: PaymentStatus.failure,
-        errorMessage: 'An unexpected error occurred.',
+        errorMessage: msg.length > 200 ? '${msg.substring(0, 200)}…' : msg,
       );
       return false;
     }

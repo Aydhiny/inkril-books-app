@@ -290,10 +290,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
           await ref.read(bookDetailProvider(widget.bookId).future);
       _bookTitle = bookDetail['title'] as String? ?? '';
       _isPrivateBook = !(bookDetail['isPublic'] as bool? ?? true);
+      final isLocal  =   bookDetail['isLocal']  as bool? ?? false;
 
       // FilePath is no longer returned by the public GET /api/books/{id} endpoint —
       // it must be fetched through the ownership-gated GET /api/books/{id}/read-url.
-      // This ensures users can only download PDFs for books they actually own.
+      // This ensures users can only open PDFs for books they actually own.
       final dio = ref.read(dioProvider);
       final readUrlResponse =
           await dio.get('/api/books/${widget.bookId}/read-url');
@@ -307,24 +308,45 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         return;
       }
 
-      final dir = await getApplicationDocumentsDirectory();
-      final localFile = File('${dir.path}/book_${widget.bookId}.pdf');
+      String resolvedPath;
 
-      if (!await localFile.exists()) {
-        await dio.download(
-          '${AppConfig.apiBaseUrl}$filePath',
-          localFile.path,
-          onReceiveProgress: (_, __) {},
-        );
+      if (isLocal) {
+        // Local book — the path is already an absolute device path copied into
+        // the app's private documents directory. No download needed.
+        final localFile = File(filePath);
+        if (!await localFile.exists()) {
+          setState(() {
+            _error = 'The local file could not be found. '
+                     'It may have been moved or deleted. '
+                     'Try re-importing the book.';
+            _downloading = false;
+          });
+          return;
+        }
+        resolvedPath = filePath;
+      } else {
+        // Server-hosted book — download to cache once.
+        final dir = await getApplicationDocumentsDirectory();
+        final localFile = File('${dir.path}/book_${widget.bookId}.pdf');
+        if (!await localFile.exists()) {
+          await dio.download(
+            '${AppConfig.apiBaseUrl}$filePath',
+            localFile.path,
+            onReceiveProgress: (_, __) {},
+          );
+        }
+        resolvedPath = localFile.path;
       }
 
       final startPage = (bookDetail['lastReadPage'] as int?) ?? 0;
-      if (!_isPrivateBook) await _startSession(startPage);
+      // Local books are always private, so sessions are already skipped via
+      // _isPrivateBook. The explicit isLocal check here is for clarity only.
+      if (!_isPrivateBook && !isLocal) await _startSession(startPage);
 
       setState(() {
-        _localPdfPath = localFile.path;
-        _currentPage = startPage;
-        _downloading = false;
+        _localPdfPath = resolvedPath;
+        _currentPage  = startPage;
+        _downloading  = false;
       });
       _startTimer(); // begin counting reading time
     } catch (e) {

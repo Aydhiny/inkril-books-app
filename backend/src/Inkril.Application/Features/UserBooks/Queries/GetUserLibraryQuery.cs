@@ -18,7 +18,9 @@ public record UserLibraryBookDto(
     /// <summary>Average pages the user reads per minute, computed from all completed sessions.</summary>
     double AvgPagesPerMinute,
     /// <summary>Estimated minutes to finish the book at the user's average pace. Null when there is no session history.</summary>
-    int? EstimatedMinutesRemaining);
+    int? EstimatedMinutesRemaining,
+    /// <summary>True when the book was imported from the user's local device storage.</summary>
+    bool IsLocal);
 
 public record GetUserLibraryQuery(Guid UserId, int PageNumber = 1, int PageSize = 20)
     : IRequest<PagedList<UserLibraryBookDto>>;
@@ -52,7 +54,8 @@ public class GetUserLibraryQueryHandler(IUnitOfWork uow)
                 ub.ReadingProgressPercent,
                 ub.LastReadAt,
                 ub.IsCompleted,
-                ub.Book.TotalPages
+                ub.Book.TotalPages,
+                ub.Book.IsLocal,
             })
             .ToListAsync(ct);
 
@@ -91,7 +94,7 @@ public class GetUserLibraryQueryHandler(IUnitOfWork uow)
             return new UserLibraryBookDto(
                 ub.Id, ub.BookId, ub.Title, ub.Author, ub.CoverImageUrl,
                 ub.ReadingProgressPercent, ub.LastReadAt, ub.IsCompleted,
-                ub.TotalPages, Math.Round(avgSpeed, 2), eta);
+                ub.TotalPages, Math.Round(avgSpeed, 2), eta, ub.IsLocal);
         }).ToList();
 
         return new PagedList<UserLibraryBookDto>(dtos, totalCount, q.PageNumber, pageSize);

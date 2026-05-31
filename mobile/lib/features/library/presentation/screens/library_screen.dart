@@ -1,8 +1,12 @@
+import 'dart:io';
+
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../../core/providers/user_settings_provider.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -304,9 +308,9 @@ class _SearchUploadRow extends StatelessWidget {
         ),
         const SizedBox(width: 10),
         OutlinedButton.icon(
-          onPressed: () => _showUploadSheet(context),
-          icon: const Icon(Icons.upload_rounded, size: 18),
-          label: const Text('Upload',
+          onPressed: () => _showImportSheet(context),
+          icon: const Icon(Icons.phone_android_rounded, size: 18),
+          label: const Text('Import',
               style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
           style: OutlinedButton.styleFrom(
             foregroundColor: AppTheme.primary,
@@ -321,61 +325,130 @@ class _SearchUploadRow extends StatelessWidget {
     );
   }
 
-  void _showUploadSheet(BuildContext context) {
-    final titleCtrl = TextEditingController();
-    final authorCtrl = TextEditingController();
+  void _showImportSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (sheetCtx) => _UploadBookSheet(
-        titleCtrl: titleCtrl,
-        authorCtrl: authorCtrl,
-        onUpload: () async {
-          Navigator.pop(sheetCtx);
-          try {
-            final dio = ref.read(dioProvider);
-            await dio.post('/api/books', data: {
-              'title': titleCtrl.text.trim(),
-              'author': authorCtrl.text.trim(),
-              'totalPages': 0,
-              'isPublic': false, // private — only visible to the uploader
-            });
-            ref.invalidate(publicBooksProvider);
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('Book uploaded! 🎉'),
-                  backgroundColor: AppTheme.progressGreen,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-              );
-            }
-          } catch (_) {
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Upload failed — check permissions.')),
-              );
-            }
-          }
-        },
-      ),
+      builder: (_) => const _ImportLocalBookSheet(),
     );
   }
 }
 
-// Duolingo-style upload bottom sheet
-class _UploadBookSheet extends StatelessWidget {
-  final TextEditingController titleCtrl;
-  final TextEditingController authorCtrl;
-  final VoidCallback onUpload;
-  const _UploadBookSheet({
-    required this.titleCtrl,
-    required this.authorCtrl,
-    required this.onUpload,
-  });
+// ─────────────────────────────────────────────────────────────────────────────
+// Local book import sheet
+// Picks a PDF from device storage, copies it to the app's private documents
+// directory (stable across reboots), and creates a backend book record with
+// isLocal=true. The file never leaves the device — only the absolute path is
+// stored on the backend.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ImportLocalBookSheet extends ConsumerStatefulWidget {
+  const _ImportLocalBookSheet();
+
+  @override
+  ConsumerState<_ImportLocalBookSheet> createState() =>
+      _ImportLocalBookSheetState();
+}
+
+class _ImportLocalBookSheetState
+    extends ConsumerState<_ImportLocalBookSheet> {
+  final _titleCtrl  = TextEditingController();
+  final _authorCtrl = TextEditingController();
+
+  String? _pickedPath;   // absolute path from file_picker
+  String? _pickedName;   // filename for display
+  bool    _loading = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _authorCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickFile() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf'],
+      allowMultiple: false,
+    );
+    if (result == null || result.files.isEmpty) return;
+    final file = result.files.first;
+    if (file.path == null) return;
+
+    // Pre-fill title from the filename (strip .pdf, replace underscores/dashes)
+    final guessedTitle = file.name
+        .replaceAll(RegExp(r'\.pdf$', caseSensitive: false), '')
+        .replaceAll(RegExp(r'[_\-]+'), ' ')
+        .trim();
+
+    setState(() {
+      _pickedPath = file.path;
+      _pickedName = file.name;
+      _error = null;
+      if (_titleCtrl.text.isEmpty) _titleCtrl.text = guessedTitle;
+    });
+  }
+
+  Future<void> _import() async {
+    if (_pickedPath == null) {
+      setState(() => _error = 'Please select a PDF file first.');
+      return;
+    }
+    final title = _titleCtrl.text.trim();
+    if (title.isEmpty) {
+      setState(() => _error = 'Please enter a title.');
+      return;
+    }
+
+    setState(() { _loading = true; _error = null; });
+
+    try {
+      // ① Copy to app-private storage so the path is stable even if the
+      //    user moves or renames the original file.
+      final docsDir    = await getApplicationDocumentsDirectory();
+      final localBooksDir = Directory('${docsDir.path}/local_books');
+      await localBooksDir.create(recursive: true);
+
+      final ts       = DateTime.now().millisecondsSinceEpoch;
+      final destPath = '${localBooksDir.path}/${ts}_$_pickedName';
+      await File(_pickedPath!).copy(destPath);
+
+      // ② Create the backend record (isLocal=true, path = stable device path)
+      final dio = ref.read(dioProvider);
+      await dio.post('/api/books', data: {
+        'title':    title,
+        'author':   _authorCtrl.text.trim().isEmpty
+                        ? 'Unknown'
+                        : _authorCtrl.text.trim(),
+        'filePath': destPath,
+        'isLocal':  true,
+        'isPublic': false,
+      });
+
+      ref.invalidate(userLibraryProvider);
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Book imported! 📱'),
+            backgroundColor: AppTheme.progressGreen,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    } catch (_) {
+      setState(() {
+        _loading = false;
+        _error   = 'Import failed. Check app storage permissions.';
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -386,69 +459,129 @@ class _UploadBookSheet extends StatelessWidget {
         decoration: BoxDecoration(
           color: context.cardBg,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          border: Border(top: BorderSide(color: context.borderPurpleMid, width: 2)),
+          border:
+              Border(top: BorderSide(color: context.borderPurpleMid, width: 2)),
         ),
         padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          // Handle
+          // Drag handle
           Container(
-            width: 40,
-            height: 4,
+            width: 40, height: 4,
             decoration: BoxDecoration(
               color: context.borderPurpleMid,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
           const SizedBox(height: 20),
-          // Icon + title
+
+          // Icon + heading
           Container(
-            width: 56,
-            height: 56,
+            width: 56, height: 56,
             decoration: BoxDecoration(
-              color: context.primarySurface,
-              shape: BoxShape.circle,
-            ),
+                color: context.primarySurface, shape: BoxShape.circle),
             child: const Center(
-              child: Text('📚', style: TextStyle(fontSize: 28)),
+                child: Text('📱', style: TextStyle(fontSize: 28))),
+          ),
+          const SizedBox(height: 14),
+          Text('Import from device',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900,
+                  color: context.textPrimary)),
+          const SizedBox(height: 4),
+          Text(
+            'Your PDF stays on your device — only the title and path are saved.',
+            style: TextStyle(fontSize: 13, color: context.textSecondary),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 20),
+
+          // File picker row
+          GestureDetector(
+            onTap: _loading ? null : _pickFile,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: _pickedPath != null
+                    ? AppTheme.primary.withValues(alpha: 0.08)
+                    : context.subtleBg,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: _pickedPath != null
+                      ? AppTheme.primary
+                      : context.borderPurpleMid,
+                  width: 2,
+                ),
+              ),
+              child: Row(children: [
+                Icon(
+                  _pickedPath != null
+                      ? Icons.picture_as_pdf_rounded
+                      : Icons.folder_open_rounded,
+                  color: _pickedPath != null
+                      ? AppTheme.primary
+                      : context.textHint,
+                  size: 22,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    _pickedName ?? 'Tap to choose a PDF…',
+                    style: TextStyle(
+                      color: _pickedPath != null
+                          ? context.textPrimary
+                          : context.textHint,
+                      fontSize: 14,
+                      fontWeight: _pickedPath != null
+                          ? FontWeight.w600
+                          : FontWeight.normal,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (_pickedPath != null)
+                  const Icon(Icons.check_circle_rounded,
+                      color: AppTheme.progressGreen, size: 20),
+              ]),
             ),
           ),
           const SizedBox(height: 14),
-          Text(
-            'Upload a Book',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
-              color: context.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Add a private book — visible only to you',
-            style: TextStyle(fontSize: 14, color: context.textSecondary),
-          ),
-          const SizedBox(height: 24),
+
+          // Title / Author fields
           TextField(
-            controller: titleCtrl,
+            controller: _titleCtrl,
+            enabled: !_loading,
             decoration: InputDecoration(
-              labelText: 'Book Title',
+              labelText: 'Book Title *',
               prefixIcon: const Icon(Icons.book_outlined, color: AppTheme.primary),
               labelStyle: TextStyle(color: context.textSecondary),
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           TextField(
-            controller: authorCtrl,
+            controller: _authorCtrl,
+            enabled: !_loading,
             decoration: InputDecoration(
-              labelText: 'Author',
-              prefixIcon: const Icon(Icons.person_outline_rounded, color: AppTheme.primary),
+              labelText: 'Author (optional)',
+              prefixIcon: const Icon(Icons.person_outline_rounded,
+                  color: AppTheme.primary),
               labelStyle: TextStyle(color: context.textSecondary),
             ),
           ),
+
+          // Error text
+          if (_error != null) ...[
+            const SizedBox(height: 10),
+            Text(_error!,
+                style: TextStyle(
+                    color: Theme.of(context).colorScheme.error,
+                    fontSize: 13)),
+          ],
           const SizedBox(height: 24),
+
+          // Buttons
           Row(children: [
             Expanded(
               child: OutlinedButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: _loading ? null : () => Navigator.pop(context),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: context.textSecondary,
                   side: BorderSide(color: context.borderGray, width: 1.5),
@@ -464,10 +597,16 @@ class _UploadBookSheet extends StatelessWidget {
             Expanded(
               flex: 2,
               child: ElevatedButton.icon(
-                onPressed: onUpload,
-                icon: const Icon(Icons.upload_rounded, size: 18),
-                label: const Text('Upload Book',
-                    style: TextStyle(fontWeight: FontWeight.w700)),
+                onPressed: _loading ? null : _import,
+                icon: _loading
+                    ? const SizedBox(
+                        width: 18, height: 18,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.download_done_rounded, size: 18),
+                label: Text(_loading ? 'Importing…' : 'Import Book',
+                    style:
+                        const TextStyle(fontWeight: FontWeight.w700)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primary,
                   foregroundColor: Colors.white,
@@ -823,6 +962,7 @@ class _LibraryBookCard extends StatelessWidget {
     final avgRating = (book['averageRating'] as num? ?? 0).toDouble();
     final isPremium = book['isPremium'] as bool? ?? false;
     final price     = (book['price'] as num?)?.toDouble();
+    final isLocal   = book['isLocal'] as bool? ?? false;
 
     return GestureDetector(
       onTap: () => context.push('/books/$bookId'),
@@ -950,6 +1090,39 @@ class _LibraryBookCard extends StatelessWidget {
                 fontWeight: FontWeight.w900,
                 color: Colors.white,
               ),
+            ),
+          ),
+        ),
+      // ── Local-book badge ──────────────────────────────────────────────────
+      if (isLocal)
+        Positioned(
+          top: 8,
+          left: 8,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFF3B82F6),
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.20),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.phone_android_rounded,
+                    size: 10, color: Colors.white),
+                SizedBox(width: 3),
+                Text('Local',
+                    style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white)),
+              ],
             ),
           ),
         ),
