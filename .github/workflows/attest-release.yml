@@ -1,0 +1,45 @@
+name: Attest Release
+
+# Runs when a release is published OR manually triggered.
+# Creates a Sigstore attestation for the build artifact, which causes
+# GitHub to display the "Immutable" badge on the release page.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to attest (e.g. Predaja-2026-05-31)'
+        required: true
+
+permissions:
+  id-token: write      # required for OIDC token (Sigstore signing)
+  attestations: write  # required to publish the attestation
+  contents: read
+
+jobs:
+  attest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve tag name
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "name=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "name=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Download release artifact
+        run: |
+          gh release download "${{ steps.tag.outputs.name }}" \
+            --repo "${{ github.repository }}" \
+            --pattern "fit-build-*.rar" \
+            --dir ./artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: "./artifacts/fit-build-*.rar"
