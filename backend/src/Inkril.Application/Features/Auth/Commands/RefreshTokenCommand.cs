@@ -18,6 +18,15 @@ public class RefreshTokenCommandHandler(ITokenService tokenService, UserManager<
         if (user is null)
             return Result<AuthResponse>.Failure("Invalid or expired refresh token.");
 
+        if (!user.EmailConfirmed)
+            return Result<AuthResponse>.Failure("Email address has not been verified.");
+
+        if (user.IsBlocked)
+            return Result<AuthResponse>.Failure("This account has been suspended.");
+
+        if (user.IsDeleted)
+            return Result<AuthResponse>.Failure("Invalid or expired refresh token.");
+
         var roles = await userManager.GetRolesAsync(user);
         var role  = roles.Contains("desktop") ? "desktop" : "mobile";
 

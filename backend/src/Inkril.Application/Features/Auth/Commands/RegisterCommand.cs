@@ -15,7 +15,7 @@ public record RegisterCommand(
     string Email,
     string UserName,
     string Password
-) : IRequest<Result<AuthResponse>>;
+) : IRequest<Result<string>>;
 
 public record AuthResponse(string AccessToken, string RefreshToken, Guid UserId, string UserName, string Email, string Role);
 
@@ -35,15 +35,14 @@ public class RegisterCommandValidator : AbstractValidator<RegisterCommand>
 public class RegisterCommandHandler(
     UserManager<ApplicationUser> userManager,
     IUnitOfWork uow,
-    ITokenService tokenService,
     IEmailService emailService,
     ILogger<RegisterCommandHandler> logger
-) : IRequestHandler<RegisterCommand, Result<AuthResponse>>
+) : IRequestHandler<RegisterCommand, Result<string>>
 {
-    public async Task<Result<AuthResponse>> Handle(RegisterCommand cmd, CancellationToken ct)
+    public async Task<Result<string>> Handle(RegisterCommand cmd, CancellationToken ct)
     {
         if (await userManager.FindByEmailAsync(cmd.Email) is not null)
-            return Result<AuthResponse>.Failure("An account with this email already exists.");
+            return Result<string>.Failure("An account with this email already exists.");
 
         var user = new ApplicationUser
         {
@@ -60,7 +59,7 @@ public class RegisterCommandHandler(
 
         var identityResult = await userManager.CreateAsync(user, cmd.Password);
         if (!identityResult.Succeeded)
-            return Result<AuthResponse>.Failure(identityResult.Errors.Select(e => e.Description).ToArray());
+            return Result<string>.Failure(identityResult.Errors.Select(e => e.Description).ToArray());
 
         await userManager.AddToRoleAsync(user, "mobile");
 
@@ -72,11 +71,14 @@ public class RegisterCommandHandler(
         // so a misconfigured SMTP does not fail the registration itself.
         try
         {
-            var otp    = Random.Shared.Next(100_000, 999_999).ToString();
+            var otpBytes = new byte[4];
+            System.Security.Cryptography.RandomNumberGenerator.Fill(otpBytes);
+            var otp    = (Math.Abs(BitConverter.ToInt32(otpBytes, 0)) % 900_000 + 100_000).ToString();
             var expiry = DateTime.UtcNow.AddMinutes(30);
 
+            // Format: "OTP:EXPIRY_TICKS:ATTEMPTS"
             await userManager.SetAuthenticationTokenAsync(
-                user, "Inkril", "EmailVerificationOtp", $"{otp}:{expiry.Ticks}");
+                user, "Inkril", "EmailVerificationOtp", $"{otp}:{expiry.Ticks}:0");
 
             var html = $"""
                 <div style="font-family:sans-serif;max-width:480px;margin:auto">
@@ -99,9 +101,10 @@ public class RegisterCommandHandler(
             logger.LogWarning(ex, "Failed to send verification email to {Email}", cmd.Email);
         }
 
-        var (access, refresh) = await tokenService.GenerateTokensAsync(user);
-        // New users always get the "mobile" role
-        return Result<AuthResponse>.Success(new AuthResponse(access, refresh, user.Id, user.UserName!, user.Email!, "mobile"));
+        // Tokens are NOT issued here. The client must verify the email via POST /api/auth/verify-email,
+        // which returns fresh tokens only after EmailConfirmed = true.
+        return Result<string>.Success(
+            "Registration successful. Check your email for a 6-digit verification code.");
     }
 }
 

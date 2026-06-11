@@ -13,7 +13,7 @@ public class AuthController(IMediator mediator) : ApiControllerBase
     public async Task<IActionResult> Register([FromBody] RegisterCommand cmd, CancellationToken ct)
     {
         var result = await mediator.Send(cmd, ct);
-        return ToResult(result, Ok);
+        return ToResult(result, msg => Ok(new { message = msg }));
     }
 
     [HttpPost("login")]
