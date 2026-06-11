@@ -35,11 +35,14 @@ public class ResendVerificationCommandHandler(
 
         if (user is not null && !user.IsDeleted && !user.EmailConfirmed)
         {
-            var otp    = Random.Shared.Next(100_000, 999_999).ToString();
+            var otpBytes = new byte[4];
+            System.Security.Cryptography.RandomNumberGenerator.Fill(otpBytes);
+            var otp    = (Math.Abs(BitConverter.ToInt32(otpBytes, 0)) % 900_000 + 100_000).ToString();
             var expiry = DateTime.UtcNow.AddMinutes(30);
 
+            // Format: "OTP:EXPIRY_TICKS:ATTEMPTS" — reset attempts to 0 on each resend.
             await userManager.SetAuthenticationTokenAsync(
-                user, "Inkril", "EmailVerificationOtp", $"{otp}:{expiry.Ticks}");
+                user, "Inkril", "EmailVerificationOtp", $"{otp}:{expiry.Ticks}:0");
 
             var html = $"""
                 <div style="font-family:sans-serif;max-width:480px;margin:auto">

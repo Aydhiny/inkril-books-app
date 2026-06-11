@@ -37,13 +37,14 @@ public class ForgotPasswordCommandHandler(
         // Return the same message regardless so callers can't enumerate emails.
         if (user is not null && !user.IsDeleted && !user.IsBlocked)
         {
-            var otp    = Random.Shared.Next(100_000, 999_999).ToString();
+            var otpBytes = new byte[4];
+            System.Security.Cryptography.RandomNumberGenerator.Fill(otpBytes);
+            var otp    = (Math.Abs(BitConverter.ToInt32(otpBytes, 0)) % 900_000 + 100_000).ToString();
             var expiry = DateTime.UtcNow.AddMinutes(15);
 
-            // Store as "OTP:EXPIRY_TICKS" so no extra table is needed.
-            // One-time use: cleared in ResetPasswordCommandHandler after verification.
+            // Format: "OTP:EXPIRY_TICKS:ATTEMPTS" — attempts reset to 0 on each new code.
             await userManager.SetAuthenticationTokenAsync(
-                user, "Inkril", "PasswordResetOtp", $"{otp}:{expiry.Ticks}");
+                user, "Inkril", "PasswordResetOtp", $"{otp}:{expiry.Ticks}:0");
 
             var html = $"""
                 <div style="font-family:sans-serif;max-width:480px;margin:auto">

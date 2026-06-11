@@ -47,18 +47,30 @@ public class ResetPasswordCommandHandler(
         if (stored is null)
             return Result<string>.Failure(GenericError);
 
-        // Stored format: "OTP:EXPIRY_TICKS"
+        // Stored format: "OTP:EXPIRY_TICKS:ATTEMPTS"
         var parts = stored.Split(':');
-        if (parts.Length != 2 || !long.TryParse(parts[1], out var ticks))
+        if (parts.Length != 3
+            || !long.TryParse(parts[1], out var ticks)
+            || !int.TryParse(parts[2], out var attempts))
             return Result<string>.Failure(GenericError);
+
+        // Lock after 5 failed attempts — user must request a new reset code.
+        if (attempts >= 5)
+            return Result<string>.Failure(
+                "Too many failed attempts. Please request a new reset code.");
 
         var expiry = new DateTime(ticks, DateTimeKind.Utc);
         if (DateTime.UtcNow > expiry)
             return Result<string>.Failure("Reset code has expired. Please request a new one.");
 
-        // Constant-time string comparison to prevent timing attacks
         if (!CryptographicEquals(parts[0], cmd.Otp))
+        {
+            await userManager.SetAuthenticationTokenAsync(
+                user, "Inkril", "PasswordResetOtp",
+                $"{parts[0]}:{parts[1]}:{attempts + 1}");
+            await userManager.UpdateAsync(user);
             return Result<string>.Failure(GenericError);
+        }
 
         // Invalidate OTP immediately — one-time use
         await userManager.RemoveAuthenticationTokenAsync(user, "Inkril", "PasswordResetOtp");

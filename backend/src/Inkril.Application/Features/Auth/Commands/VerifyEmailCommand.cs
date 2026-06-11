@@ -54,18 +54,31 @@ public class VerifyEmailCommandHandler(
         if (stored is null)
             return Result<AuthResponse>.Failure(GenericError);
 
-        // Stored format: "OTP:EXPIRY_TICKS"
+        // Stored format: "OTP:EXPIRY_TICKS:ATTEMPTS"
         var parts = stored.Split(':');
-        if (parts.Length != 2 || !long.TryParse(parts[1], out var ticks))
+        if (parts.Length != 3
+            || !long.TryParse(parts[1], out var ticks)
+            || !int.TryParse(parts[2], out var attempts))
             return Result<AuthResponse>.Failure(GenericError);
+
+        // Lock after 5 failed attempts — user must request a new code via resend.
+        if (attempts >= 5)
+            return Result<AuthResponse>.Failure(
+                "Too many failed attempts. Please request a new verification code.");
 
         var expiry = new DateTime(ticks, DateTimeKind.Utc);
         if (DateTime.UtcNow > expiry)
             return Result<AuthResponse>.Failure("Verification code has expired. Please request a new one.");
 
-        // Constant-time comparison — same pattern as ResetPasswordCommandHandler
         if (!CryptographicEquals(parts[0], cmd.Otp))
+        {
+            // Persist incremented attempt count before returning the generic error.
+            await userManager.SetAuthenticationTokenAsync(
+                user, "Inkril", "EmailVerificationOtp",
+                $"{parts[0]}:{parts[1]}:{attempts + 1}");
+            await userManager.UpdateAsync(user);
             return Result<AuthResponse>.Failure(GenericError);
+        }
 
         // Invalidate OTP and mark email as confirmed
         await userManager.RemoveAuthenticationTokenAsync(user, "Inkril", "EmailVerificationOtp");
