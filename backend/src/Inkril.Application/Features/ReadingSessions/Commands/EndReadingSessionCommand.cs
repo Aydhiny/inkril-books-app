@@ -34,13 +34,22 @@ public class EndReadingSessionCommandHandler(
         if (session.EndedAt.HasValue)
             return Result.Failure("Session already ended.");
 
+        if (cmd.EndPage < session.StartPage)
+            return Result.Failure(
+                $"End page ({cmd.EndPage}) cannot be less than the start page ({session.StartPage}).");
+
+        var book = await uow.Books.GetByIdAsync(session.BookId, ct);
+        if (book is not null && book.TotalPages > 0 && cmd.EndPage > book.TotalPages)
+            return Result.Failure(
+                $"End page {cmd.EndPage} exceeds the book's total pages ({book.TotalPages}).");
+
         session.EndedAt = DateTime.UtcNow;
         session.EndPage = cmd.EndPage;
         session.DurationMinutes = (int)(session.EndedAt.Value - session.StartedAt).TotalMinutes;
         session.UpdatedAt = DateTime.UtcNow;
         uow.ReadingSessions.Update(session);
 
-        await UpdateUserBookProgressAsync(session, ct);
+        var justCompleted = await UpdateUserBookProgressAsync(session, book, ct);
 
         // Save session + UserBook in their own transaction first.
         // The daily-stat upsert runs separately so its concurrency guard
@@ -50,11 +59,10 @@ public class EndReadingSessionCommandHandler(
         // Private books (IsPublic = false) are personal uploads — they should
         // not affect streaks, daily stats, leaderboard, or friends' feeds.
         // Progress tracking (UserBook.LastReadPage) is still saved above.
-        var book = await uow.Books.GetByIdAsync(session.BookId, ct);
         if (book is not null && !book.IsPublic)
             return Result.Success();
 
-        var streakDays = await UpsertDailyStatAsync(session, ct);
+        var streakDays = await UpsertDailyStatAsync(session, justCompleted, ct);
 
         var milestones = new[] { 30, 60, 120 };
         var totalToday = await GetTodayMinutesAsync(userId, ct);
@@ -72,17 +80,16 @@ public class EndReadingSessionCommandHandler(
         return Result.Success();
     }
 
-    private async Task UpdateUserBookProgressAsync(ReadingSession session, CancellationToken ct)
+    private async Task<bool> UpdateUserBookProgressAsync(ReadingSession session, Book? book, CancellationToken ct)
     {
-        var book = await uow.Books.GetByIdAsync(session.BookId, ct);
-        if (book is null) return;
+        if (book is null) return false;
 
         var userBook = await uow.UserBooks.FirstOrDefaultAsync(
             ub => ub.UserId == session.UserId && ub.BookId == session.BookId, ct);
 
         // StartReadingSessionCommand already guards that the user has a UserBook.
         // If somehow it's missing (e.g. soft-deleted between start and end), skip progress update.
-        if (userBook is null) return;
+        if (userBook is null) return false;
 
         userBook.LastReadPageNumber = session.EndPage;
         userBook.LastReadAt = session.EndedAt;
@@ -91,11 +98,14 @@ public class EndReadingSessionCommandHandler(
             ? Math.Min(100, Math.Round((double)session.EndPage / book.TotalPages * 100, 1))
             : 0;
 
+        var wasAlreadyCompleted = userBook.IsCompleted;
         if (userBook.ReadingProgressPercent >= 100)
             userBook.MarkCompleted();
 
         userBook.UpdatedAt = DateTime.UtcNow;
         uow.UserBooks.Update(userBook);
+
+        return !wasAlreadyCompleted && userBook.IsCompleted;
     }
 
     /// <summary>
@@ -103,7 +113,7 @@ public class EndReadingSessionCommandHandler(
     /// for the same user, the unique index on (UserId, Date) blocks the second INSERT.
     /// The catch falls back to a direct UPDATE so no minutes are lost.
     /// </summary>
-    private async Task<int> UpsertDailyStatAsync(ReadingSession session, CancellationToken ct)
+    private async Task<int> UpsertDailyStatAsync(ReadingSession session, bool incrementBooksCompleted, CancellationToken ct)
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var yesterday = today.AddDays(-1);
@@ -125,6 +135,7 @@ public class EndReadingSessionCommandHandler(
                 MinutesRead = session.DurationMinutes,
                 PagesRead = session.PagesRead,
                 StreakDays = streak,
+                BooksCompleted = incrementBooksCompleted ? 1 : 0,
                 CreatedBy = session.UserId.ToString()
             };
             await uow.DailyReadingStats.AddAsync(newStat, ct);
@@ -147,6 +158,7 @@ public class EndReadingSessionCommandHandler(
                 {
                     existing.MinutesRead += session.DurationMinutes;
                     existing.PagesRead += session.PagesRead;
+                    if (incrementBooksCompleted) existing.BooksCompleted++;
                     existing.UpdatedAt = DateTime.UtcNow;
                     uow.DailyReadingStats.Update(existing);
                     await uow.SaveChangesAsync(ct);
@@ -158,6 +170,7 @@ public class EndReadingSessionCommandHandler(
             stat.MinutesRead += session.DurationMinutes;
             stat.PagesRead += session.PagesRead;
             stat.StreakDays = streak;
+            if (incrementBooksCompleted) stat.BooksCompleted++;
             stat.UpdatedAt = DateTime.UtcNow;
             uow.DailyReadingStats.Update(stat);
             await uow.SaveChangesAsync(ct);

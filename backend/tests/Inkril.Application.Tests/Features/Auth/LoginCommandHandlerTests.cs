@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Inkril.Application.Common.Interfaces;
 using Inkril.Application.Features.Auth.Commands;
 using Inkril.Domain.Entities;
 using Microsoft.AspNetCore.Identity;

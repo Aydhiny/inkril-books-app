@@ -1,4 +1,5 @@
 using System.Text;
+using Inkril.NotificationWorker.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;

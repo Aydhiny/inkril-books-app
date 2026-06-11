@@ -17,18 +17,22 @@ public class StartReadingSessionCommandHandlerTests
 {
     private static (Mock<IUnitOfWork> uow, Mock<IRepository<Book>> bookRepo,
                     Mock<IRepository<UserBook>> userBookRepo,
-                    Mock<IRepository<ReadingSession>> sessionRepo) BuildMocks()
+                    Mock<IRepository<ReadingSession>> sessionRepo,
+                    Mock<ICurrentUserService> currentUser) BuildMocks(Guid userId)
     {
         var uow         = new Mock<IUnitOfWork>();
         var bookRepo    = new Mock<IRepository<Book>>();
         var ubRepo      = new Mock<IRepository<UserBook>>();
         var sessionRepo = new Mock<IRepository<ReadingSession>>();
+        var currentUser = new Mock<ICurrentUserService>();
+
+        currentUser.Setup(c => c.UserId).Returns(userId);
 
         uow.Setup(u => u.Books).Returns(bookRepo.Object);
         uow.Setup(u => u.UserBooks).Returns(ubRepo.Object);
         uow.Setup(u => u.ReadingSessions).Returns(sessionRepo.Object);
 
-        return (uow, bookRepo, ubRepo, sessionRepo);
+        return (uow, bookRepo, ubRepo, sessionRepo, currentUser);
     }
 
     // ── Ownership gate regression ─────────────────────────────────────────────
@@ -36,7 +40,8 @@ public class StartReadingSessionCommandHandlerTests
     [Fact]
     public async Task Handle_UserDoesNotOwnBook_ReturnsFailure()
     {
-        var (uow, bookRepo, userBookRepo, _) = BuildMocks();
+        var userId = Guid.NewGuid();
+        var (uow, bookRepo, userBookRepo, _, currentUser) = BuildMocks(userId);
         var bookId = Guid.NewGuid();
 
         bookRepo.Setup(r => r.GetByIdAsync(bookId, default))
@@ -46,9 +51,9 @@ public class StartReadingSessionCommandHandlerTests
             It.IsAny<System.Linq.Expressions.Expression<Func<UserBook, bool>>>(), default))
             .ReturnsAsync(false);
 
-        var handler = new StartReadingSessionCommandHandler(uow.Object);
+        var handler = new StartReadingSessionCommandHandler(uow.Object, currentUser.Object);
         var result  = await handler.Handle(
-            new StartReadingSessionCommand(Guid.NewGuid(), bookId, 0), default);
+            new StartReadingSessionCommand(bookId, 0), default);
 
         result.Succeeded.Should().BeFalse();
         result.Errors[0].Should().Contain("library");
@@ -59,9 +64,9 @@ public class StartReadingSessionCommandHandlerTests
     [Fact]
     public async Task Handle_OwnerStartsSession_ReturnsSessionId()
     {
-        var (uow, bookRepo, userBookRepo, sessionRepo) = BuildMocks();
-        var bookId = Guid.NewGuid();
         var userId = Guid.NewGuid();
+        var (uow, bookRepo, userBookRepo, sessionRepo, currentUser) = BuildMocks(userId);
+        var bookId = Guid.NewGuid();
 
         bookRepo.Setup(r => r.GetByIdAsync(bookId, default))
                 .ReturnsAsync(new Book { Id = bookId, Title = "Book" });
@@ -73,9 +78,9 @@ public class StartReadingSessionCommandHandlerTests
         sessionRepo.Setup(r => r.AddAsync(It.IsAny<ReadingSession>(), default))
                    .Returns(Task.CompletedTask);
 
-        var handler = new StartReadingSessionCommandHandler(uow.Object);
+        var handler = new StartReadingSessionCommandHandler(uow.Object, currentUser.Object);
         var result  = await handler.Handle(
-            new StartReadingSessionCommand(userId, bookId, 1), default);
+            new StartReadingSessionCommand(bookId, 1), default);
 
         result.Succeeded.Should().BeTrue();
         result.Value.Should().NotBe(Guid.Empty);

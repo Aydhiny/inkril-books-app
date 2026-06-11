@@ -27,6 +27,10 @@ public class StartReadingSessionCommandHandler(IUnitOfWork uow, ICurrentUserServ
         var book = await uow.Books.GetByIdAsync(cmd.BookId, ct);
         if (book is null) return Result<Guid>.Failure("Book not found.");
 
+        if (book.TotalPages > 0 && cmd.StartPage > book.TotalPages)
+            return Result<Guid>.Failure(
+                $"Start page {cmd.StartPage} exceeds the book's total pages ({book.TotalPages}).");
+
         var ownsBook = await uow.UserBooks.AnyAsync(
             ub => ub.UserId == userId && ub.BookId == cmd.BookId, ct);
         if (!ownsBook)

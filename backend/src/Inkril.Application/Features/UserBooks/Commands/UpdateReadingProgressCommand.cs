@@ -52,12 +52,27 @@ public class UpdateReadingProgressCommandHandler(IUnitOfWork uow, ICurrentUserSe
             ? Math.Min(100, Math.Round((double)cmd.CurrentPage / book.TotalPages * 100, 1))
             : 0;
 
+        var wasAlreadyCompleted = userBook.IsCompleted;
         if (userBook.ReadingProgressPercent >= 100)
             userBook.MarkCompleted();
 
         userBook.UpdatedAt = DateTime.UtcNow;
         uow.UserBooks.Update(userBook);
         await uow.SaveChangesAsync(ct);
+
+        if (!wasAlreadyCompleted && userBook.IsCompleted)
+        {
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var stat = await uow.DailyReadingStats.FirstOrDefaultAsync(
+                s => s.UserId == userId && s.Date == today, ct);
+            if (stat is not null)
+            {
+                stat.BooksCompleted++;
+                stat.UpdatedAt = DateTime.UtcNow;
+                uow.DailyReadingStats.Update(stat);
+                await uow.SaveChangesAsync(ct);
+            }
+        }
 
         return Result.Success();
     }

@@ -3,6 +3,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
+namespace Inkril.NotificationWorker.Services;
+
 // Notification type constants matching the NotificationType enum integer values in the domain.
 // The worker inserts directly via SQL so it must use the same integer representation.
 // Keep in sync with Inkril.Domain.Entities.NotificationType.
@@ -15,8 +17,6 @@ internal static class NotificationTypes
     public const int StreakReminder         = 6;
     public const int FriendRequestRejected  = 7;
 }
-
-namespace Inkril.NotificationWorker.Services;
 
 public interface INotificationDbService
 {
