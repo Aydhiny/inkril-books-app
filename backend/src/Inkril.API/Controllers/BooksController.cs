@@ -7,12 +7,19 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using UglyToad.PdfPig;
 
+// ReSharper disable RouteTemplates.ActionRoutePrefixCanBeExtractedToControllerRoute
+
 namespace Inkril.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class BooksController(IMediator mediator, ICurrentUserService currentUser, IUnitOfWork uow, IWebHostEnvironment env) : ApiControllerBase
+public class BooksController(
+    IMediator mediator,
+    ICurrentUserService currentUser,
+    IUnitOfWork uow,
+    IWebHostEnvironment env,
+    IMessagePublisher publisher) : ApiControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] GetBooksQuery query, CancellationToken ct)
@@ -118,7 +125,7 @@ public class BooksController(IMediator mediator, ICurrentUserService currentUser
         if (!currentUser.IsInRole("desktop") && book.CreatedBy != currentUser.UserName)
             return Forbid();
 
-        var uploadsDir = Path.Combine(env.WebRootPath, "uploads", "covers");
+        var uploadsDir = Path.Combine(env.ContentRootPath, "uploads", "covers");
         Directory.CreateDirectory(uploadsDir);
 
         var fileName = $"{id}{ext}";
@@ -157,7 +164,7 @@ public class BooksController(IMediator mediator, ICurrentUserService currentUser
         if (!currentUser.IsInRole("desktop") && book.CreatedBy != currentUser.UserName)
             return Forbid();
 
-        var uploadsDir = Path.Combine(env.WebRootPath, "uploads", "books");
+        var uploadsDir = Path.Combine(env.ContentRootPath, "uploads", "books");
         Directory.CreateDirectory(uploadsDir);
 
         var fileName = $"{id}.pdf";
@@ -166,12 +173,23 @@ public class BooksController(IMediator mediator, ICurrentUserService currentUser
         await using (var stream = System.IO.File.Create(filePath))
             await file.CopyToAsync(stream, ct);
 
+        var wasFirstUpload = string.IsNullOrWhiteSpace(book.FilePath);
         book.FilePath = $"/uploads/books/{fileName}";
         book.FileSizeBytes = file.Length;
         book.TotalPages = ExtractPageCount(filePath);
         book.UpdatedAt = DateTime.UtcNow;
         uow.Books.Update(book);
         await uow.SaveChangesAsync(ct);
+
+        // Publish book.published only on the first PDF upload for public non-local books.
+        // CreateBookCommand deferred this event because the PDF wasn't available yet.
+        if (wasFirstUpload && book.IsPublic && !book.IsLocal)
+        {
+            await publisher.PublishAsync(
+                new { BookId = book.Id, BookTitle = book.Title, BookAuthor = book.Author },
+                routingKey: "book.published",
+                ct);
+        }
 
         return Ok(new { filePath = book.FilePath, fileSizeBytes = book.FileSizeBytes, totalPages = book.TotalPages });
     }

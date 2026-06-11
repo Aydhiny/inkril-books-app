@@ -90,8 +90,10 @@ public class CreateBookCommandHandler(
 
         await uow.SaveChangesAsync(ct);
 
-        // Notify all users only for new public non-local books
-        if (cmd.IsPublic && !cmd.IsLocal)
+        // Publish the notification only when the book has a PDF already attached.
+        // If FilePath is empty the PDF will be uploaded separately via POST /upload-pdf,
+        // and that endpoint is responsible for publishing the event once the file lands.
+        if (cmd.IsPublic && !cmd.IsLocal && !string.IsNullOrWhiteSpace(cmd.FilePath))
         {
             await publisher.PublishAsync(
                 new { BookId = book.Id, BookTitle = book.Title, BookAuthor = book.Author },
