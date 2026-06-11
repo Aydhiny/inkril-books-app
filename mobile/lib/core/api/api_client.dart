@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../config/app_config.dart';
@@ -19,17 +20,18 @@ final dioProvider = Provider<Dio>((ref) {
     AuthInterceptor(
       storage: const FlutterSecureStorage(),
       baseUrl: AppConfig.apiBaseUrl,
-      // When the refresh token is also invalid, wipe state so GoRouter
-      // redirects to /auth/login automatically.
       onForceLogout: () =>
           ref.read(isAuthenticatedProvider.notifier).state = false,
     ),
-    LogInterceptor(
+  ]);
+
+  if (kDebugMode) {
+    dio.interceptors.add(LogInterceptor(
       requestBody: true,
       responseBody: true,
-      logPrint: (o) => print('[DIO] $o'),
-    ),
-  ]);
+      logPrint: (o) => debugPrint('[DIO] $o'),
+    ));
+  }
 
   return dio;
 });

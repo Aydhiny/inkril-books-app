@@ -14,11 +14,11 @@ class AppConfig {
   );
 
   /// Stripe publishable key — NOT secret, safe to commit.
-  /// pk_test_ keys are for development; swap to pk_live_ for production via
-  /// --dart-define=STRIPE_PUBLISHABLE_KEY=pk_live_... at release build time.
+  /// Must be supplied at build time via --dart-define=STRIPE_PUBLISHABLE_KEY=pk_test_…
+  /// (or pk_live_… for production). There is intentionally no fallback value here
+  /// to prevent a hardcoded test key from slipping into a release build.
   static const String stripePublishableKey = String.fromEnvironment(
     'STRIPE_PUBLISHABLE_KEY',
-    defaultValue: 'pk_test_51TcjRbChJpdX2GhTlWIFUH5cRrKp31KovOJoW8U6jVoyIVDtv106qSwkhiggBr5R42OTVGIp9vWHHs9hgyDOVgHx00jRwNU5Z3',
   );
 
   static const String appName = 'Inkril';
