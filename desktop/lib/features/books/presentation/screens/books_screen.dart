@@ -551,6 +551,7 @@ class _BookUploadDialog extends ConsumerStatefulWidget {
 }
 
 class _BookUploadDialogState extends ConsumerState<_BookUploadDialog> {
+  final _formKey  = GlobalKey<FormState>();
   final _titleCtrl = TextEditingController();
   final _authorCtrl = TextEditingController();
   String? _selectedGenreId;
@@ -560,6 +561,13 @@ class _BookUploadDialogState extends ConsumerState<_BookUploadDialog> {
   bool _loading = false;
 
   bool get _isEditing => widget.book != null;
+
+  String? get _existingCoverUrl {
+    if (!_isEditing) return null;
+    final raw = widget.book!['coverImageUrl'] as String?;
+    if (raw == null || raw.isEmpty) return null;
+    return raw.startsWith('http') ? raw : '${AppConfig.apiBaseUrl}$raw';
+  }
 
   @override
   void initState() {
@@ -596,11 +604,7 @@ class _BookUploadDialogState extends ConsumerState<_BookUploadDialog> {
   }
 
   Future<void> _submit() async {
-    if (_titleCtrl.text.trim().isEmpty || _authorCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Title and Author are required.')));
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
     try {
       final genreIds =
@@ -682,7 +686,9 @@ class _BookUploadDialogState extends ConsumerState<_BookUploadDialog> {
                     width: 300,
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(28, 32, 24, 24),
-                      child: Column(
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // Title
@@ -703,18 +709,22 @@ class _BookUploadDialogState extends ConsumerState<_BookUploadDialog> {
                           // Book Title
                           _FieldLabel('Book Title'),
                           const SizedBox(height: 4),
-                          _FormField(
+                          _ValidatedField(
                             controller: _titleCtrl,
                             hint: 'Title here...',
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? 'Title is required' : null,
                           ),
                           const SizedBox(height: 14),
 
                           // Author
                           _FieldLabel('Author Name'),
                           const SizedBox(height: 4),
-                          _FormField(
+                          _ValidatedField(
                             controller: _authorCtrl,
                             hint: 'Author name here...',
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? 'Author is required' : null,
                           ),
                           const SizedBox(height: 14),
 
@@ -861,6 +871,7 @@ class _BookUploadDialogState extends ConsumerState<_BookUploadDialog> {
                             ),
                           ]),
                         ],
+                        ),
                       ),
                     ),
                   ),
@@ -1016,32 +1027,60 @@ class _BookUploadDialogState extends ConsumerState<_BookUploadDialog> {
                                             fit: BoxFit.contain,
                                           ),
                                         )
-                                      : Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Text(
-                                              'Insert Image Here',
-                                              style: TextStyle(
-                                                fontSize: 20,
-                                                fontWeight: FontWeight.w500,
-                                                color:
-                                                    Colors.grey.shade500,
-                                              ),
-                                              textAlign: TextAlign.center,
+                                      : _existingCoverUrl != null
+                                          ? Stack(
+                                              alignment: Alignment.center,
+                                              children: [
+                                                ClipRRect(
+                                                  borderRadius: BorderRadius.circular(4),
+                                                  child: Image.network(
+                                                    _existingCoverUrl!,
+                                                    fit: BoxFit.contain,
+                                                    errorBuilder: (_, __, ___) =>
+                                                        const Icon(Icons.image_not_supported,
+                                                            size: 48, color: Colors.grey),
+                                                  ),
+                                                ),
+                                                Positioned(
+                                                  bottom: 8,
+                                                  child: Container(
+                                                    padding: const EdgeInsets.symmetric(
+                                                        horizontal: 8, vertical: 4),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.black54,
+                                                      borderRadius: BorderRadius.circular(4),
+                                                    ),
+                                                    child: const Text(
+                                                      'Tap to replace',
+                                                      style: TextStyle(
+                                                          color: Colors.white, fontSize: 11),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            )
+                                          : Column(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                Text(
+                                                  'Insert Image Here',
+                                                  style: TextStyle(
+                                                    fontSize: 20,
+                                                    fontWeight: FontWeight.w500,
+                                                    color: Colors.grey.shade500,
+                                                  ),
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                                const SizedBox(height: 8),
+                                                Text(
+                                                  'Tap to choose',
+                                                  style: TextStyle(
+                                                      fontSize: 12,
+                                                      color: Colors.grey.shade400),
+                                                ),
+                                              ],
                                             ),
-                                            if (_coverFile == null) ...[
-                                              const SizedBox(height: 8),
-                                              Text(
-                                                'Tap to choose',
-                                                style: TextStyle(
-                                                    fontSize: 12,
-                                                    color: Colors
-                                                        .grey.shade400),
-                                              ),
-                                            ],
-                                          ],
-                                        ),
                                 ),
                               ),
                             ),
@@ -1109,14 +1148,17 @@ class _FieldLabel extends StatelessWidget {
       );
 }
 
-class _FormField extends StatelessWidget {
+class _ValidatedField extends StatelessWidget {
   final TextEditingController controller;
   final String hint;
-  const _FormField({required this.controller, required this.hint});
+  final String? Function(String?)? validator;
+  const _ValidatedField(
+      {required this.controller, required this.hint, this.validator});
 
   @override
-  Widget build(BuildContext context) => TextField(
+  Widget build(BuildContext context) => TextFormField(
         controller: controller,
+        validator: validator,
         style: const TextStyle(fontSize: 14),
         decoration: InputDecoration(
           hintText: hint,

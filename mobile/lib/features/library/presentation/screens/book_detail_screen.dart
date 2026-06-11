@@ -629,6 +629,30 @@ class _BuyButton extends ConsumerWidget {
   }
 
   Future<void> _buy(BuildContext context, WidgetRef ref) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirm Purchase'),
+        content: Text(price != null
+            ? 'Purchase this book for \$${price!.toStringAsFixed(2)}?'
+            : 'Purchase this book?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFF59E0B),
+              foregroundColor: const Color(0xFF78350F),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Buy', style: TextStyle(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !context.mounted) return;
+
     final notifier = ref.read(paymentProvider.notifier);
     final success = await notifier.purchaseBook(bookId);
     if (success && context.mounted) {
