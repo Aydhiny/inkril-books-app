@@ -3,13 +3,26 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
+// Notification type constants matching the NotificationType enum integer values in the domain.
+// The worker inserts directly via SQL so it must use the same integer representation.
+// Keep in sync with Inkril.Domain.Entities.NotificationType.
+internal static class NotificationTypes
+{
+    public const int NewBook                = 0;
+    public const int FriendRequest          = 1;
+    public const int FriendRequestAccepted  = 2;
+    public const int FriendReadingMilestone = 3;
+    public const int StreakReminder         = 6;
+    public const int FriendRequestRejected  = 7;
+}
+
 namespace Inkril.NotificationWorker.Services;
 
 public interface INotificationDbService
 {
     Task<IEnumerable<string>> GetNewBookNotificationEmailsAsync();
-    Task CreateNotificationAsync(Guid userId, string type, string title, string message, Guid? referenceId = null);
-    Task CreateBulkNotificationAsync(string type, string title, string message, Guid? referenceId = null);
+    Task CreateNotificationAsync(Guid userId, int type, string title, string message, Guid? referenceId = null);
+    Task CreateBulkNotificationAsync(int type, string title, string message, Guid? referenceId = null);
     Task<IEnumerable<Guid>> GetFriendIdsAsync(Guid userId);
     /// <summary>Returns (userId, streakDays) for every user who has a streak but
     /// has NOT logged any reading time today.</summary>
@@ -51,7 +64,7 @@ public class NotificationDbService(IConfiguration config, ILogger<NotificationDb
     }
 
     public async Task CreateNotificationAsync(
-        Guid userId, string type, string title, string message, Guid? referenceId = null)
+        Guid userId, int type, string title, string message, Guid? referenceId = null)
     {
         await using var conn = new Npgsql.NpgsqlConnection(ConnectionString);
         await conn.OpenAsync();
@@ -74,7 +87,7 @@ public class NotificationDbService(IConfiguration config, ILogger<NotificationDb
     }
 
     public async Task CreateBulkNotificationAsync(
-        string type, string title, string message, Guid? referenceId = null)
+        int type, string title, string message, Guid? referenceId = null)
     {
         await using var conn = new Npgsql.NpgsqlConnection(ConnectionString);
         await conn.OpenAsync();

@@ -3,6 +3,7 @@ using Inkril.Application.Common.Interfaces;
 using Inkril.Application.Common.Models;
 using Inkril.Domain.Entities;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 namespace Inkril.Application.Features.Friends.Commands;
 
@@ -51,6 +52,30 @@ public class RespondToFriendRequestCommandHandler(IUnitOfWork uow)
                 FriendId = request.SenderId,
                 FriendsSince = DateTime.UtcNow,
                 CreatedBy = cmd.ResponderId.ToString()
+            }, ct);
+
+            // Notify the original sender that their request was accepted.
+            await uow.Notifications.AddAsync(new Notification
+            {
+                UserId      = request.SenderId,
+                Type        = NotificationType.FriendRequestAccepted,
+                Title       = "Friend request accepted",
+                Message     = "Your friend request has been accepted!",
+                ReferenceId = request.ReceiverId,
+                CreatedBy   = cmd.ResponderId.ToString()
+            }, ct);
+        }
+        else
+        {
+            // Notify the sender that their request was declined.
+            await uow.Notifications.AddAsync(new Notification
+            {
+                UserId      = request.SenderId,
+                Type        = NotificationType.FriendRequestRejected,
+                Title       = "Friend request declined",
+                Message     = "Your friend request was not accepted.",
+                ReferenceId = request.ReceiverId,
+                CreatedBy   = cmd.ResponderId.ToString()
             }, ct);
         }
 

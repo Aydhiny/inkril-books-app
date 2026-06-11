@@ -136,9 +136,9 @@ public class NotificationConsumer(
             await emailService.SendNewBookNotificationAsync(email, bookTitle!, bookAuthor!);
         }
 
-        // Create in-app notifications
+        // Create in-app notifications (type = integer enum value for NotificationType.NewBook)
         await dbService.CreateBulkNotificationAsync(
-            type: "NewBook",
+            type: NotificationTypes.NewBook,
             title: "New book available!",
             message: $"'{bookTitle}' by {bookAuthor} has been added to the library.",
             referenceId: Guid.TryParse(bookId, out var bid) ? bid : null);
@@ -156,7 +156,7 @@ public class NotificationConsumer(
 
         await dbService.CreateNotificationAsync(
             userId: receiverId,
-            type: "FriendRequest",
+            type: NotificationTypes.FriendRequest,
             title: "New friend request",
             message: "Someone wants to be your reading buddy.",
             referenceId: friendRequestId);
@@ -176,7 +176,7 @@ public class NotificationConsumer(
         {
             await dbService.CreateNotificationAsync(
                 userId: friendId,
-                type: "FriendReadingMilestone",
+                type: NotificationTypes.FriendReadingMilestone,
                 title: "Your friend reached a milestone!",
                 message: $"Your friend has reached a {milestone}.",
                 referenceId: userId);

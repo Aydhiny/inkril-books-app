@@ -4,12 +4,14 @@ namespace Inkril.Domain.Entities;
 
 public enum NotificationType
 {
-    NewBook,
-    FriendRequest,
-    FriendRequestAccepted,
-    FriendReadingMilestone,
-    WeeklyReadingSummary,
-    System
+    NewBook               = 0,
+    FriendRequest         = 1,
+    FriendRequestAccepted = 2,
+    FriendReadingMilestone = 3,
+    WeeklyReadingSummary  = 4,
+    System                = 5,
+    StreakReminder        = 6,
+    FriendRequestRejected = 7,
 }
 
 /// <summary>

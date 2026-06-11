@@ -50,8 +50,8 @@ public class StreakReminderWorker(
             {
                 await dbService.CreateNotificationAsync(
                     userId:      userId,
-                    type:        "StreakReminder",
-                    title:       "Your streak is at risk! 🔥",
+                    type:        NotificationTypes.StreakReminder,
+                    title:       "Your streak is at risk!",
                     message:     $"You haven't read today. Your {streakDays}-day streak will reset at midnight — open a book to keep it alive!");
                 count++;
             }
