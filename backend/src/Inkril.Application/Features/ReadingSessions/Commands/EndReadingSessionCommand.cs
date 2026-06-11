@@ -80,17 +80,15 @@ public class EndReadingSessionCommandHandler(
         var userBook = await uow.UserBooks.FirstOrDefaultAsync(
             ub => ub.UserId == session.UserId && ub.BookId == session.BookId, ct);
 
-        if (userBook is null)
-        {
-            userBook = new UserBook { UserId = session.UserId, BookId = session.BookId };
-            await uow.UserBooks.AddAsync(userBook, ct);
-        }
+        // StartReadingSessionCommand already guards that the user has a UserBook.
+        // If somehow it's missing (e.g. soft-deleted between start and end), skip progress update.
+        if (userBook is null) return;
 
         userBook.LastReadPageNumber = session.EndPage;
         userBook.LastReadAt = session.EndedAt;
 
         userBook.ReadingProgressPercent = book.TotalPages > 0
-            ? Math.Round((double)session.EndPage / book.TotalPages * 100, 1)
+            ? Math.Min(100, Math.Round((double)session.EndPage / book.TotalPages * 100, 1))
             : 0;
 
         if (userBook.ReadingProgressPercent >= 100)

@@ -36,22 +36,20 @@ public class UpdateReadingProgressCommandHandler(IUnitOfWork uow, ICurrentUserSe
         var userBook = await uow.UserBooks.FirstOrDefaultAsync(
             ub => ub.UserId == userId && ub.BookId == cmd.BookId, ct);
 
+        // Do NOT auto-create a UserBook here. The user must have explicitly added the
+        // book via AddBookToLibraryCommand (which enforces the premium purchase gate).
+        // Auto-creating a UserBook would bypass the access check in GetBookReadUrlQuery.
         if (userBook is null)
-        {
-            userBook = new UserBook
-            {
-                UserId = userId,
-                BookId = cmd.BookId,
-                CreatedBy = userId.ToString()
-            };
-            await uow.UserBooks.AddAsync(userBook, ct);
-        }
+            return Result.Failure("Book is not in your library. Add it first.");
+
+        if (book.TotalPages > 0 && cmd.CurrentPage > book.TotalPages)
+            return Result.Failure($"Page {cmd.CurrentPage} exceeds the book's total pages ({book.TotalPages}).");
 
         userBook.LastReadPageNumber = cmd.CurrentPage;
         userBook.LastReadAt = DateTime.UtcNow;
 
         userBook.ReadingProgressPercent = book.TotalPages > 0
-            ? Math.Round((double)cmd.CurrentPage / book.TotalPages * 100, 1)
+            ? Math.Min(100, Math.Round((double)cmd.CurrentPage / book.TotalPages * 100, 1))
             : 0;
 
         if (userBook.ReadingProgressPercent >= 100)

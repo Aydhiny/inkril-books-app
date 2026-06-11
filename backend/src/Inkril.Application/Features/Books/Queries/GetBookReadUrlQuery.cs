@@ -1,5 +1,6 @@
 using Inkril.Application.Common.Interfaces;
 using Inkril.Application.Common.Models;
+using Inkril.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -43,6 +44,17 @@ public class GetBookReadUrlQueryHandler(IUnitOfWork uow)
 
         if (!owns)
             return Result<string>.Failure("You do not have access to this book. Add it to your library first.");
+
+        // For premium books, also verify that the purchase is still active (not refunded).
+        if (book.IsPremium)
+        {
+            var hasActivePurchase = await uow.Purchases.AnyAsync(
+                p => p.UserId == q.RequestingUserId && p.BookId == q.BookId
+                  && p.Status == PurchaseStatus.Succeeded, ct);
+
+            if (!hasActivePurchase)
+                return Result<string>.Failure("Your purchase for this book has been refunded.");
+        }
 
         return Result<string>.Success(book.FilePath);
     }
