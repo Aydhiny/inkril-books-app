@@ -33,7 +33,7 @@ public class RefundPurchaseCommandHandler(IUnitOfWork uow, IPaymentService payme
                   && p.UserId == cmd.UserId, ct);
 
         if (purchase is null)
-            return Result.Failure("Purchase not found.");
+            return Result.NotFound("Purchase not found.");
 
         // Guard: only Succeeded or PartiallyRefunded can be fully refunded
         if (purchase.Status != PurchaseStatus.Succeeded
@@ -52,8 +52,15 @@ public class RefundPurchaseCommandHandler(IUnitOfWork uow, IPaymentService payme
 
         // State machine: Succeeded|PartiallyRefunded → Refunded
         purchase.Transition(PurchaseStatus.Refunded);
-
         uow.Purchases.Update(purchase);
+
+        // Full refund = access revoked. Remove the library entry so the user
+        // can no longer open the book or have it appear in their progress.
+        var userBook = await uow.UserBooks.FirstOrDefaultAsync(
+            ub => ub.UserId == purchase.UserId && ub.BookId == purchase.BookId && !ub.IsDeleted, ct);
+        if (userBook is not null)
+            uow.UserBooks.SoftDelete(userBook);
+
         await uow.SaveChangesAsync(ct);
 
         return Result.Success();

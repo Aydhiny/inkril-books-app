@@ -53,7 +53,7 @@ public class PartialRefundPurchaseCommandHandler(IUnitOfWork uow, IPaymentServic
                   && p.UserId == cmd.UserId, ct);
 
         if (purchase is null)
-            return Result<PartialRefundResultDto>.Failure("Purchase not found.");
+            return Result<PartialRefundResultDto>.NotFound("Purchase not found.");
 
         if (purchase.Status != PurchaseStatus.Succeeded
          && purchase.Status != PurchaseStatus.PartiallyRefunded)
@@ -84,6 +84,16 @@ public class PartialRefundPurchaseCommandHandler(IUnitOfWork uow, IPaymentServic
 
         purchase.Transition(newStatus);
         uow.Purchases.Update(purchase);
+
+        // If this partial refund covered the full amount, revoke library access.
+        if (newStatus == PurchaseStatus.Refunded)
+        {
+            var userBook = await uow.UserBooks.FirstOrDefaultAsync(
+                ub => ub.UserId == purchase.UserId && ub.BookId == purchase.BookId && !ub.IsDeleted, ct);
+            if (userBook is not null)
+                uow.UserBooks.SoftDelete(userBook);
+        }
+
         await uow.SaveChangesAsync(ct);
 
         return Result<PartialRefundResultDto>.Success(new PartialRefundResultDto(

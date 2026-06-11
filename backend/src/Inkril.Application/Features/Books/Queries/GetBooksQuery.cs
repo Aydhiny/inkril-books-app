@@ -57,6 +57,7 @@ public class GetBooksQueryHandler(IUnitOfWork uow) : IRequestHandler<GetBooksQue
         var count = await query.CountAsync(ct);
 
         var items = await query
+            .OrderByDescending(b => b.CreatedAt)
             .Skip((q.PageNumber - 1) * pageSize)
             .Take(pageSize)
             .Select(b => new BookDto(

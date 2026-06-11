@@ -70,6 +70,14 @@ public class StripePaymentService : IPaymentService
         return intent.Status == "succeeded";
     }
 
+    /// <inheritdoc />
+    public async Task<(string ClientSecret, string PaymentIntentId)> RetrievePaymentIntentAsync(
+        string paymentIntentId, CancellationToken ct = default)
+    {
+        var intent = await new PaymentIntentService().GetAsync(paymentIntentId, cancellationToken: ct);
+        return (intent.ClientSecret, intent.Id);
+    }
+
     // ── Saved payment methods ─────────────────────────────────────────────────
 
     /// <inheritdoc />

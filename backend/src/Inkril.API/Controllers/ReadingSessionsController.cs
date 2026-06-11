@@ -1,8 +1,10 @@
 using Inkril.Application.Common.Interfaces;
+using Inkril.Application.Common.Models;
 using Inkril.Application.Features.ReadingSessions.Commands;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace Inkril.API.Controllers;
 
@@ -29,11 +31,29 @@ public class ReadingSessionsController(
     }
 
     [HttpGet("my")]
-    public async Task<IActionResult> GetMySessions(CancellationToken ct)
+    public async Task<IActionResult> GetMySessions(
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken ct = default)
     {
         var userId = currentUser.UserId ?? throw new UnauthorizedAccessException();
-        var sessions = await uow.ReadingSessions.FindAsync(s => s.UserId == userId, ct);
-        return Ok(sessions.OrderByDescending(s => s.StartedAt).Take(20));
+        pageSize = Math.Min(pageSize, 50);
+
+        var query = uow.ReadingSessions.Query()
+            .Where(s => s.UserId == userId && !s.IsDeleted);
+
+        var total = await query.CountAsync(ct);
+        var items = await query
+            .OrderByDescending(s => s.StartedAt)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
+
+        return Ok(new PagedList<object>(
+            items.Select(s => (object)s),
+            total,
+            pageNumber,
+            pageSize));
     }
 }
 

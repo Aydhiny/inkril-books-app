@@ -41,34 +41,44 @@ public class CreatePaymentIntentCommandHandler(IUnitOfWork uow, IPaymentService 
             .FirstOrDefaultAsync(b => b.Id == cmd.BookId && !b.IsDeleted, ct);
 
         if (book is null)
-            return Result<PaymentIntentDto>.Failure("Book not found.");
+            return Result<PaymentIntentDto>.NotFound("Book not found.");
 
         if (!book.IsPremium || book.Price is null or <= 0)
             return Result<PaymentIntentDto>.Failure("This book is not available for purchase.");
 
-        // Prevent duplicate purchases
         var alreadyPurchased = await uow.Purchases.AnyAsync(
             p => p.UserId == cmd.UserId && p.BookId == cmd.BookId
               && p.Status == PurchaseStatus.Succeeded, ct);
 
         if (alreadyPurchased)
-            return Result<PaymentIntentDto>.Failure("You have already purchased this book.");
+            return Result<PaymentIntentDto>.Conflict("You have already purchased this book.");
 
-        // Convert price to cents (Stripe works in smallest currency unit)
         var amountCents = (long)Math.Round(book.Price.Value * 100);
-        var description = $"Inkril — {book.Title} by {book.Author}";
 
-        // Ensure the user has a Stripe Customer and fetch their ephemeral key.
-        // This lets the Payment Sheet pre-fill any saved cards the user has stored.
+        // If a Pending purchase already exists, resume it rather than creating a duplicate
+        // PaymentIntent — Stripe would otherwise accumulate uncancelled intents for the same charge.
+        var existingPending = await uow.Purchases.FirstOrDefaultAsync(
+            p => p.UserId == cmd.UserId && p.BookId == cmd.BookId
+              && p.Status == PurchaseStatus.Pending, ct);
+
         var stripeCustomerId = await paymentService.EnsureCustomerAsync(cmd.UserId, ct);
         var ephemeralKey     = await paymentService.CreateEphemeralKeyAsync(stripeCustomerId, ct);
 
+        if (existingPending is not null)
+        {
+            var (existingSecret, existingPiId) =
+                await paymentService.RetrievePaymentIntentAsync(
+                    existingPending.StripePaymentIntentId, ct);
+            return Result<PaymentIntentDto>.Success(
+                new PaymentIntentDto(existingSecret, existingPiId,
+                    existingPending.AmountCents, "usd", stripeCustomerId, ephemeralKey));
+        }
+
+        var description = $"Inkril — {book.Title} by {book.Author}";
         var (clientSecret, paymentIntentId) =
             await paymentService.CreatePaymentIntentAsync(
                 amountCents, "usd", description, stripeCustomerId, ct);
 
-        // Create a pending Purchase record immediately so the PaymentIntent ID is tracked.
-        // Status changes to "succeeded" when ConfirmPurchaseCommand runs after client confirms.
         await uow.Purchases.AddAsync(new Domain.Entities.Purchase
         {
             UserId                = cmd.UserId,
@@ -76,7 +86,6 @@ public class CreatePaymentIntentCommandHandler(IUnitOfWork uow, IPaymentService 
             StripePaymentIntentId = paymentIntentId,
             AmountCents           = amountCents,
             Currency              = "usd",
-            // Status defaults to PurchaseStatus.Pending in the entity constructor
             CreatedBy             = cmd.UserId.ToString()
         }, ct);
 

@@ -22,6 +22,13 @@ public interface IPaymentService
     /// </summary>
     Task<bool> IsPaymentSucceededAsync(string paymentIntentId, CancellationToken ct = default);
 
+    /// <summary>
+    /// Retrieves an existing PaymentIntent from Stripe and returns its client secret and ID.
+    /// Used to resume a Pending purchase without creating a duplicate PaymentIntent.
+    /// </summary>
+    Task<(string ClientSecret, string PaymentIntentId)> RetrievePaymentIntentAsync(
+        string paymentIntentId, CancellationToken ct = default);
+
     // ── Saved payment methods ─────────────────────────────────────────────────
 
     /// <summary>

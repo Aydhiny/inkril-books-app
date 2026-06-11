@@ -4,6 +4,7 @@ using Inkril.Application.Features.Notifications.Commands;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace Inkril.API.Controllers;
 
@@ -26,17 +27,19 @@ public class NotificationsController(
         var userId = currentUser.UserId ?? throw new UnauthorizedAccessException();
         pageSize = Math.Min(pageSize, MaxPageSize);
 
-        var all = await uow.Notifications.FindAsync(n => n.UserId == userId, ct);
-        var ordered = all.OrderByDescending(n => n.CreatedAt).ToList();
+        var query = uow.Notifications.Query()
+            .Where(n => n.UserId == userId && !n.IsDeleted);
 
-        var paged = ordered
+        var total = await query.CountAsync(ct);
+        var paged = await query
+            .OrderByDescending(n => n.CreatedAt)
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
-            .ToList();
+            .ToListAsync(ct);
 
         return Ok(new PagedList<object>(
             paged.Select(n => (object)n),
-            ordered.Count,
+            total,
             pageNumber,
             pageSize));
     }
