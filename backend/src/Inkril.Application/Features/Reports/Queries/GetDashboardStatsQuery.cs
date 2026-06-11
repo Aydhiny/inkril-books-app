@@ -1,5 +1,7 @@
 using Inkril.Application.Common.Interfaces;
+using Inkril.Domain.Entities;
 using MediatR;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace Inkril.Application.Features.Reports.Queries;
@@ -27,7 +29,7 @@ public record GenreCountDto(string Name, int Count);
 /// <param name="Days">Window for the activity chart. Defaults to 14.</param>
 public record GetDashboardStatsQuery(int Days = 14) : IRequest<DashboardStatsDto>;
 
-public class GetDashboardStatsQueryHandler(IUnitOfWork uow)
+public class GetDashboardStatsQueryHandler(IUnitOfWork uow, UserManager<ApplicationUser> userManager)
     : IRequestHandler<GetDashboardStatsQuery, DashboardStatsDto>
 {
     public async Task<DashboardStatsDto> Handle(GetDashboardStatsQuery q, CancellationToken ct)
@@ -36,8 +38,7 @@ public class GetDashboardStatsQueryHandler(IUnitOfWork uow)
         var chartCutoff  = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-q.Days));
 
         // ── Core KPIs ─────────────────────────────────────────────────────────────────
-        var totalUsers = await uow.DailyReadingStats.Query()
-            .Select(s => s.UserId).Distinct().CountAsync(ct);
+        var totalUsers = await userManager.Users.CountAsync(u => !u.IsDeleted, ct);
 
         var activeUsers = await uow.DailyReadingStats.Query()
             .Where(s => s.Date >= activeCutoff)

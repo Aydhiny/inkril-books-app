@@ -35,6 +35,25 @@ public class GetLeaderboardQueryHandler(IUnitOfWork uow, IMemoryCache cache)
             {
                 ce.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60);
 
+                var today     = DateOnly.FromDateTime(DateTime.UtcNow);
+                var yesterday = today.AddDays(-1);
+
+                // Current streak = StreakDays on the most recent row from today or yesterday.
+                // Max(StreakDays) across all history would return a user's all-time best, not
+                // their active streak — a user who peaked at 100 days months ago would always
+                // sit at the top even with 0 active days.
+                var currentStreaks = await uow.DailyReadingStats.Query()
+                    .Where(s => !s.IsDeleted && (s.Date == today || s.Date == yesterday))
+                    .GroupBy(s => s.UserId)
+                    .Select(g => new
+                    {
+                        UserId        = g.Key,
+                        CurrentStreak = g.OrderByDescending(s => s.Date)
+                                         .Select(s => s.StreakDays)
+                                         .FirstOrDefault()
+                    })
+                    .ToDictionaryAsync(x => x.UserId, x => x.CurrentStreak, ct);
+
                 // Global leaderboard — show all users so it's populated even for new accounts.
                 var stats = await uow.DailyReadingStats.Query()
                     .Where(s => !s.IsDeleted)
@@ -44,16 +63,17 @@ public class GetLeaderboardQueryHandler(IUnitOfWork uow, IMemoryCache cache)
                         g.Key.UserId,
                         g.Key.UserName,
                         g.Key.ProfilePhotoUrl,
-                        TotalMinutes = g.Sum(s => s.MinutesRead),
-                        BooksCompleted = g.Sum(s => s.BooksCompleted),
-                        CurrentStreak = g.Max(s => s.StreakDays)
+                        TotalMinutes   = g.Sum(s => s.MinutesRead),
+                        BooksCompleted = g.Sum(s => s.BooksCompleted)
                     })
                     .OrderByDescending(s => s.TotalMinutes)
                     .ToListAsync(ct);
 
                 return stats.Select((s, i) => new LeaderboardEntryDto(
                     i + 1, s.UserId, s.UserName!, s.ProfilePhotoUrl,
-                    s.TotalMinutes, s.CurrentStreak, s.BooksCompleted)).ToList();
+                    s.TotalMinutes,
+                    currentStreaks.TryGetValue(s.UserId, out var streak) ? streak : 0,
+                    s.BooksCompleted)).ToList();
             }) ?? [];
 
         // currentUserEntry is personalized — resolved from the cached list in O(n).
